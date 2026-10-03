@@ -1284,7 +1284,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (!_hardwareMetrics.IsLowLevelDriverInstalled)
         {
             var answer = MessageBox.Show(
-                "CPU Package temperature, CPU Package power and many motherboard sensors need the signed PawnIO hardware-access driver used by LibreHardwareMonitor.\n\nRunning PC Info Screen Studio as Administrator by itself does NOT install this driver.\n\nInstall PawnIO now using Windows Package Manager?",
+                "CPU Package temperature, CPU Package power and many motherboard sensors need the signed PawnIO hardware-access driver used by LibreHardwareMonitor.\n\nRunning PC Info Screen Studio as Administrator by itself does NOT install this driver.\n\nInstall the bundled PawnIO hardware driver now?",
                 "Hardware sensors",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Information);
@@ -1294,24 +1294,51 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
             try
             {
-                var process = Process.Start(new ProcessStartInfo
+                var bundledInstaller = Path.Combine(
+                    AppContext.BaseDirectory,
+                    "Prerequisites",
+                    "PawnIO_setup.exe");
+
+                ProcessStartInfo startInfo;
+
+                if (File.Exists(bundledInstaller))
                 {
-                    FileName = "winget",
-                    Arguments = "install --exact --id namazso.PawnIO --accept-package-agreements --accept-source-agreements",
-                    UseShellExecute = true,
-                    Verb = "runas",
-                    WorkingDirectory = AppContext.BaseDirectory
-                });
+                    startInfo = new ProcessStartInfo
+                    {
+                        FileName = bundledInstaller,
+                        Arguments = "-install -silent",
+                        UseShellExecute = true,
+                        Verb = "runas",
+                        WorkingDirectory = Path.GetDirectoryName(bundledInstaller) ?? AppContext.BaseDirectory
+                    };
+                }
+                else
+                {
+                    startInfo = new ProcessStartInfo
+                    {
+                        FileName = "winget",
+                        Arguments = "install --exact --id namazso.PawnIO --accept-package-agreements --accept-source-agreements",
+                        UseShellExecute = true,
+                        Verb = "runas",
+                        WorkingDirectory = AppContext.BaseDirectory
+                    };
+                }
+
+                var process = Process.Start(startInfo);
 
                 if (process is null)
-                    throw new InvalidOperationException("Windows Package Manager could not be started.");
+                    throw new InvalidOperationException("PawnIO setup could not be started.");
 
                 await process.WaitForExitAsync();
 
-                if (process.ExitCode != 0)
+                // 3010 = installation succeeded, restart required.
+                // 1641 = installation succeeded and restart was initiated.
+                if (process.ExitCode is not (0 or 3010 or 1641))
                 {
                     MessageBox.Show(
-                        $"PawnIO setup returned exit code {process.ExitCode}.\n\nYou can install it manually from Windows Terminal with:\nwinget install --exact --id namazso.PawnIO",
+                        $"PawnIO setup returned exit code {process.ExitCode}.\n\n" +
+                        "You can retry from Hardware sensors..., or install it manually with:\n" +
+                        "winget install --exact --id namazso.PawnIO",
                         "Hardware sensors",
                         MessageBoxButton.OK,
                         MessageBoxImage.Warning);
@@ -1327,7 +1354,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             catch (Exception ex)
             {
                 MessageBox.Show(
-                    ex.Message + "\n\nYou can install PawnIO manually from Windows Terminal with:\nwinget install --exact --id namazso.PawnIO",
+                    ex.Message + "\n\nIf the bundled installer is unavailable, you can install PawnIO manually with:\nwinget install --exact --id namazso.PawnIO",
                     "Could not install sensor driver",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
