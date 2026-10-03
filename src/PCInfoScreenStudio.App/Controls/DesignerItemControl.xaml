@@ -35,6 +35,7 @@
           </ControlTemplate>
         </Setter.Value>
       </Setter>
+      <EventSetter Event="DragStarted" Handler="OnResizeStarted" />
       <EventSetter Event="DragDelta" Handler="OnResize" />
       <Style.Triggers>
         <DataTrigger Binding="{Binding IsSelected}" Value="True">
