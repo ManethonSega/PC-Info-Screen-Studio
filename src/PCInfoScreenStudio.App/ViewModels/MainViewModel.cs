@@ -227,7 +227,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             await _deviceService.DisplayAsync(bitmap, rotation);
             await Application.Current.Dispatcher.InvokeAsync(() =>
-                DeviceStatus = $"Connected: {_deviceService.ConnectedPort}");
+                DeviceStatus = $"Connected: {_deviceService.ConnectedPort} @ {_deviceService.ConnectedBaudRate ?? 0} baud");
         }
         catch (Exception ex)
         {
@@ -804,8 +804,16 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             }
             else
             {
-                widget.RuntimeValue = null;
-                widget.RuntimeText = null;
+                if (!widget.DataSource.Equals("Preview.Value", StringComparison.OrdinalIgnoreCase))
+                {
+                    widget.RuntimeValue = 0;
+                    widget.RuntimeText = "N/A";
+                }
+                else
+                {
+                    widget.RuntimeValue = null;
+                    widget.RuntimeText = null;
+                }
             }
         }
 
