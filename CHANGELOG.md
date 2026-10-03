@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.5.0-alpha.1
+
+- Added a real hardware sensor engine using LibreHardwareMonitorLib 0.9.6.
+- Added live CPU package temperature, CPU power and average core clock.
+- Added live GPU core usage, temperature, hotspot, VRAM load, power and fan RPM.
+- Added storage temperature and motherboard/controller fan and pump RPM mappings.
+- Added city-based weather with automatic geocoding and cached Open-Meteo current conditions.
+- Added Weather Temperature, Feels Like, Humidity, Wind, Wind Direction, Condition and Location data sources.
+- Added a persistent local Weather City preference without embedding the user's city into shared theme files.
+- Changed 3.5-inch serial startup to prefer the vendor-compatible 115200 baud setting, with 921600 as fallback.
+- Added display reset/re-enumeration delay, explicit Screen On initialization and corrected brightness protocol mapping.
+- Added a Test screen control that sends a full-screen RGB diagnostic pattern.
+- Improved known 3.5-inch Turing/UsbMonitor detection using USB35INCHIPSV2 and VID_1A86/PID_5722 metadata.
+
+
 ## 0.4.0-alpha.1
 
 - Added automatic USB serial screen/COM-port discovery with friendly device names.
