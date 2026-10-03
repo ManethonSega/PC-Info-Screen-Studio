@@ -413,7 +413,8 @@ public sealed class TuringScreen : IDisposable
                     Parity = Parity.None,
                     // CRITICAL: Set the OS buffer huge. 
                     // This allows us to write an entire Frame (300KB) without blocking in user code.
-                    WriteBufferSize = 524288 // 512 KB
+                    WriteBufferSize = 524288, // 512 KB
+                    WriteTimeout = 2000
                 };
                 _port.Open();
 
@@ -443,8 +444,8 @@ public sealed class TuringScreen : IDisposable
             }
             catch (UnauthorizedAccessException)
             {
-                // We don't have access while computer is locked ... presumably?
-                Thread.Sleep(1000);
+                if (waitForConnect < 1 || sw.ElapsedMilliseconds >= waitForConnect) throw;
+                Thread.Sleep(100);
             }
         }
     }
