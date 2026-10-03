@@ -101,6 +101,10 @@
                       SelectedValue="{Binding DisplayColorMode}"
                       Margin="2,0,2,5"
                       ToolTip="RGB565 little-endian is standard for Rev-A. Use Color test to diagnose red/blue swaps or byte order." />
+            <CheckBox Content="Close window to system tray"
+                      IsChecked="{Binding CloseToTray}"
+                      Margin="3,4,0,0"
+                      ToolTip="When enabled, the X button hides the editor but keeps sensor updates and the LCD running. Use the tray icon's Exit command to stop the app." />
 
             <TextBlock Text="THEMES" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="4,12,0,7" />
             <ComboBox ItemsSource="{Binding Themes}"
