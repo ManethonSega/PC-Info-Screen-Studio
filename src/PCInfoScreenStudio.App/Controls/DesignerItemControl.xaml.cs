@@ -1,5 +1,4 @@
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using PCInfoScreenStudio.Models;
@@ -7,7 +6,7 @@ using PCInfoScreenStudio.ViewModels;
 
 namespace PCInfoScreenStudio.Controls;
 
-public partial class DesignerItemControl : UserControl
+public partial class DesignerItemControl : System.Windows.Controls.UserControl
 {
     private const double MinSize = 8;
 
