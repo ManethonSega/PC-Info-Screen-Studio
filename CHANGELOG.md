@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.8.0-alpha.1
+
+- Reworked hardware telemetry after comparing the original UsbMonitor behavior and established Turing-screen projects.
+- CPU temperature now prioritizes CPU Package and uses LibreHardwareMonitor first, optional HWiNFO shared-memory readings second.
+- CPU package power ignores invalid zero-value sensors and falls back to HWiNFO when available.
+- GPU VRAM now prefers used/total dedicated memory and computes the real percentage before falling back to generic memory-load sensors.
+- Added GPU.VRAMUsed and GPU.VRAMTotal data sources.
+- Added Windows MSFT_StorageReliabilityCounter as a storage-temperature fallback.
+- Added exact raw sensor sources from both LibreHardwareMonitor and HWiNFO for hardware-specific selection.
+- Added optional guided PawnIO setup through the official Windows Package Manager package for full low-level CPU/motherboard sensor access.
+- Added one-click elevated restart for low-level hardware sensors without forcing the whole application to always request administrator rights.
+- Live metric units are now kept separately from saved theme suffixes, fixing cases such as CPU power appearing with a percent sign.
+- Missing live sensors now stay N/A instead of being converted to a fake numeric zero.
+- Fixed numeric editor fields so multi-digit values such as font size 20 or grid size 20 can be typed normally before validation.
+- Connecting now pushes the current theme to the physical screen once even when Live display is not enabled.
+- Added real animated GIF playback using SkiaSharp frame timing in both the editor and the physical display runtime.
+- GIF playback respects loop, playback speed and optional target FPS settings.
+
+
 ## 0.7.0-alpha.1
 
 - Added three Revision-A compatibility profiles instead of assuming one firmware behavior:
