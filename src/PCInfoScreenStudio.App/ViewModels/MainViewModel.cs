@@ -77,6 +77,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         LoadThemeCommand = new RelayCommand(() => _ = LoadSelectedThemeAsync(), () => SelectedTheme is not null);
         UpdateWeatherCommand = new RelayCommand(() => _ = UpdateWeatherAsync());
         RestartElevatedCommand = new RelayCommand(RestartElevated);
+        EnableFullSensorsCommand = new RelayCommand(() => _ = EnableFullSensorsAsync());
 
         _dataTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
@@ -263,6 +264,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     }
 
     public bool IsHardwareElevated => _hardwareMetrics.IsElevated;
+    public bool IsLowLevelSensorDriverInstalled => _hardwareMetrics.IsLowLevelDriverInstalled;
+    public bool NeedsFullSensorAccess => !IsHardwareElevated || !IsLowLevelSensorDriverInstalled;
 
     public bool LivePreview
     {
@@ -328,6 +331,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand LoadThemeCommand { get; }
     public RelayCommand UpdateWeatherCommand { get; }
     public RelayCommand RestartElevatedCommand { get; }
+    public RelayCommand EnableFullSensorsCommand { get; }
 
     public void SelectWidget(WidgetModel? widget) => SelectedWidget = widget;
 
@@ -1175,6 +1179,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
             HardwareStatus = _hardwareMetrics.Status;
             RaisePropertyChanged(nameof(IsHardwareElevated));
+            RaisePropertyChanged(nameof(IsLowLevelSensorDriverInstalled));
+            RaisePropertyChanged(nameof(NeedsFullSensorAccess));
             WeatherStatus = _weatherMetrics.Status;
 
             foreach (var widget in Document.Widgets)
@@ -1251,6 +1257,66 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             await _weatherMetrics.GetMetricsAsync(WeatherCity, forceRefresh: true);
             WeatherStatus = _weatherMetrics.Status;
         }
+    }
+
+    private async Task EnableFullSensorsAsync()
+    {
+        if (!OperatingSystem.IsWindows())
+            return;
+
+        if (!_hardwareMetrics.IsLowLevelDriverInstalled)
+        {
+            var answer = MessageBox.Show(
+                "Full CPU temperature, CPU package power and motherboard sensor access on current Windows systems requires PawnIO, the signed low-level hardware driver used by LibreHardwareMonitor.\n\nPC Info Screen Studio can ask Windows Package Manager to install the official PawnIO package. Windows will show a UAC prompt.\n\nInstall PawnIO now?",
+                "Enable full hardware sensors",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Information);
+
+            if (answer != MessageBoxResult.Yes)
+                return;
+
+            try
+            {
+                var process = Process.Start(new ProcessStartInfo
+                {
+                    FileName = "winget",
+                    Arguments = "install --exact --id namazso.PawnIO --accept-package-agreements --accept-source-agreements",
+                    UseShellExecute = true,
+                    Verb = "runas",
+                    WorkingDirectory = AppContext.BaseDirectory
+                });
+
+                if (process is null)
+                    throw new InvalidOperationException("Windows Package Manager could not be started.");
+
+                await process.WaitForExitAsync();
+
+                if (process.ExitCode != 0)
+                {
+                    MessageBox.Show(
+                        $"PawnIO setup returned exit code {process.ExitCode}. You can install the package manually with: winget install --exact --id namazso.PawnIO",
+                        "Sensor driver setup",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                    return;
+                }
+            }
+            catch (Win32Exception ex) when (ex.NativeErrorCode == 1223)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    ex.Message + "\n\nYou can install PawnIO manually with: winget install --exact --id namazso.PawnIO",
+                    "Could not install sensor driver",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                return;
+            }
+        }
+
+        RestartElevated();
     }
 
     private void RestartElevated()
