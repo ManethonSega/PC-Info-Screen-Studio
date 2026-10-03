@@ -1329,9 +1329,27 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
+        var sensorCheck = await Task.Run(_hardwareMetrics.Sample);
+
+        static string ShowMetric(IReadOnlyDictionary<string, MetricValue> values, string key)
+        {
+            if (!values.TryGetValue(key, out var metric) || metric.Numeric is not double number)
+                return "N/A";
+
+            return number.ToString("0.0", System.Globalization.CultureInfo.CurrentCulture) +
+                   (metric.Unit ?? string.Empty);
+        }
+
         MessageBox.Show(
-            "Full sensor access is already enabled. Turn on 'Live data' to populate CPU, GPU, storage and cooling values.\n\nThe Sensors status line at the bottom reports the active provider and any remaining limitation.",
-            "Hardware sensors",
+            "Full sensor access is enabled.\n\n" +
+            $"CPU temperature: {ShowMetric(sensorCheck, "CPU.Temperature")}\n" +
+            $"CPU power: {ShowMetric(sensorCheck, "CPU.Power")}\n" +
+            $"GPU temperature: {ShowMetric(sensorCheck, "GPU.Temperature")}\n" +
+            $"GPU VRAM: {ShowMetric(sensorCheck, "GPU.VRAM")}\n" +
+            $"Disk temperature: {ShowMetric(sensorCheck, "Disk.Temperature")}\n\n" +
+            _hardwareMetrics.Status +
+            "\n\nTurn on 'Live data' to feed these values into widgets.",
+            "Hardware sensor check",
             MessageBoxButton.OK,
             MessageBoxImage.Information);
     }
