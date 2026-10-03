@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0-alpha.3
+
+- Fixed the editor overlay that painted widgets as blank white rectangles.
+- Made widget move/select hit areas transparent so rendered text, gauges, graphs and imported images remain visible.
+- Fixed Layers Up/Down so the visible list order and actual Z-order change together.
+- Moved connection, framebuffer writes, orientation changes and benchmarking off the WPF UI thread.
+- Added frame-drop protection so slow USB writes cannot queue unlimited live-preview frames.
+- Bounded serial connection retries for busy/inaccessible COM ports and added a write timeout.
+- Re-applies orientation to an already-connected display when layout or mount rotation changes.
+
+
 ## 0.3.0-alpha.2
 
 - Removed the incompatible WPF/OpenTK Skia view package and now render the Skia framebuffer into a native WPF image surface.
