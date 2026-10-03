@@ -29,8 +29,10 @@ Implemented in the source tree:
 - SkiaSharp-based common renderer for editor and device framebuffer
 - COM-port discovery and live display path through the vendored `Tedd.TuringScreen` driver
 - simulated data values for layout design
-- optional live Windows data mode for CPU load, RAM, system-drive usage/free space, network throughput, date and time
-- clear N/A state for sensor sources not yet implemented instead of presenting simulated values as live data
+- live Windows metrics for CPU load, RAM, system-drive usage/free space, network throughput, date and time
+- LibreHardwareMonitor-powered CPU temperature/power/clock, GPU usage/temperature/hotspot/VRAM/power/fan, storage temperature and motherboard/controller fan/pump RPM
+- city-based current weather from Open-Meteo: temperature, feels-like, humidity, wind speed/direction, condition and resolved location
+- clear N/A state when a requested hardware sensor is genuinely unavailable on the current machine
 - live graph history buffering without modifying the saved theme
 - USB serial device discovery with friendly COM-port names and likely-screen selection
 - 921600 to 115200 automatic baud fallback for screen drivers with restricted serial line coding
@@ -105,9 +107,21 @@ The format is documented in [`docs/THEME_FORMAT.md`](docs/THEME_FORMAT.md).
 
 Use **Detect screen** to inspect Windows USB/serial device information and select the most likely screen port. The protocol does not expose a reliable model-identification response, so detection is based on Windows Plug and Play metadata such as USB serial, CH340/CH341/CH910, CP210x, FTDI, CDC, Turing and TURZX descriptors.
 
-The app first tries the driver's preferred 921600 serial line coding. If Windows reports that the device only accepts up to 115200, PC Info Screen Studio automatically retries at 115200. USB CDC devices may use the baud setting as line-coding metadata rather than as the physical USB transport rate.
+For the 3.5-inch Rev-A/UsbMonitor protocol, the app now tries 115200 first, matching the established vendor-compatible protocol implementation, and falls back to 921600 only if necessary. The display is reset, allowed to re-enumerate, switched on, configured for orientation and brightness, and then receives the rendered frame. Use **Test screen** after connecting to send a high-contrast RGB test pattern before troubleshooting theme rendering.
 
 If Windows reports **Access denied** for a COM port, close any other program that is using that screen/port, including the manufacturer's monitor application or tray process, before reconnecting.
+
+## Weather
+
+Enter a city in the Properties panel when a Weather data source is selected and press **Update**. The city is stored as a local application preference, not inside a shareable theme file. PC Info Screen Studio geocodes the city and refreshes current conditions approximately every 10 minutes.
+
+Weather and geocoding are provided by Open-Meteo. Attribution and licensing information is listed in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+
+## Hardware sensors
+
+Live hardware sensors are read through **LibreHardwareMonitorLib**. Supported mappings include CPU package temperature and power, CPU clocks, GPU core load/temperature/hotspot/VRAM/power/fan RPM, storage temperature, and motherboard/controller fan and pump RPM.
+
+Sensor availability depends on the motherboard, controller, GPU/SSD firmware and Windows permissions. Some low-level sensors exposed by LibreHardwareMonitor may require running the program with elevated privileges.
 
 ## Hardware driver
 
