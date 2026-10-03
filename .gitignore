@@ -1,0 +1,21 @@
+# Build output
+bin/
+obj/
+artifacts/
+publish/
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated local theme workspaces
+*.autosave.t3theme
+*.recovery.t3theme
