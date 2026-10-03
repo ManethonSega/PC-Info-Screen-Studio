@@ -11,9 +11,14 @@
     <FileVersion>0.3.0.0</FileVersion>
     <RootNamespace>PCInfoScreenStudio</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\PCInfoScreenStudio.ico</ApplicationIcon>
     <Platforms>AnyCPU;x64;ARM64</Platforms>
     <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\PCInfoScreenStudio.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Tedd.TuringScreen\Tedd.TuringScreen.csproj" />
