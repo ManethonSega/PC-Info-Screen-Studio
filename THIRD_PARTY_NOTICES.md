@@ -69,3 +69,100 @@ PC Info Screen Studio bundles the following fonts from the Google Fonts project:
 Source: https://github.com/google/fonts
 
 These font families are distributed under the SIL Open Font License 1.1 (OFL-1.1). Their font files remain under the OFL and are not relicensed under the application's MIT licence.
+
+
+## Revision-A compatibility references and adapted implementations
+
+The Revision-A compatibility layer in PC Info Screen Studio was informed by and, where appropriate, adapted from the following MIT-licensed projects. The application keeps multiple protocol profiles because real 3.5-inch firmware revisions differ in orientation framing even when they share the same USB identity.
+
+### TuringSmartScreenLib / usausa/turing-smart-screen
+
+Source: https://github.com/usausa/turing-smart-screen
+
+Relevant implementation: Revision-A C# serial framing, command 121 orientation behavior, RGB565 little-endian buffer packing and ScreenFactory abstraction.
+
+MIT License
+
+Copyright (c) 2021 machi_pon
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+### usb-lcd-dashboard / viktorkav
+
+Source: https://github.com/viktorkav/usb-lcd-dashboard
+
+Relevant implementation: tested USB35INCHIPSV2 / VID 1A86 PID 5722 native-portrait transport, 115200 baud with RTS/CTS, HELLO handshake, 480x320 to 320x480 software rotation, RGB565 little-endian packing and four-row framebuffer chunks.
+
+MIT License
+
+Copyright (c) 2026 ViktorKav
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+### TuringMonitor / Bendak
+
+Source: https://github.com/Bendak/TuringMonitor
+
+Relevant implementation: .NET 10 Revision-A framing, reconnect strategy, logical 480x320 hardware-orientation profile, inverted brightness mapping and dashboard-oriented partial-update design.
+
+MIT License
+
+Copyright (c) 2026 Maurício
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+### turing-smart-screen-python
+
+Source: https://github.com/mathoudebine/turing-smart-screen-python
+
+License: GPL-3.0
+
+This project is used as a protocol-behavior and hardware-compatibility reference. PC Info Screen Studio does not vendor or relicense GPL source from this project inside its MIT source tree.
