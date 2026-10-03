@@ -30,6 +30,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private string _weatherCity = string.Empty;
     private string _weatherStatus = "Weather city not configured.";
     private string _hardwareStatus = "Hardware sensors not initialized.";
+    private DisplayProtocolProfile _displayProtocol;
+    private DisplayColorMode _displayColorMode;
     private bool _livePreview;
     private bool _useLiveData;
     private bool _suppressDirty;
@@ -41,6 +43,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         _appSettings = _settingsService.Load();
         _weatherCity = _appSettings.WeatherCity;
+        _displayProtocol = _appSettings.DisplayProtocol;
+        _displayColorMode = _appSettings.DisplayColorMode;
         _workspace = _packageService.CreateNewWorkspace();
         Ports = [];
         Themes = [];
@@ -142,6 +146,23 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         new("270°", DeviceRotation.Degrees270)
     ];
 
+    public IReadOnlyList<DisplayProtocolOption> DisplayProtocolOptions { get; } =
+    [
+        new("Auto (recommended)", DisplayProtocolProfile.Auto),
+        new("Rev-A native portrait", DisplayProtocolProfile.RevANativePortrait),
+        new("Rev-A hardware landscape", DisplayProtocolProfile.RevAHardwareLogical),
+        new("Rev-A legacy 320×480", DisplayProtocolProfile.RevAHardwareNative)
+    ];
+
+    public IReadOnlyList<DisplayColorOption> DisplayColorOptions { get; } =
+    [
+        new("Auto (RGB565 LE)", DisplayColorMode.Auto),
+        new("RGB565 little-endian", DisplayColorMode.Rgb565LittleEndian),
+        new("BGR565 little-endian", DisplayColorMode.Bgr565LittleEndian),
+        new("RGB565 byte-swapped", DisplayColorMode.Rgb565BigEndian),
+        new("BGR565 byte-swapped", DisplayColorMode.Bgr565BigEndian)
+    ];
+
     public WidgetModel? SelectedWidget
     {
         get => _selectedWidget;
@@ -176,6 +197,34 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         get => _deviceStatus;
         private set => SetProperty(ref _deviceStatus, value);
+    }
+
+    public DisplayProtocolProfile DisplayProtocol
+    {
+        get => _displayProtocol;
+        set
+        {
+            if (!SetProperty(ref _displayProtocol, value)) return;
+            _appSettings.DisplayProtocol = value;
+            _settingsService.Save(_appSettings);
+
+            if (_deviceService.IsConnected)
+                DeviceStatus = "Display protocol changed. Reconnect to apply.";
+        }
+    }
+
+    public DisplayColorMode DisplayColorMode
+    {
+        get => _displayColorMode;
+        set
+        {
+            if (!SetProperty(ref _displayColorMode, value)) return;
+            _appSettings.DisplayColorMode = value;
+            _settingsService.Save(_appSettings);
+
+            if (_deviceService.IsConnected)
+                DeviceStatus = "Color mode changed. Reconnect to apply.";
+        }
     }
 
     public string WeatherCity
@@ -286,7 +335,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             await _deviceService.DisplayAsync(bitmap, rotation);
             await Application.Current.Dispatcher.InvokeAsync(() =>
-                DeviceStatus = $"Connected: {_deviceService.ConnectedModel ?? "screen"} on {_deviceService.ConnectedPort} @ {_deviceService.ConnectedBaudRate ?? 0} baud");
+                DeviceStatus = BuildConnectionStatus());
         }
         catch (Exception ex)
         {
@@ -596,8 +645,18 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         DeviceStatus = $"Connecting to {SelectedPort}...";
         try
         {
-            await _deviceService.ConnectAsync(SelectedPort, Document.Orientation, Document.DeviceRotation);
-            DeviceStatus = $"Connected: {_deviceService.ConnectedModel ?? "screen"} on {SelectedPort} @ {_deviceService.ConnectedBaudRate ?? 0} baud";
+            var deviceInfo = Ports.FirstOrDefault(p =>
+                p.PortName.Equals(SelectedPort, StringComparison.OrdinalIgnoreCase));
+
+            await _deviceService.ConnectAsync(
+                SelectedPort,
+                Document.Orientation,
+                Document.DeviceRotation,
+                DisplayProtocol,
+                DisplayColorMode,
+                deviceInfo);
+
+            DeviceStatus = BuildConnectionStatus();
             RequestLiveFrame?.Invoke(this, EventArgs.Empty);
         }
         catch (UnauthorizedAccessException)
@@ -630,7 +689,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         try
         {
             await _deviceService.TestPatternAsync();
-            DeviceStatus = $"Test pattern sent: {_deviceService.ConnectedPort} @ {_deviceService.ConnectedBaudRate ?? 0} baud";
+            DeviceStatus = "Color test sent. " + BuildConnectionStatus();
         }
         catch (Exception ex)
         {
@@ -656,6 +715,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             DeviceStatus = "Rotation error: " + ex.Message;
         }
     }
+
+    private string BuildConnectionStatus()
+        => $"Connected: {_deviceService.ConnectedModel ?? "screen"} on {_deviceService.ConnectedPort} " +
+           $"@ {_deviceService.ConnectedBaudRate ?? 0} baud · {_deviceService.ConnectedProtocol} · {_deviceService.ConnectedColorMode}";
 
     private async Task RunBenchmarkAsync()
     {
