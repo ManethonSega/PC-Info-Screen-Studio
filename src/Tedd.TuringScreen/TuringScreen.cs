@@ -412,11 +412,14 @@ public sealed class TuringScreen : IDisposable
         var source = MemoryMarshal.Cast<byte, ushort>(buffer.Buffer.AsSpan());
         var previous = MemoryMarshal.Cast<byte, ushort>(_screenBuffer.Buffer.AsSpan());
 
-        // The screen is small enough that tile-diffing is inexpensive, while it
-        // avoids one huge dirty rectangle when two distant small areas animate.
+        // Tile diffing is ideal for gauges, text, clocks and small GIFs. If most
+        // of the display changed, however, one contiguous frame is faster than
+        // hundreds of tiny serial writes.
         const int tileSize = 16;
         var width = buffer.Width;
         var height = buffer.Height;
+        var changedTiles = new List<(int X, int Y, int W, int H)>();
+        var totalTiles = 0;
 
         for (var tileY = 0; tileY < height; tileY += tileSize)
         {
@@ -424,6 +427,7 @@ public sealed class TuringScreen : IDisposable
 
             for (var tileX = 0; tileX < width; tileX += tileSize)
             {
+                totalTiles++;
                 var tileW = Math.Min(tileSize, width - tileX);
                 var changed = false;
 
@@ -434,20 +438,39 @@ public sealed class TuringScreen : IDisposable
                         changed = true;
                 }
 
-                if (!changed)
-                    continue;
-
-                // Update the logical backbuffer first. If the USB write fails
-                // and reconnect recovery throws, the next frame will naturally
-                // redraw whichever tiles still differ.
-                for (var row = 0; row < tileH; row++)
-                {
-                    var offset = (tileY + row) * width + tileX;
-                    source.Slice(offset, tileW).CopyTo(previous.Slice(offset, tileW));
-                }
-
-                SendNativePortraitTile(tileX, tileY, tileW, tileH, source, width, height);
+                if (changed)
+                    changedTiles.Add((tileX, tileY, tileW, tileH));
             }
+        }
+
+        if (changedTiles.Count == 0)
+            return;
+
+        // Dense animation such as a full-screen GIF is more efficient as one
+        // streaming frame. Sparse animation uses only the changed tiles.
+        if (changedTiles.Count * 100 >= totalTiles * 45)
+        {
+            source.CopyTo(previous);
+            SendFullEncodedFrame(buffer, rotateLandscapeToNativePortrait: true);
+            return;
+        }
+
+        foreach (var tile in changedTiles)
+        {
+            for (var row = 0; row < tile.H; row++)
+            {
+                var offset = (tile.Y + row) * width + tile.X;
+                source.Slice(offset, tile.W).CopyTo(previous.Slice(offset, tile.W));
+            }
+
+            SendNativePortraitTile(
+                tile.X,
+                tile.Y,
+                tile.W,
+                tile.H,
+                source,
+                width,
+                height);
         }
     }
 
@@ -653,16 +676,20 @@ public sealed class TuringScreen : IDisposable
 
     private void WriteFrameWithChunksRaw(byte[] header, int headerLength, byte[] payload, int chunkSize)
     {
-        if (_port is null || !_port.IsOpen)
+        if (_port is null || !_port.IsOpen || _baseStream is null)
             throw new IOException("Disconnected");
 
-        _port.Write(header, 0, headerLength);
+        // SerialPort.Write adds substantial managed overhead when a 300 KB
+        // animation frame is split into ~120 tiny writes. USB CDC is a byte
+        // stream, so larger host writes are safe and the driver still packetizes
+        // them for the endpoint.
+        _baseStream.Write(header, 0, headerLength);
 
-        chunkSize = Math.Max(2, chunkSize);
+        chunkSize = Math.Max(32 * 1024, chunkSize);
         for (var offset = 0; offset < payload.Length; offset += chunkSize)
         {
             var count = Math.Min(chunkSize, payload.Length - offset);
-            _port.Write(payload, offset, count);
+            _baseStream.Write(payload, offset, count);
         }
     }
 
