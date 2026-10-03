@@ -22,6 +22,7 @@ public sealed class WidgetModel : ObservableObject
     private double _simulatedValue = 42;
     private double? _runtimeValue;
     private string? _runtimeText;
+    private string? _runtimeUnit;
     private string _fontFamily = "Segoe UI";
     private Guid? _fontAssetId;
     private double _fontSize = 18;
@@ -82,6 +83,9 @@ public sealed class WidgetModel : ObservableObject
 
     [JsonIgnore]
     public string? RuntimeText { get => _runtimeText; set => SetProperty(ref _runtimeText, value); }
+
+    [JsonIgnore]
+    public string? RuntimeUnit { get => _runtimeUnit; set => SetProperty(ref _runtimeUnit, value); }
 
     [JsonIgnore]
     public double DisplayValue => RuntimeValue ?? SimulatedValue;
