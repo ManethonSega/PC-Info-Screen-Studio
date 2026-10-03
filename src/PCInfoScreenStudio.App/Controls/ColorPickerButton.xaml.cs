@@ -1,12 +1,11 @@
-using System.Globalization;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Media;
 using Forms = System.Windows.Forms;
+using MediaColor = System.Windows.Media.Color;
 
 namespace PCInfoScreenStudio.Controls;
 
-public partial class ColorPickerButton : UserControl
+public partial class ColorPickerButton : System.Windows.Controls.UserControl
 {
     public static readonly DependencyProperty HexColorProperty = DependencyProperty.Register(
         nameof(HexColor), typeof(string), typeof(ColorPickerButton),
@@ -29,8 +28,15 @@ public partial class ColorPickerButton : UserControl
 
     private void UpdateSwatch(string? value)
     {
-        try { Swatch.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(value ?? "#FFFFFFFF")); }
-        catch { Swatch.Background = Brushes.Magenta; }
+        try
+        {
+            Swatch.Background = new SolidColorBrush(
+                (MediaColor)ColorConverter.ConvertFromString(value ?? "#FFFFFFFF"));
+        }
+        catch
+        {
+            Swatch.Background = Brushes.Magenta;
+        }
     }
 
     private void OnClick(object sender, RoutedEventArgs e)
@@ -41,14 +47,23 @@ public partial class ColorPickerButton : UserControl
             FullOpen = true,
             Color = System.Drawing.Color.FromArgb(current.A, current.R, current.G, current.B)
         };
-        if (dialog.ShowDialog() != Forms.DialogResult.OK) return;
+
+        if (dialog.ShowDialog() != Forms.DialogResult.OK)
+            return;
+
         var c = dialog.Color;
         HexColor = $"#{c.A:X2}{c.R:X2}{c.G:X2}{c.B:X2}";
     }
 
-    private static Color Parse(string? value)
+    private static MediaColor Parse(string? value)
     {
-        try { return (Color)ColorConverter.ConvertFromString(value ?? "#FFFFFFFF"); }
-        catch { return Colors.White; }
+        try
+        {
+            return (MediaColor)ColorConverter.ConvertFromString(value ?? "#FFFFFFFF");
+        }
+        catch
+        {
+            return Colors.White;
+        }
     }
 }
