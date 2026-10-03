@@ -14,11 +14,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly AssetImportService _assetService = new();
     private readonly FileDialogService _dialogs = new();
     private readonly DeviceService _deviceService = new();
+    private readonly SerialDeviceDiscoveryService _serialDiscovery = new();
+    private readonly ThemeLibraryService _themeLibrary = new();
     private readonly SystemMetricsService _systemMetrics = new();
     private readonly DispatcherTimer _dataTimer;
     private ThemeWorkspace _workspace;
     private WidgetModel? _selectedWidget;
     private string? _selectedPort;
+    private ThemeLibraryItem? _selectedTheme;
     private string _deviceStatus = "Not connected";
     private bool _livePreview;
     private bool _useLiveData;
@@ -30,6 +33,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         _workspace = _packageService.CreateNewWorkspace();
         Ports = [];
+        Themes = [];
         FontAssets = [];
 
         NewCommand = new RelayCommand(NewTheme);
@@ -48,8 +52,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         ToggleOrientationCommand = new RelayCommand(ToggleOrientation);
         RotateDeviceCommand = new RelayCommand(RotateDevice);
         RefreshPortsCommand = new RelayCommand(RefreshPorts);
+        DetectScreenCommand = new RelayCommand(DetectScreen, () => !IsDeviceBusy);
         ConnectCommand = new RelayCommand(() => _ = ConnectOrDisconnectAsync(), () => !IsDeviceBusy);
         BenchmarkCommand = new RelayCommand(() => _ = RunBenchmarkAsync(), () => _deviceService.IsConnected && !IsDeviceBusy);
+        RefreshThemesCommand = new RelayCommand(RefreshThemes);
+        LoadThemeCommand = new RelayCommand(() => _ = LoadSelectedThemeAsync(), () => SelectedTheme is not null);
 
         _dataTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
@@ -61,6 +68,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         AttachWorkspace(_workspace);
         CreateStarterLayout();
         RefreshPorts();
+        RefreshThemes();
     }
 
     public event EventHandler? ThemeChanged;
@@ -68,7 +76,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public ThemeWorkspace Workspace => _workspace;
     public ThemeDocument Document => _workspace.Document;
-    public ObservableCollection<string> Ports { get; }
+    public ObservableCollection<SerialPortOption> Ports { get; }
+    public ObservableCollection<ThemeLibraryItem> Themes { get; }
     public ObservableCollection<ThemeAsset> FontAssets { get; }
 
     public IReadOnlyList<string> DataSources { get; } =
@@ -115,6 +124,16 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         set => SetProperty(ref _selectedPort, value);
     }
 
+    public ThemeLibraryItem? SelectedTheme
+    {
+        get => _selectedTheme;
+        set
+        {
+            if (!SetProperty(ref _selectedTheme, value)) return;
+            LoadThemeCommand.RaiseCanExecuteChanged();
+        }
+    }
+
     public string DeviceStatus
     {
         get => _deviceStatus;
@@ -152,6 +171,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             if (!SetProperty(ref _isDeviceBusy, value)) return;
             ConnectCommand.RaiseCanExecuteChanged();
+            DetectScreenCommand.RaiseCanExecuteChanged();
             BenchmarkCommand.RaiseCanExecuteChanged();
         }
     }
@@ -175,8 +195,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand ToggleOrientationCommand { get; }
     public RelayCommand RotateDeviceCommand { get; }
     public RelayCommand RefreshPortsCommand { get; }
+    public RelayCommand DetectScreenCommand { get; }
     public RelayCommand ConnectCommand { get; }
     public RelayCommand BenchmarkCommand { get; }
+    public RelayCommand RefreshThemesCommand { get; }
+    public RelayCommand LoadThemeCommand { get; }
 
     public void SelectWidget(WidgetModel? widget) => SelectedWidget = widget;
 
@@ -258,6 +281,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             await _packageService.SaveAsync(Workspace, path);
             RaisePropertyChanged(nameof(IsDirty));
             RaisePropertyChanged(nameof(WindowTitle));
+            RefreshThemes();
         }
         catch (Exception ex)
         {
@@ -435,9 +459,46 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private void RefreshPorts()
     {
+        var previous = SelectedPort;
         Ports.Clear();
-        foreach (var port in _deviceService.GetPorts()) Ports.Add(port);
-        if (SelectedPort is null || !Ports.Contains(SelectedPort)) SelectedPort = Ports.FirstOrDefault();
+
+        foreach (var port in _serialDiscovery.Discover())
+            Ports.Add(port);
+
+        if (!string.IsNullOrWhiteSpace(previous) &&
+            Ports.Any(p => p.PortName.Equals(previous, StringComparison.OrdinalIgnoreCase)))
+        {
+            SelectedPort = previous;
+        }
+        else
+        {
+            SelectedPort = Ports.FirstOrDefault(p => p.IsLikelyScreen)?.PortName
+                ?? Ports.FirstOrDefault()?.PortName;
+        }
+    }
+
+    private void DetectScreen()
+    {
+        RefreshPorts();
+
+        var candidate = Ports.FirstOrDefault(p => p.IsLikelyScreen);
+        if (candidate is not null)
+        {
+            SelectedPort = candidate.PortName;
+            DeviceStatus = $"Likely screen detected: {candidate.DisplayName}";
+            return;
+        }
+
+        if (Ports.Count == 1)
+        {
+            SelectedPort = Ports[0].PortName;
+            DeviceStatus = $"One serial device found: {Ports[0].DisplayName}";
+            return;
+        }
+
+        DeviceStatus = Ports.Count == 0
+            ? "No serial screen/COM device detected."
+            : "No screen could be identified automatically. Choose the USB serial device from the list.";
     }
 
     private async Task ConnectOrDisconnectAsync()
@@ -476,8 +537,17 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         try
         {
             await _deviceService.ConnectAsync(SelectedPort, Document.Orientation, Document.DeviceRotation);
-            DeviceStatus = $"Connected: {SelectedPort}";
+            DeviceStatus = $"Connected: {SelectedPort} @ {_deviceService.ConnectedBaudRate ?? 0} baud";
             RequestLiveFrame?.Invoke(this, EventArgs.Empty);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            DeviceStatus = "Connection failed: port is in use";
+            MessageBox.Show(
+                $"{SelectedPort} is already in use by another program.\n\nClose the original screen software (including its tray icon), a serial monitor, or any other program using this COM port, then try again.",
+                "Could not connect display",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
         }
         catch (Exception ex)
         {
@@ -526,6 +596,65 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             IsDeviceBusy = false;
         }
+    }
+
+    private void RefreshThemes()
+    {
+        var previousPath = SelectedTheme?.FilePath;
+        var previousBuiltIn = SelectedTheme?.BuiltInId;
+
+        Themes.Clear();
+        foreach (var theme in _themeLibrary.GetThemes(Workspace.FilePath))
+            Themes.Add(theme);
+
+        SelectedTheme = Themes.FirstOrDefault(t =>
+                            !string.IsNullOrWhiteSpace(previousPath) &&
+                            string.Equals(t.FilePath, previousPath, StringComparison.OrdinalIgnoreCase))
+                        ?? Themes.FirstOrDefault(t =>
+                            !string.IsNullOrWhiteSpace(previousBuiltIn) &&
+                            string.Equals(t.BuiltInId, previousBuiltIn, StringComparison.OrdinalIgnoreCase))
+                        ?? Themes.FirstOrDefault();
+    }
+
+    private async Task LoadSelectedThemeAsync()
+    {
+        var selection = SelectedTheme;
+        if (selection is null) return;
+
+        if (selection.IsBuiltIn)
+        {
+            if (!ConfirmDiscardIfNeeded()) return;
+
+            ReplaceWorkspace(_packageService.CreateNewWorkspace());
+            if (selection.BuiltInId == "blank")
+                CreateBlankLayout();
+            else
+                CreateStarterLayout();
+
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(selection.FilePath))
+            await OpenThemeFileAsync(selection.FilePath);
+    }
+
+    private void CreateBlankLayout()
+    {
+        _suppressDirty = true;
+        try
+        {
+            Document.Name = "Blank theme";
+            Document.Widgets.Clear();
+            Workspace.IsDirty = false;
+            SelectedWidget = null;
+        }
+        finally
+        {
+            _suppressDirty = false;
+        }
+
+        ThemeChanged?.Invoke(this, EventArgs.Empty);
+        RaisePropertyChanged(nameof(WindowTitle));
     }
 
     private void CreateStarterLayout()
