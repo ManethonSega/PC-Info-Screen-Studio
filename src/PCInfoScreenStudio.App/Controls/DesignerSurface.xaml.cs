@@ -1,5 +1,4 @@
 using System.Windows;
-using System.Windows.Controls;
 using SkiaSharp;
 using SkiaSharp.Views.Desktop;
 using PCInfoScreenStudio.Rendering;
@@ -7,7 +6,7 @@ using PCInfoScreenStudio.ViewModels;
 
 namespace PCInfoScreenStudio.Controls;
 
-public partial class DesignerSurface : UserControl
+public partial class DesignerSurface : System.Windows.Controls.UserControl
 {
     private readonly ThemeRenderer _renderer = new();
     private MainViewModel? _viewModel;
@@ -32,6 +31,7 @@ public partial class DesignerSurface : UserControl
             _viewModel.ThemeChanged += OnThemeChanged;
             _viewModel.RequestLiveFrame += OnRequestLiveFrame;
         }
+
         RenderSurface?.InvalidateVisual();
     }
 
@@ -39,7 +39,7 @@ public partial class DesignerSurface : UserControl
         => Dispatcher.BeginInvoke(() => RenderSurface.InvalidateVisual());
 
     private void OnRequestLiveFrame(object? sender, EventArgs e)
-        => Dispatcher.BeginInvoke(() => RenderAndSend());
+        => Dispatcher.BeginInvoke(RenderAndSend);
 
     private void OnPaintSurface(object? sender, SKPaintSurfaceEventArgs e)
     {
@@ -60,6 +60,7 @@ public partial class DesignerSurface : UserControl
     private void RenderAndSend()
     {
         if (_viewModel is null) return;
+
         using var bitmap = _renderer.Render(_viewModel.Workspace);
         _viewModel.SendLiveFrame(bitmap);
     }
