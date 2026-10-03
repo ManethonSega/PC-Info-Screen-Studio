@@ -304,6 +304,20 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    public bool CloseToTray
+    {
+        get => _appSettings.CloseToTray;
+        set
+        {
+            if (_appSettings.CloseToTray == value)
+                return;
+
+            _appSettings.CloseToTray = value;
+            _settingsService.Save(_appSettings);
+            RaisePropertyChanged();
+        }
+    }
+
     public bool IsDirty => Workspace.IsDirty;
     public string WindowTitle => $"{Document.Name}{(IsDirty ? " *" : string.Empty)} - PC Info Screen Studio";
 
