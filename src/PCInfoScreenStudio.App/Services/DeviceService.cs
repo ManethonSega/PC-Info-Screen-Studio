@@ -49,7 +49,7 @@ public sealed class DeviceService : IDisposable
                 var protocol = ResolveProtocol(requestedProtocol, deviceInfo);
                 var colorMode = ResolveColorMode(requestedColorMode);
 
-                foreach (var baudRate in new[] { 115200, 921600 })
+                foreach (var baudRate in new[] { 921600, 115200 })
                 {
                     TuringScreen? screen = null;
                     var activePort = portName;
@@ -120,7 +120,7 @@ public sealed class DeviceService : IDisposable
                         screen?.Dispose();
                         throw;
                     }
-                    catch (Exception ex) when (baudRate == 115200 && IsBaudRateFailure(ex))
+                    catch (Exception ex) when (baudRate == 921600 && IsBaudRateFailure(ex))
                     {
                         screen?.Dispose();
                         firstFailure = ex;
@@ -133,7 +133,7 @@ public sealed class DeviceService : IDisposable
                 }
 
                 throw new InvalidOperationException(
-                    "The display port rejected both 115200 and 921600 baud.",
+                    "The display port rejected both 921600 and 115200 baud.",
                     firstFailure);
             }, cancellationToken);
         }
