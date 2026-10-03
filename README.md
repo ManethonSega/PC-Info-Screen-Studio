@@ -2,7 +2,7 @@
 
 A visual Windows theme editor and runtime for 3.5-inch Turing/TURZX-style USB-CDC PC info screens.
 
-> **Status:** active alpha development (`0.7.0-alpha.1`). The visual editor, shareable theme format, live Windows/hardware/weather data, Revision-A display compatibility layer and physical-display diagnostics are implemented. Animated GIF/video playback and advanced media optimization remain active development items.
+> **Status:** active alpha development (`0.8.0-alpha.1`). The visual editor, shareable theme format, live Windows/hardware/weather data, Revision-A display compatibility layer and physical-display diagnostics are implemented. Animated GIF/video playback and advanced media optimization remain active development items.
 
 PC Info Screen Studio is designed around a simple workflow: add a widget, drag it on a real 480x320 or 320x480 canvas, style it, bind it to data, preview it on the physical display, and save everything as one shareable `.t3theme` file.
 
@@ -22,7 +22,7 @@ Implemented in the source tree:
 - graph color, track/grid color and text color
 - shapes
 - JPG/PNG/WebP/BMP import
-- GIF and video asset import plumbing
+- animated GIF playback in both editor and physical-display runtime, plus video asset import plumbing
 - custom TTF/OTF font embedding and per-widget selection
 - one-file `.t3theme` ZIP package containing JSON, fonts and media
 - theme load/save with package path traversal protection
@@ -45,9 +45,9 @@ Implemented in the source tree:
 
 The next implementation milestones are:
 
-1. GIF frame playback in both editor and display runtime.
-2. Video import pipeline that **removes audio**, crops/resizes once, chooses an optimal FPS and creates a screen-optimized silent asset.
-3. Automatic device throughput benchmark with stored per-device tuning.
+1. Video import pipeline that **removes audio**, crops/resizes once, chooses an optimal FPS and creates a screen-optimized silent asset.
+2. Automatic device throughput benchmark with stored per-device tuning.
+3. Animated-media cache tuning and frame-delta optimization for high-frame-count GIF/video assets.
 4. Media change suppression for tiny RGB565 differences, reducing USB traffic.
 5. Undo/redo, guides, grouping, multi-selection and alignment tools.
 6. Dedicated lightweight tray runtime and Windows startup support.
@@ -102,6 +102,16 @@ MyTheme.t3theme
 ```
 
 The format is documented in [`docs/THEME_FORMAT.md`](docs/THEME_FORMAT.md).
+
+## 0.8 alpha sensors and animation
+
+Hardware telemetry now uses a layered fallback strategy. LibreHardwareMonitor remains the primary in-process source. If HWiNFO is already running with Shared Memory Support enabled, PC Info Screen Studio can also read its published values. Storage temperature has an additional Windows Storage Management fallback.
+
+For current Windows systems, low-level CPU package temperature, package power and motherboard Super I/O sensors may require the signed **PawnIO** hardware-access driver used by LibreHardwareMonitor. When full access is unavailable, the status bar shows **Enable full sensors**. The app only invokes the official Windows Package Manager package after explicit confirmation, then restarts with elevated access.
+
+Missing measurements remain `N/A`; they are no longer represented by a fake zero. Live values carry their provider unit independently of the saved theme suffix.
+
+Animated GIF assets now use their real frame durations and loop in the editor. When **Live display** is enabled, those frames are also rendered to the USB screen. Connecting without Live display still pushes the current theme once as a static frame.
 
 ## 0.7 alpha display compatibility
 
