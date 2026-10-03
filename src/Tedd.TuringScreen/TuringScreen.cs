@@ -114,6 +114,15 @@ public sealed class TuringScreen : IDisposable
 
     public void ConfigureCompatibility(RevACompatibilityMode compatibilityMode, Rgb565Encoding pixelEncoding)
     {
+        // When leaving a hardware-rotation profile, first return the controller
+        // to portrait while the old command framing is still active. Native
+        // portrait mode then avoids command 121 entirely.
+        if (_compatibilityMode != RevACompatibilityMode.NativePortraitSoftwareRotation &&
+            compatibilityMode == RevACompatibilityMode.NativePortraitSoftwareRotation)
+        {
+            WriteOrientationCommand(CmdOrientation, (byte)ScreenOrientation.Portrait);
+        }
+
         _compatibilityMode = compatibilityMode;
         _pixelEncoding = pixelEncoding;
         SetOrientation(Orientation);
