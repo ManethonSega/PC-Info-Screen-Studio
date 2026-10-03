@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.6.0-alpha.1
+
+- Fixed Rev-A landscape transport: orientation commands now send the correct 480×320 or 320×480 dimensions instead of always reporting portrait dimensions.
+- Removed the duplicate software transpose for Rev-A screens and switched serial transport to RTS/CTS hardware flow control.
+- Added the Rev-A HELLO handshake and model response detection after reset.
+- Changed framebuffer transmission to the proven four-row chunk size used by the reference Rev-A implementation.
+- Clear-screen handling now temporarily returns the controller to portrait mode to avoid the firmware clear/orientation bug.
+- Added automatic source labels. Changing a data source now changes the default label, while the user can still edit the label afterwards.
+- Added Windows regional formatting for Celsius/Fahrenheit, date and time.
+- Added CPU clock fallback through Windows processor power information and more resilient network upload/download sampling.
+- Expanded hardware monitoring with Fan 1 through Fan 6, pump aliases, GPU VRAM fallback calculation and exact vendor-specific raw sensor sources.
+- Added a scalable traditional analog clock widget.
+- Added four bundled playful fonts: Bungee, Fredoka, Monoton and Orbitron.
+- Traced the supplied cat artwork for the window/taskbar icon so it matches the provided logo much more closely.
+
+
 ## 0.5.0-alpha.1
 
 - Added a real hardware sensor engine using LibreHardwareMonitorLib 0.9.6.
