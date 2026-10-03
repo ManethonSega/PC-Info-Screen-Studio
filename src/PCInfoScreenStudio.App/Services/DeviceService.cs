@@ -125,6 +125,44 @@ public sealed class DeviceService : IDisposable
         }
     }
 
+    public async Task ApplyCompatibilityAsync(
+        DisplayProtocolProfile requestedProtocol,
+        DisplayColorMode requestedColorMode,
+        SerialPortOption? deviceInfo,
+        ThemeOrientation theme,
+        DeviceRotation rotation,
+        CancellationToken cancellationToken = default)
+    {
+        await _ioGate.WaitAsync(cancellationToken);
+        try
+        {
+            var screen = _screen;
+            if (screen is null) return;
+
+            var protocol = ResolveProtocol(requestedProtocol, deviceInfo);
+            if (requestedProtocol == DisplayProtocolProfile.Auto &&
+                screen.DetectedModel.Contains("UsbMonitor 3.5", StringComparison.OrdinalIgnoreCase))
+            {
+                protocol = DisplayProtocolProfile.RevANativePortrait;
+            }
+
+            var colorMode = ResolveColorMode(requestedColorMode);
+
+            await Task.Run(() =>
+            {
+                screen.ConfigureCompatibility(MapProtocol(protocol), MapColorMode(colorMode));
+                screen.SetOrientation(MapOrientation(theme, rotation));
+            }, cancellationToken);
+
+            ConnectedProtocol = protocol;
+            ConnectedColorMode = colorMode;
+        }
+        finally
+        {
+            _ioGate.Release();
+        }
+    }
+
     public async Task ApplyOrientationAsync(ThemeOrientation theme, DeviceRotation rotation, CancellationToken cancellationToken = default)
     {
         await _ioGate.WaitAsync(cancellationToken);
