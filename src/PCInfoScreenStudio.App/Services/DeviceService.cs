@@ -9,6 +9,7 @@ namespace PCInfoScreenStudio.Services;
 public sealed class DeviceService : IDisposable
 {
     private readonly SemaphoreSlim _ioGate = new(1, 1);
+    private readonly SerialDeviceDiscoveryService _serialDiscovery = new();
     private TuringScreen? _screen;
     private bool _disposed;
 
@@ -51,15 +52,45 @@ public sealed class DeviceService : IDisposable
                 foreach (var baudRate in new[] { 115200, 921600 })
                 {
                     TuringScreen? screen = null;
+                    var activePort = portName;
+                    var activeNumber = number;
+
                     try
                     {
                         screen = new TuringScreen(
-                            number,
+                            activeNumber,
                             baudRate,
                             MapProtocol(protocol),
                             MapColorMode(colorMode));
 
-                        screen.Reset();
+                        try
+                        {
+                            screen.Reset();
+                        }
+                        catch (IOException)
+                        {
+                            // Rev-A reset can make Windows re-enumerate the
+                            // device under another COM number. Re-detect it
+                            // instead of treating the display as disconnected.
+                            screen.Dispose();
+                            screen = null;
+
+                            var rediscovered = _serialDiscovery.BestScreenCandidate();
+                            if (rediscovered is null)
+                                throw;
+
+                            activePort = rediscovered.PortName;
+                            activeNumber = ParsePortNumber(activePort);
+                            if (activeNumber <= 0)
+                                throw;
+
+                            screen = new TuringScreen(
+                                activeNumber,
+                                baudRate,
+                                MapProtocol(protocol),
+                                MapColorMode(colorMode));
+                        }
+
                         screen.InitializeComm();
 
                         // Some USB35INCHIPSV2 devices only identify themselves
@@ -77,7 +108,7 @@ public sealed class DeviceService : IDisposable
                         screen.SetBrightness(50);
 
                         _screen = screen;
-                        ConnectedPort = portName;
+                        ConnectedPort = activePort;
                         ConnectedBaudRate = baudRate;
                         ConnectedModel = screen.DetectedModel;
                         ConnectedProtocol = protocol;
