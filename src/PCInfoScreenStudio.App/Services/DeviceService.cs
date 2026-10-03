@@ -238,15 +238,15 @@ public sealed class DeviceService : IDisposable
                 var buffer = new ScreenBuffer(screen.Width, screen.Height);
                 var bars = new[]
                 {
-                    ScreenBuffer.FullRgbToColor565(255, 0, 0),
-                    ScreenBuffer.FullRgbToColor565(0, 255, 0),
-                    ScreenBuffer.FullRgbToColor565(0, 0, 255),
-                    ScreenBuffer.FullRgbToColor565(0, 255, 255),
-                    ScreenBuffer.FullRgbToColor565(255, 0, 255),
-                    ScreenBuffer.FullRgbToColor565(255, 255, 0)
+                    ScreenBuffer.RgbToColor565(255, 0, 0),
+                    ScreenBuffer.RgbToColor565(0, 255, 0),
+                    ScreenBuffer.RgbToColor565(0, 0, 255),
+                    ScreenBuffer.RgbToColor565(0, 255, 255),
+                    ScreenBuffer.RgbToColor565(255, 0, 255),
+                    ScreenBuffer.RgbToColor565(255, 255, 0)
                 };
-                var white = ScreenBuffer.FullRgbToColor565(255, 255, 255);
-                var black = ScreenBuffer.FullRgbToColor565(0, 0, 0);
+                var white = ScreenBuffer.RgbToColor565(255, 255, 255);
+                var black = ScreenBuffer.RgbToColor565(0, 0, 0);
 
                 for (var y = 0; y < screen.Height; y++)
                 {
@@ -317,7 +317,7 @@ public sealed class DeviceService : IDisposable
                 var p = pixels[i];
                 var x = i % frame.Width;
                 var y = i / frame.Width;
-                buffer[x, y] = ScreenBuffer.FullRgbToColor565(p.Red, p.Green, p.Blue);
+                buffer[x, y] = ScreenBuffer.RgbToColor565(p.Red, p.Green, p.Blue);
             }
 
             screen.DisplayBuffer(0, 0, buffer);
