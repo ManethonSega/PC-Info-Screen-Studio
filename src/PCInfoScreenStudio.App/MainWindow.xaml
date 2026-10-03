@@ -96,6 +96,7 @@
               <Button Content="Text" Command="{Binding AddWidgetCommand}" CommandParameter="Text" />
               <Button Content="Value" Command="{Binding AddWidgetCommand}" CommandParameter="Value" />
               <Button Content="Circle" Command="{Binding AddWidgetCommand}" CommandParameter="CircularGauge" />
+              <Button Content="Clock" Command="{Binding AddWidgetCommand}" CommandParameter="AnalogClock" ToolTip="Traditional analog clock" />
               <Button Content="Bar" Command="{Binding AddWidgetCommand}" CommandParameter="BarGauge" />
               <Button Content="Graph" Command="{Binding AddWidgetCommand}" CommandParameter="Graph" />
               <Button Content="Shape" Command="{Binding AddWidgetCommand}" CommandParameter="Shape" />
@@ -336,12 +337,18 @@
                             <DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.AnimatedImage}"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
                             <DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.Video}"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
                             <DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.Shape}"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
+                            <DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.AnalogClock}"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
                           </Style.Triggers>
                         </Style>
                       </StackPanel.Style>
                       <TextBlock Text="TYPOGRAPHY" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="0,8,0,6" />
-                      <TextBlock Text="System font" Foreground="{StaticResource MutedTextBrush}" />
-                      <TextBox Text="{Binding FontFamily, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,6" />
+                      <TextBlock Text="Font" Foreground="{StaticResource MutedTextBrush}" />
+                      <ComboBox ItemsSource="{Binding DataContext.FontChoices, RelativeSource={RelativeSource AncestorType=Window}}"
+                                IsEditable="True"
+                                IsTextSearchEnabled="True"
+                                Text="{Binding FontFamily, UpdateSourceTrigger=PropertyChanged}"
+                                Margin="0,3,0,6"
+                                ToolTip="Includes built-in Bungee, Fredoka, Monoton and Orbitron fonts. You can also type an installed Windows font name." />
                       <TextBlock Text="Embedded custom font" Foreground="{StaticResource MutedTextBrush}" />
                       <ComboBox ItemsSource="{Binding DataContext.FontAssets, RelativeSource={RelativeSource AncestorType=Window}}"
                                 DisplayMemberPath="DisplayName" SelectedValuePath="Id" SelectedValue="{Binding FontAssetId}" Margin="0,3,0,6" />
