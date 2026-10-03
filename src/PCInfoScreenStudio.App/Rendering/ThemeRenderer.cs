@@ -49,8 +49,10 @@ public sealed class ThemeRenderer
                 DrawGraph(canvas, workspace, w);
                 break;
             case WidgetType.Image:
-            case WidgetType.AnimatedImage:
                 DrawImage(canvas, workspace, w);
+                break;
+            case WidgetType.AnimatedImage:
+                DrawAnimatedImage(canvas, workspace, w);
                 break;
             case WidgetType.Video:
                 DrawVideoPlaceholder(canvas, workspace, w);
@@ -321,6 +323,35 @@ public sealed class ThemeRenderer
 
         using var bitmap = SKBitmap.Decode(path);
         if (bitmap is null) return;
+        var dest = new SKRect(0, 0, (float)w.Width, (float)w.Height);
+        var src = SourceRectForFit(bitmap.Width, bitmap.Height, dest.Width, dest.Height, w.MediaFit);
+        canvas.DrawBitmap(bitmap, src, dest);
+    }
+
+    private static void DrawAnimatedImage(SKCanvas canvas, ThemeWorkspace workspace, WidgetModel w)
+    {
+        FillBackground(canvas, w);
+
+        var asset = workspace.Document.Assets.FirstOrDefault(a => a.Id == w.AssetId);
+        var path = asset is null ? null : workspace.GetAbsolutePath(asset);
+        if (path is null || !File.Exists(path))
+        {
+            DrawCenteredText(canvas, workspace, w, "GIF", 12, w.ForegroundColor, (float)(w.Height / 2));
+            return;
+        }
+
+        var bitmap = AnimatedGifFrameProvider.GetFrame(
+            path,
+            w.PlaybackSpeed,
+            w.TargetFps,
+            w.Loop);
+
+        if (bitmap is null)
+        {
+            DrawCenteredText(canvas, workspace, w, "GIF", 12, w.ForegroundColor, (float)(w.Height / 2));
+            return;
+        }
+
         var dest = new SKRect(0, 0, (float)w.Width, (float)w.Height);
         var src = SourceRectForFit(bitmap.Width, bitmap.Height, dest.Width, dest.Height, w.MediaFit);
         canvas.DrawBitmap(bitmap, src, dest);
