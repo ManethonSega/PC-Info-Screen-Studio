@@ -852,7 +852,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             widget.Suffix = "%"; widget.Minimum = 0; widget.Maximum = 100; return;
         }
 
-        if (source.Contains("Temperature", StringComparison.OrdinalIgnoreCase) || source.Contains("Hotspot", StringComparison.OrdinalIgnoreCase) || source.StartsWith("Weather.Temperature", StringComparison.OrdinalIgnoreCase) || source.StartsWith("Weather.FeelsLike", StringComparison.OrdinalIgnoreCase))
+        if (IsTemperatureSource(source))
         {
             widget.Suffix = RegionalFormatService.TemperatureSuffix;
             widget.Minimum = RegionalFormatService.UsesFahrenheit ? 20 : -10;
@@ -871,17 +871,25 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             widget.Suffix = " MB/s"; widget.Minimum = 0; widget.Maximum = Math.Max(100, widget.Maximum); return;
         }
-        if (source.Contains("FanRPM", StringComparison.OrdinalIgnoreCase) || source.Contains("PumpRPM", StringComparison.OrdinalIgnoreCase))
+        if (source.Contains("FanRPM", StringComparison.OrdinalIgnoreCase) ||
+            source.Contains("PumpRPM", StringComparison.OrdinalIgnoreCase) ||
+            source.Contains("[Fan]", StringComparison.OrdinalIgnoreCase))
         {
             widget.Suffix = " RPM"; widget.Minimum = 0; widget.Maximum = Math.Max(5000, widget.Maximum); return;
         }
-        if (source.EndsWith("Power", StringComparison.OrdinalIgnoreCase))
+        if (source.EndsWith("Power", StringComparison.OrdinalIgnoreCase) ||
+            source.Contains("[Power]", StringComparison.OrdinalIgnoreCase))
         {
             widget.Suffix = " W"; widget.Minimum = 0; widget.Maximum = Math.Max(400, widget.Maximum); return;
         }
-        if (source.EndsWith("Clock", StringComparison.OrdinalIgnoreCase))
+        if (source.EndsWith("Clock", StringComparison.OrdinalIgnoreCase) ||
+            source.Contains("[Clock]", StringComparison.OrdinalIgnoreCase))
         {
-            widget.Suffix = " MHz"; widget.Minimum = 0; widget.Maximum = Math.Max(6000, widget.Maximum);
+            widget.Suffix = " MHz"; widget.Minimum = 0; widget.Maximum = Math.Max(6000, widget.Maximum); return;
+        }
+        if (source.Contains("[Load]", StringComparison.OrdinalIgnoreCase))
+        {
+            widget.Suffix = "%"; widget.Minimum = 0; widget.Maximum = 100;
         }
     }
 
