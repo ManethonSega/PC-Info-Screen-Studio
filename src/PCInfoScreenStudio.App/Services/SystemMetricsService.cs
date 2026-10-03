@@ -36,9 +36,9 @@ public sealed class SystemMetricsService
     private static void SampleClock(IDictionary<string, MetricValue> output)
     {
         var now = DateTime.Now;
-        output["Clock.Time"] = new MetricValue(Text: now.ToString("HH:mm:ss"));
-        output["Clock.Date"] = new MetricValue(Text: now.ToString("yyyy/MM/dd"));
-        output["Clock.Day"] = new MetricValue(Text: now.ToString("dddd"));
+        output["Clock.Time"] = new MetricValue(Text: RegionalFormatService.FormatTime(now));
+        output["Clock.Date"] = new MetricValue(Text: RegionalFormatService.FormatDate(now));
+        output["Clock.Day"] = new MetricValue(Text: RegionalFormatService.FormatDay(now));
     }
 
     private void SampleCpu(IDictionary<string, MetricValue> output)
@@ -63,6 +63,10 @@ public sealed class SystemMetricsService
                 output["CPU.Usage"] = new MetricValue(Math.Clamp(usage, 0, 100), Unit: "%");
             }
         }
+
+        var clock = TryGetAverageCurrentCpuMhz();
+        if (clock is double mhz && mhz > 0)
+            output["CPU.Clock"] = new MetricValue(mhz, Unit: " MHz");
 
         _lastIdle = idle;
         _lastKernel = kernel;
@@ -114,12 +118,21 @@ public sealed class SystemMetricsService
             long sent = 0;
             foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
             {
-                if (nic.OperationalStatus != OperationalStatus.Up || nic.NetworkInterfaceType == NetworkInterfaceType.Loopback)
+                if (nic.OperationalStatus != OperationalStatus.Up ||
+                    nic.NetworkInterfaceType == NetworkInterfaceType.Loopback ||
+                    nic.NetworkInterfaceType == NetworkInterfaceType.Tunnel)
                     continue;
 
-                var stats = nic.GetIPv4Statistics();
-                received += stats.BytesReceived;
-                sent += stats.BytesSent;
+                try
+                {
+                    var stats = nic.GetIPv4Statistics();
+                    received += stats.BytesReceived;
+                    sent += stats.BytesSent;
+                }
+                catch
+                {
+                    // Ignore a transient/virtual adapter while still sampling the others.
+                }
             }
 
             var now = DateTime.UtcNow;
@@ -142,6 +155,71 @@ public sealed class SystemMetricsService
             // Some virtual adapters throw while being removed. Ignore one sample.
         }
     }
+
+    private static double? TryGetAverageCurrentCpuMhz()
+    {
+        try
+        {
+            if (!OperatingSystem.IsWindows())
+                return null;
+
+            var count = Math.Max(1, Environment.ProcessorCount);
+            var size = Marshal.SizeOf<ProcessorPowerInformation>();
+            var length = size * count;
+            var buffer = Marshal.AllocHGlobal(length);
+
+            try
+            {
+                var status = CallNtPowerInformation(ProcessorInformation, IntPtr.Zero, 0, buffer, (uint)length);
+                if (status != 0)
+                    return null;
+
+                double total = 0;
+                var samples = 0;
+                for (var i = 0; i < count; i++)
+                {
+                    var ptr = IntPtr.Add(buffer, i * size);
+                    var info = Marshal.PtrToStructure<ProcessorPowerInformation>(ptr);
+                    if (info.CurrentMhz > 0)
+                    {
+                        total += info.CurrentMhz;
+                        samples++;
+                    }
+                }
+
+                return samples == 0 ? null : total / samples;
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(buffer);
+            }
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private const int ProcessorInformation = 11;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ProcessorPowerInformation
+    {
+        public uint Number;
+        public uint MaxMhz;
+        public uint CurrentMhz;
+        public uint MhzLimit;
+        public uint MaxIdleState;
+        public uint CurrentIdleState;
+    }
+
+    [DllImport("powrprof.dll", SetLastError = true)]
+    private static extern uint CallNtPowerInformation(
+        int informationLevel,
+        IntPtr inputBuffer,
+        uint inputBufferLength,
+        IntPtr outputBuffer,
+        uint outputBufferLength);
 
     private static ulong ToUInt64(FileTime ft) => ((ulong)ft.High << 32) | ft.Low;
 
