@@ -14,6 +14,7 @@ public sealed class DeviceService : IDisposable
 
     public bool IsConnected => _screen is not null;
     public string? ConnectedPort { get; private set; }
+    public int? ConnectedBaudRate { get; private set; }
 
     public IReadOnlyList<string> GetPorts()
         => SerialPort.GetPortNames().OrderBy(ParsePortNumber).ToArray();
@@ -33,19 +34,41 @@ public sealed class DeviceService : IDisposable
             {
                 DisconnectCore();
 
-                var screen = new TuringScreen(number);
-                try
+                Exception? firstFailure = null;
+                foreach (var baudRate in new[] { 921600, 115200 })
                 {
-                    screen.SetOrientation(MapOrientation(theme, rotation));
-                    screen.SetBrightness(100);
-                    _screen = screen;
-                    ConnectedPort = portName;
+                    TuringScreen? screen = null;
+                    try
+                    {
+                        screen = new TuringScreen(number, baudRate);
+                        screen.SetOrientation(MapOrientation(theme, rotation));
+                        screen.SetBrightness(100);
+
+                        _screen = screen;
+                        ConnectedPort = portName;
+                        ConnectedBaudRate = baudRate;
+                        return;
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        screen?.Dispose();
+                        throw;
+                    }
+                    catch (Exception ex) when (baudRate == 921600 && IsBaudRateFailure(ex))
+                    {
+                        screen?.Dispose();
+                        firstFailure = ex;
+                    }
+                    catch
+                    {
+                        screen?.Dispose();
+                        throw;
+                    }
                 }
-                catch
-                {
-                    screen.Dispose();
-                    throw;
-                }
+
+                throw new InvalidOperationException(
+                    "The display port rejected both 921600 and 115200 baud.",
+                    firstFailure);
             }, cancellationToken);
         }
         finally
@@ -187,6 +210,7 @@ public sealed class DeviceService : IDisposable
         var screen = _screen;
         _screen = null;
         ConnectedPort = null;
+        ConnectedBaudRate = null;
         try { screen?.Dispose(); } catch { }
     }
 
@@ -201,6 +225,23 @@ public sealed class DeviceService : IDisposable
     private void ThrowIfDisposed()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+    }
+
+
+    private static bool IsBaudRateFailure(Exception exception)
+    {
+        for (var current = exception; current is not null; current = current.InnerException!)
+        {
+            var message = current.Message;
+            if (message.Contains("baud", StringComparison.OrdinalIgnoreCase) ||
+                message.Contains("maximum", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            if (current.InnerException is null)
+                break;
+        }
+
+        return exception is ArgumentOutOfRangeException;
     }
 
     private static int ParsePortNumber(string port)
