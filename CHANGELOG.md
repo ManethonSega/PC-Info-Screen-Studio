@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.8.1-alpha.1
+
+- Improved GIF refresh on UsbMonitor 3.5-inch Rev-A screens.
+- Native-portrait compatibility mode now keeps a logical framebuffer and sends only changed 16x16 tiles for sparse animations.
+- Dense/full-screen GIF frames use a single streamed frame path instead of hundreds of tiny managed serial writes.
+- The display connection now prefers 921600 baud and falls back to 115200 when required.
+- Added a persistent **Close window to system tray** option. The tray menu provides Show and Exit commands while the LCD and sensor runtime continue in the background.
+- Moved **Hardware sensors...** into the main toolbar so the low-level sensor setup is no longer hidden in the status bar.
+- Clarified that running as Administrator alone does not install the low-level hardware driver.
+- The Hardware sensors action can install the official `namazso.PawnIO` package through Windows Package Manager after explicit confirmation, restart the app, and run a direct CPU/GPU/VRAM/disk sensor check.
+- LibreHardwareMonitor now keeps GPU and storage providers active before PawnIO is installed instead of allowing inaccessible motherboard/controller groups to hide otherwise readable telemetry.
+- The sensor status line now shows readable CPU temperature/power, GPU temperature/VRAM and disk temperature values directly.
+
+
 ## 0.8.0-alpha.1
 
 - Reworked hardware telemetry after comparing the original UsbMonitor behavior and established Turing-screen projects.
