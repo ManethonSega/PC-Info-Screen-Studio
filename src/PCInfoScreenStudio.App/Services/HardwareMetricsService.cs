@@ -1,3 +1,4 @@
+using System.Security.Principal;
 using LibreHardwareMonitor.Hardware;
 
 namespace PCInfoScreenStudio.Services;
@@ -26,9 +27,13 @@ public sealed class HardwareMetricsService : IDisposable
                     CollectHardware(hardware, hardware.HardwareType.ToString(), sensors);
 
                 var result = BuildMetrics(sensors);
-                Status = result.Count > 0
-                    ? $"Hardware sensors active ({sensors.Count} sensors)"
-                    : "Hardware monitor opened, but no supported sensors were returned.";
+                var elevated = IsAdministrator();
+
+                Status = sensors.Count > 0
+                    ? $"Hardware sensors active ({sensors.Count} sensors{(elevated ? ", elevated" : ", standard access")})"
+                    : elevated
+                        ? "Hardware monitor opened, but no supported sensors were returned."
+                        : "No low-level sensors available. Run as administrator for CPU/motherboard sensors.";
 
                 return result;
             }
@@ -68,7 +73,7 @@ public sealed class HardwareMetricsService : IDisposable
         }
         catch
         {
-            // One inaccessible device should not hide all other hardware sensors.
+            // Keep the remaining hardware available even if one controller fails.
         }
 
         foreach (var sensor in hardware.Sensors)
@@ -93,17 +98,17 @@ public sealed class HardwareMetricsService : IDisposable
         var output = new Dictionary<string, MetricValue>(StringComparer.OrdinalIgnoreCase);
 
         Add(output, "CPU.Temperature",
-            Pick(sensors, IsCpu, "Temperature", ["package", "tctl", "tdie", "cpu", "core max"]),
+            Pick(sensors, IsCpu, "Temperature", ["package", "cpu package", "core max", "tctl", "tdie", "cpu"]),
             "°C");
 
         Add(output, "CPU.Power",
-            Pick(sensors, IsCpu, "Power", ["package", "cpu package", "cores", "cpu"]),
+            Pick(sensors, IsCpu, "Power", ["package", "cpu package", "package power", "cores", "cpu"]),
             " W");
 
         Add(output, "CPU.Clock",
             Average(sensors, IsCpu, "Clock", s =>
-                ContainsAny(s.SensorName, "core", "cpu") &&
-                !ContainsAny(s.SensorName, "bus", "bclk", "effective")),
+                !ContainsAny(s.SensorName, "bus", "bclk") &&
+                ContainsAny(s.SensorName, "core", "cpu", "effective")),
             " MHz");
 
         Add(output, "GPU.Usage",
@@ -118,16 +123,26 @@ public sealed class HardwareMetricsService : IDisposable
             Pick(sensors, IsGpu, "Temperature", ["hot spot", "hotspot", "junction"]),
             "°C");
 
-        Add(output, "GPU.VRAM",
-            Pick(sensors, IsGpu, "Load", ["memory", "vram", "dedicated"]),
-            "%");
+        var gpuMemoryPercent =
+            Pick(sensors, IsGpu, "Load", ["gpu memory", "memory", "vram", "dedicated"]);
+
+        if (gpuMemoryPercent is null)
+        {
+            var used = PickAnyType(sensors, IsGpu, ["SmallData", "Data"], ["gpu memory used", "dedicated memory used", "memory used"]);
+            var total = PickAnyType(sensors, IsGpu, ["SmallData", "Data"], ["gpu memory total", "dedicated memory total", "memory total"]);
+
+            if (used is double usedValue && total is double totalValue && totalValue > 0)
+                gpuMemoryPercent = Math.Clamp(usedValue / totalValue * 100d, 0d, 100d);
+        }
+
+        Add(output, "GPU.VRAM", gpuMemoryPercent, "%");
 
         Add(output, "GPU.Power",
-            Pick(sensors, IsGpu, "Power", ["gpu package", "total board", "board", "asic", "gpu"]),
+            Pick(sensors, IsGpu, "Power", ["gpu package", "total board", "board", "asic", "gpu power", "gpu"]),
             " W");
 
         Add(output, "GPU.FanRPM",
-            Pick(sensors, IsGpu, "Fan", ["gpu", "fan"]),
+            Pick(sensors, IsGpu, "Fan", ["gpu fan", "fan"]),
             " RPM");
 
         var storageTemps = sensors
@@ -140,22 +155,67 @@ public sealed class HardwareMetricsService : IDisposable
         if (storageTemps.Length > 0)
             output["Disk.Temperature"] = new MetricValue(storageTemps.Max(), Unit: "°C");
 
-        Add(output, "Cooling.PumpRPM",
-            Pick(sensors, IsCoolingHardware, "Fan", ["pump", "aio", "water"]),
-            " RPM");
-
-        var fan = sensors
+        var pump = sensors
             .Where(s => IsCoolingHardware(s) &&
                         s.SensorType.Equals("Fan", StringComparison.OrdinalIgnoreCase) &&
-                        !ContainsAny(s.SensorName, "pump", "aio", "water"))
-            .OrderByDescending(s => ScoreName(s.SensorName, ["cpu", "chassis", "system", "fan"]))
-            .ThenByDescending(s => s.Value)
+                        ContainsAny(s.SensorName, "pump", "aio", "water", "liquid"))
+            .OrderByDescending(s => ScoreName(s.SensorName, ["aio pump", "pump", "water pump", "water", "liquid"]))
             .FirstOrDefault();
 
-        if (fan is not null)
-            output["Cooling.FanRPM"] = new MetricValue(fan.Value, Unit: " RPM");
+        if (pump is not null)
+            output["Cooling.PumpRPM"] = new MetricValue(pump.Value, Unit: " RPM");
+
+        var fans = sensors
+            .Where(s => IsCoolingHardware(s) &&
+                        s.SensorType.Equals("Fan", StringComparison.OrdinalIgnoreCase) &&
+                        !ContainsAny(s.SensorName, "pump", "aio", "water", "liquid"))
+            .OrderByDescending(s => ScoreName(s.SensorName, ["cpu fan", "cpu", "chassis", "system", "fan"]))
+            .ThenBy(s => s.SensorName, StringComparer.CurrentCultureIgnoreCase)
+            .ToArray();
+
+        if (fans.Length > 0)
+        {
+            output["Cooling.FanRPM"] = new MetricValue(fans[0].Value, Unit: " RPM");
+
+            for (var i = 0; i < Math.Min(6, fans.Length); i++)
+                output[$"Cooling.Fan{i + 1}RPM"] = new MetricValue(fans[i].Value, Unit: " RPM");
+        }
+
+        // Expose every detected hardware sensor as an exact selectable source.
+        // This avoids losing vendor-specific names such as ASUS AIO_PUMP, CHA_FAN3,
+        // GPU Memory Used, CPU Package, etc.
+        foreach (var sensor in sensors)
+        {
+            var key = BuildRawSourceKey(sensor);
+            if (!output.ContainsKey(key))
+                output[key] = new MetricValue(sensor.Value, Unit: UnitFor(sensor.SensorType, sensor.SensorName));
+        }
 
         return output;
+    }
+
+    private static string BuildRawSourceKey(SensorSnapshot sensor)
+        => $"Sensor: {sensor.RootType} / {Clean(sensor.HardwareName)} / {Clean(sensor.SensorName)} [{sensor.SensorType}]";
+
+    private static string Clean(string value)
+        => string.Join(" ", value.Split(['\r', '\n', '\t'], StringSplitOptions.RemoveEmptyEntries)).Trim();
+
+    private static string UnitFor(string sensorType, string sensorName)
+    {
+        if (sensorType.Equals("Temperature", StringComparison.OrdinalIgnoreCase)) return "°C";
+        if (sensorType.Equals("Fan", StringComparison.OrdinalIgnoreCase)) return " RPM";
+        if (sensorType.Equals("Clock", StringComparison.OrdinalIgnoreCase)) return " MHz";
+        if (sensorType.Equals("Power", StringComparison.OrdinalIgnoreCase)) return " W";
+        if (sensorType.Equals("Load", StringComparison.OrdinalIgnoreCase)) return "%";
+        if (sensorType.Equals("Voltage", StringComparison.OrdinalIgnoreCase)) return " V";
+        if (sensorType.Equals("Current", StringComparison.OrdinalIgnoreCase)) return " A";
+        if (sensorType.Equals("Control", StringComparison.OrdinalIgnoreCase)) return "%";
+        if (sensorType.Equals("Throughput", StringComparison.OrdinalIgnoreCase)) return " MB/s";
+        if ((sensorType.Equals("Data", StringComparison.OrdinalIgnoreCase) ||
+             sensorType.Equals("SmallData", StringComparison.OrdinalIgnoreCase)) &&
+            sensorName.Contains("memory", StringComparison.OrdinalIgnoreCase))
+            return " MB";
+        return string.Empty;
     }
 
     private static void Add(
@@ -182,12 +242,32 @@ public sealed class HardwareMetricsService : IDisposable
         if (matches.Length == 0)
             return null;
 
-        var best = matches
+        return matches
             .OrderByDescending(s => ScoreName(s.SensorName, preferredNames))
             .ThenByDescending(s => s.Value)
-            .First();
+            .First()
+            .Value;
+    }
 
-        return best.Value;
+    private static double? PickAnyType(
+        IEnumerable<SensorSnapshot> sensors,
+        Func<SensorSnapshot, bool> hardwareFilter,
+        IReadOnlyCollection<string> sensorTypes,
+        IReadOnlyList<string> preferredNames)
+    {
+        var matches = sensors
+            .Where(s => hardwareFilter(s) &&
+                        sensorTypes.Any(type => s.SensorType.Equals(type, StringComparison.OrdinalIgnoreCase)))
+            .ToArray();
+
+        if (matches.Length == 0)
+            return null;
+
+        return matches
+            .OrderByDescending(s => ScoreName(s.SensorName, preferredNames))
+            .ThenByDescending(s => s.Value)
+            .First()
+            .Value;
     }
 
     private static double? Average(
@@ -233,7 +313,22 @@ public sealed class HardwareMetricsService : IDisposable
     private static bool IsCoolingHardware(SensorSnapshot sensor)
         => sensor.RootType.Equals("Motherboard", StringComparison.OrdinalIgnoreCase) ||
            sensor.RootType.Equals("Controller", StringComparison.OrdinalIgnoreCase) ||
-           sensor.RootType.Equals("Cooler", StringComparison.OrdinalIgnoreCase);
+           sensor.RootType.Equals("Cooler", StringComparison.OrdinalIgnoreCase) ||
+           sensor.RootType.Equals("SuperIO", StringComparison.OrdinalIgnoreCase) ||
+           sensor.RootType.Equals("EmbeddedController", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsAdministrator()
+    {
+        try
+        {
+            using var identity = WindowsIdentity.GetCurrent();
+            return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
     public void Dispose()
     {
