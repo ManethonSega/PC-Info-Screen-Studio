@@ -1,6 +1,7 @@
 using System.Globalization;
 using SkiaSharp;
 using PCInfoScreenStudio.Models;
+using PCInfoScreenStudio.Services;
 
 namespace PCInfoScreenStudio.Rendering;
 
@@ -448,6 +449,9 @@ public sealed class ThemeRenderer
                     return SKTypeface.FromFile(path);
             }
         }
+        if (BuiltInFontCatalog.TryGetPath(w.FontFamily, out var builtInPath))
+            return SKTypeface.FromFile(builtInPath);
+
         var style = w.FontBold && w.FontItalic ? SKFontStyle.BoldItalic : w.FontBold ? SKFontStyle.Bold : w.FontItalic ? SKFontStyle.Italic : SKFontStyle.Normal;
         return SKTypeface.FromFamilyName(w.FontFamily, style) ?? SKTypeface.Default;
     }
