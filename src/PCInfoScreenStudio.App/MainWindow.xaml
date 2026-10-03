@@ -4,7 +4,7 @@
         xmlns:controls="clr-namespace:PCInfoScreenStudio.Controls"
         xmlns:models="clr-namespace:PCInfoScreenStudio.Models"
         Title="{Binding WindowTitle}"
-        Icon="Assets/PCInfoScreenStudio.ico"
+        Icon="{StaticResource AppIconImage}"
         Width="1480" Height="880" MinWidth="1080" MinHeight="680"
         WindowStartupLocation="CenterScreen"
         Closing="OnClosing" AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop">
