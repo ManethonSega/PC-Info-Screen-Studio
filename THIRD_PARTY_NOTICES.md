@@ -200,8 +200,16 @@ SOFTWARE.
 
 ## PawnIO
 
-For full low-level CPU and motherboard sensor access, PC Info Screen Studio can optionally ask Windows Package Manager to install **PawnIO**, the signed hardware-access driver used by LibreHardwareMonitor.
+For full low-level CPU and motherboard sensor access, PC Info Screen Studio can install **PawnIO**, the signed hardware-access driver used by LibreHardwareMonitor.
 
 Source: https://github.com/namazso/PawnIO
 
-PC Info Screen Studio does not bundle PawnIO. Installation is only started after explicit user confirmation and is performed by the official Windows Package Manager package `namazso.PawnIO`.
+Official setup releases: https://github.com/namazso/PawnIO.Setup/releases
+
+Windows release artifacts bundle the **unmodified official PawnIO 2.2.0 installer** as a separate prerequisite under `Prerequisites/PawnIO_setup.exe`. The build verifies this SHA-256 before packaging:
+
+`1f519a22e47187f70a1379a48ca604981c4fcf694f4e65b734aaa74a9fba3032`
+
+PawnIO remains a separate driver component and is not incorporated into PC Info Screen Studio's MIT-licensed code. It is installed only after explicit user confirmation/UAC. Its GPL-2.0-or-later license text and source information are distributed alongside the installer under `Prerequisites`.
+
+If the bundled prerequisite is unavailable, PC Info Screen Studio can fall back to the official Windows Package Manager package `namazso.PawnIO`.
