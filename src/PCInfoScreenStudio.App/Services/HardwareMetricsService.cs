@@ -115,7 +115,7 @@ public sealed class HardwareMetricsService : IDisposable
             CollectHardware(subHardware, rootType, output);
     }
 
-    private static IReadOnlyDictionary<string, MetricValue> BuildMetrics(IReadOnlyList<SensorSnapshot> sensors)
+    private static Dictionary<string, MetricValue> BuildMetrics(IReadOnlyList<SensorSnapshot> sensors)
     {
         var output = new Dictionary<string, MetricValue>(StringComparer.OrdinalIgnoreCase);
 
