@@ -14,6 +14,9 @@ public sealed class ThemeDocument : ObservableObject
     private int _canvasHeight = 320;
     private DeviceRotation _deviceRotation = DeviceRotation.Degrees0;
     private string _backgroundColor = "#FF090B0F";
+    private bool _editorGridVisible;
+    private bool _snapToGrid;
+    private double _gridSize = 10;
 
     public int FormatVersion { get; set; } = CurrentFormatVersion;
     public string MinimumAppVersion { get; set; } = "0.1.0";
@@ -45,6 +48,9 @@ public sealed class ThemeDocument : ObservableObject
     public int CanvasHeight { get => _canvasHeight; set => SetProperty(ref _canvasHeight, value); }
     public DeviceRotation DeviceRotation { get => _deviceRotation; set => SetProperty(ref _deviceRotation, value); }
     public string BackgroundColor { get => _backgroundColor; set => SetProperty(ref _backgroundColor, value); }
+    public bool EditorGridVisible { get => _editorGridVisible; set => SetProperty(ref _editorGridVisible, value); }
+    public bool SnapToGrid { get => _snapToGrid; set => SetProperty(ref _snapToGrid, value); }
+    public double GridSize { get => _gridSize; set => SetProperty(ref _gridSize, Math.Clamp(value, 2, 100)); }
 
     public ObservableCollection<WidgetModel> Widgets { get; set; } = [];
     public ObservableCollection<ThemeAsset> Assets { get; set; } = [];
