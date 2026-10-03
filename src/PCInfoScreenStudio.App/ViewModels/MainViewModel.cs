@@ -318,9 +318,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         ThemeChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public void SendLiveFrame(SkiaSharp.SKBitmap bitmap)
+    public void SendLiveFrame(SkiaSharp.SKBitmap bitmap, bool force = false)
     {
-        if (!LivePreview || !_deviceService.IsConnected) return;
+        if ((!LivePreview && !force) || !_deviceService.IsConnected) return;
         if (DateTimeOffset.UtcNow < _suspendLiveDisplayUntil) return;
 
         if (Interlocked.CompareExchange(ref _frameSendBusy, 1, 0) != 0)
