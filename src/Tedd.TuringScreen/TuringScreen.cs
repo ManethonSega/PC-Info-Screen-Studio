@@ -614,7 +614,7 @@ public sealed class TuringScreen : IDisposable
             {
                 _port = new SerialPort("COM" + _comPortName)
                 {
-                    DtrEnable = false,
+                    DtrEnable = true,
                     Handshake = Handshake.RequestToSend,
                     ReadTimeout = 350,
                     BaudRate = _baudRate,
