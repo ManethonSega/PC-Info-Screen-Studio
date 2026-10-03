@@ -64,6 +64,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         RefreshPortsCommand = new RelayCommand(RefreshPorts);
         DetectScreenCommand = new RelayCommand(DetectScreen, () => !IsDeviceBusy);
         ConnectCommand = new RelayCommand(() => _ = ConnectOrDisconnectAsync(), () => !IsDeviceBusy);
+        TestScreenCommand = new RelayCommand(() => _ = TestScreenAsync(), () => _deviceService.IsConnected && !IsDeviceBusy);
         BenchmarkCommand = new RelayCommand(() => _ = RunBenchmarkAsync(), () => _deviceService.IsConnected && !IsDeviceBusy);
         RefreshThemesCommand = new RelayCommand(RefreshThemes);
         LoadThemeCommand = new RelayCommand(() => _ = LoadSelectedThemeAsync(), () => SelectedTheme is not null);
@@ -202,6 +203,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             if (!SetProperty(ref _isDeviceBusy, value)) return;
             ConnectCommand.RaiseCanExecuteChanged();
             DetectScreenCommand.RaiseCanExecuteChanged();
+            TestScreenCommand.RaiseCanExecuteChanged();
             BenchmarkCommand.RaiseCanExecuteChanged();
         }
     }
@@ -227,6 +229,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand RefreshPortsCommand { get; }
     public RelayCommand DetectScreenCommand { get; }
     public RelayCommand ConnectCommand { get; }
+    public RelayCommand TestScreenCommand { get; }
     public RelayCommand BenchmarkCommand { get; }
     public RelayCommand RefreshThemesCommand { get; }
     public RelayCommand LoadThemeCommand { get; }
@@ -589,6 +592,28 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             IsDeviceBusy = false;
             BenchmarkCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    private async Task TestScreenAsync()
+    {
+        if (IsDeviceBusy) return;
+
+        IsDeviceBusy = true;
+        DeviceStatus = "Sending display test pattern...";
+        try
+        {
+            await _deviceService.TestPatternAsync();
+            DeviceStatus = $"Test pattern sent: {_deviceService.ConnectedPort} @ {_deviceService.ConnectedBaudRate ?? 0} baud";
+        }
+        catch (Exception ex)
+        {
+            DeviceStatus = "Screen test failed";
+            MessageBox.Show(ex.Message, "Screen test failed", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsDeviceBusy = false;
         }
     }
 
