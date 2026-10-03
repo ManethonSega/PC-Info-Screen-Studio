@@ -2,7 +2,7 @@
 
 A visual Windows theme editor and runtime for 3.5-inch Turing/TURZX-style USB-CDC PC info screens.
 
-> **Status:** active alpha development (`0.8.0-alpha.1`). The visual editor, shareable theme format, live Windows/hardware/weather data, Revision-A display compatibility layer and physical-display diagnostics are implemented. Animated GIF/video playback and advanced media optimization remain active development items.
+> **Status:** active alpha development (`0.8.1-alpha.1`). The visual editor, shareable theme format, live Windows/hardware/weather data, Revision-A display compatibility layer and physical-display diagnostics are implemented. Animated GIF/video playback and advanced media optimization remain active development items.
 
 PC Info Screen Studio is designed around a simple workflow: add a widget, drag it on a real 480x320 or 320x480 canvas, style it, bind it to data, preview it on the physical display, and save everything as one shareable `.t3theme` file.
 
@@ -104,6 +104,16 @@ MyTheme.t3theme
 ```
 
 The format is documented in [`docs/THEME_FORMAT.md`](docs/THEME_FORMAT.md).
+
+## 0.8.1 alpha update
+
+The 0.8.1 alpha focuses on animation throughput, system-tray behavior and hardware-sensor setup.
+
+For UsbMonitor 3.5-inch Rev-A devices, the native portrait compatibility path no longer sends a complete 480×320 framebuffer for every small animation change. Sparse updates are tile-diffed and only changed areas are transmitted. Dense full-screen animation still has a physical USB/display-controller bandwidth limit, but frame transfer now uses the faster streaming path and the connection prefers 921600 baud.
+
+**Close window to system tray** is enabled by default in the Display panel. Closing the editor keeps the runtime and LCD active. Use **Exit** from the tray icon menu to stop the application.
+
+**Hardware sensors...** is now visible in the top toolbar. Administrator rights alone are not sufficient for Intel package temperature/power and motherboard Super I/O sensors. When required, the app offers to install the optional signed PawnIO driver through Windows Package Manager, then restarts and performs a direct sensor check.
 
 ## 0.8 alpha sensors and animation
 
