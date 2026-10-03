@@ -222,7 +222,7 @@ public sealed class WeatherMetricsService : IDisposable
             return;
 
         if (DateTime.TryParse(value, out var time))
-            value = time.ToString("HH:mm");
+            value = RegionalFormatService.FormatShortTime(time);
 
         output[metricName] = new MetricValue(Text: value);
     }
