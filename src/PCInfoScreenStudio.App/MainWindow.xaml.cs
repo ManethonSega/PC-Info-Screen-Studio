@@ -1,18 +1,73 @@
 using System.ComponentModel;
+using System.Drawing;
 using System.Windows;
 using PCInfoScreenStudio.Models;
 using PCInfoScreenStudio.ViewModels;
+using WinForms = System.Windows.Forms;
 
 namespace PCInfoScreenStudio;
 
 public partial class MainWindow : Window
 {
     private readonly MainViewModel _viewModel = new();
+    private readonly WinForms.NotifyIcon _trayIcon;
+    private bool _exitRequested;
+    private bool _disposed;
 
     public MainWindow()
     {
         InitializeComponent();
         DataContext = _viewModel;
+
+        var trayMenu = new WinForms.ContextMenuStrip();
+        trayMenu.Items.Add("Show PC Info Screen Studio", null, (_, _) => RestoreFromTray());
+        trayMenu.Items.Add(new WinForms.ToolStripSeparator());
+        trayMenu.Items.Add("Exit", null, (_, _) => ExitFromTray());
+
+        Icon trayDrawingIcon;
+        try
+        {
+            var executable = Environment.ProcessPath;
+            trayDrawingIcon = !string.IsNullOrWhiteSpace(executable)
+                ? Icon.ExtractAssociatedIcon(executable) ?? SystemIcons.Application
+                : SystemIcons.Application;
+        }
+        catch
+        {
+            trayDrawingIcon = SystemIcons.Application;
+        }
+
+        _trayIcon = new WinForms.NotifyIcon
+        {
+            Icon = trayDrawingIcon,
+            Text = "PC Info Screen Studio",
+            ContextMenuStrip = trayMenu,
+            Visible = true
+        };
+        _trayIcon.DoubleClick += (_, _) => RestoreFromTray();
+    }
+
+    private void RestoreFromTray()
+    {
+        Dispatcher.Invoke(() =>
+        {
+            Show();
+            if (WindowState == WindowState.Minimized)
+                WindowState = WindowState.Normal;
+            Activate();
+            Topmost = true;
+            Topmost = false;
+            Focus();
+        });
+    }
+
+    private void ExitFromTray()
+    {
+        Dispatcher.Invoke(() =>
+        {
+            _exitRequested = true;
+            Close();
+        });
     }
 
     private void OnDragOver(object sender, System.Windows.DragEventArgs e)
@@ -62,21 +117,43 @@ public partial class MainWindow : Window
 
     private void OnClosing(object? sender, CancelEventArgs e)
     {
+        // The normal window close button keeps the display/runtime alive and
+        // moves the editor to the notification area. Use the tray menu's Exit
+        // command for an actual application shutdown.
+        if (!_exitRequested)
+        {
+            e.Cancel = true;
+            Hide();
+            return;
+        }
+
         if (_viewModel.IsDirty)
         {
             var result = MessageBox.Show(
-                "This theme has unsaved changes. Close and discard them?",
+                "This theme has unsaved changes. Exit and discard them?",
                 "Unsaved changes",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Warning);
 
             if (result != MessageBoxResult.Yes)
             {
+                _exitRequested = false;
                 e.Cancel = true;
                 return;
             }
         }
 
+        DisposeRuntime();
+    }
+
+    private void DisposeRuntime()
+    {
+        if (_disposed)
+            return;
+
+        _disposed = true;
+        _trayIcon.Visible = false;
+        _trayIcon.Dispose();
         _viewModel.Dispose();
     }
 }
