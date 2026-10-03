@@ -95,6 +95,10 @@ public sealed class TuringScreen : IDisposable
     {
         WriteCommand(CmdReset);
         Close();
+
+        // Revision-A 3.5" UsbMonitor/Turing devices re-enumerate after reset.
+        // Give the controller time to restart before reopening the COM port.
+        Thread.Sleep(5000);
         Connect(waitForConnect: 5000);
     }
 
@@ -105,7 +109,10 @@ public sealed class TuringScreen : IDisposable
     {
         level = Math.Clamp(level, 0, 100);
         _lastBrightness = level;
-        WriteCommand(CmdBrightness, level);
+
+        // The device protocol uses 0 as brightest and 255 as darkest.
+        var protocolLevel = 255 - (int)Math.Round(level / 100d * 255d);
+        WriteCommand(CmdBrightness, protocolLevel);
     }
 
     public void SetOrientation(ScreenOrientation orientation)
