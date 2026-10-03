@@ -8,7 +8,9 @@ namespace PCInfoScreenStudio.Services;
 
 public sealed class DeviceService : IDisposable
 {
+    private readonly SemaphoreSlim _ioGate = new(1, 1);
     private TuringScreen? _screen;
+    private bool _disposed;
 
     public bool IsConnected => _screen is not null;
     public string? ConnectedPort { get; private set; }
@@ -16,48 +18,123 @@ public sealed class DeviceService : IDisposable
     public IReadOnlyList<string> GetPorts()
         => SerialPort.GetPortNames().OrderBy(ParsePortNumber).ToArray();
 
-    public void Connect(string portName, ThemeDocument document)
+    public async Task ConnectAsync(string portName, ThemeOrientation theme, DeviceRotation rotation, CancellationToken cancellationToken = default)
     {
-        Disconnect();
-
         var number = ParsePortNumber(portName);
         if (number <= 0)
             throw new ArgumentException("Expected a Windows COM port such as COM6.", nameof(portName));
 
-        _screen = new TuringScreen(number);
-        ConnectedPort = portName;
-        ApplyOrientation(document);
-        _screen.SetBrightness(100);
+        await _ioGate.WaitAsync(cancellationToken);
+        try
+        {
+            ThrowIfDisposed();
+
+            await Task.Run(() =>
+            {
+                DisconnectCore();
+
+                var screen = new TuringScreen(number);
+                try
+                {
+                    screen.SetOrientation(MapOrientation(theme, rotation));
+                    screen.SetBrightness(100);
+                    _screen = screen;
+                    ConnectedPort = portName;
+                }
+                catch
+                {
+                    screen.Dispose();
+                    throw;
+                }
+            }, cancellationToken);
+        }
+        finally
+        {
+            _ioGate.Release();
+        }
     }
 
-    public void ApplyOrientation(ThemeDocument document)
+    public async Task DisconnectAsync(CancellationToken cancellationToken = default)
     {
-        if (_screen is null) return;
-        _screen.SetOrientation(MapOrientation(document.Orientation, document.DeviceRotation));
+        await _ioGate.WaitAsync(cancellationToken);
+        try
+        {
+            await Task.Run(DisconnectCore, cancellationToken);
+        }
+        finally
+        {
+            _ioGate.Release();
+        }
     }
 
-    public void Display(SKBitmap bitmap, ThemeDocument document)
+    public async Task ApplyOrientationAsync(ThemeOrientation theme, DeviceRotation rotation, CancellationToken cancellationToken = default)
     {
-        if (_screen is null) return;
+        await _ioGate.WaitAsync(cancellationToken);
+        try
+        {
+            var screen = _screen;
+            if (screen is null) return;
 
+            await Task.Run(() => screen.SetOrientation(MapOrientation(theme, rotation)), cancellationToken);
+        }
+        finally
+        {
+            _ioGate.Release();
+        }
+    }
+
+    public async Task DisplayAsync(SKBitmap bitmap, DeviceRotation rotation, CancellationToken cancellationToken = default)
+    {
+        await _ioGate.WaitAsync(cancellationToken);
+        try
+        {
+            var screen = _screen;
+            if (screen is null) return;
+
+            await Task.Run(() => DisplayCore(screen, bitmap, rotation), cancellationToken);
+        }
+        finally
+        {
+            _ioGate.Release();
+        }
+    }
+
+    public async Task RunBenchmarkAsync(CancellationToken cancellationToken = default)
+    {
+        await _ioGate.WaitAsync(cancellationToken);
+        try
+        {
+            var screen = _screen ?? throw new InvalidOperationException("Connect the display first.");
+            await Task.Run(screen.RunBenchmark, cancellationToken);
+        }
+        finally
+        {
+            _ioGate.Release();
+        }
+    }
+
+    private static void DisplayCore(TuringScreen screen, SKBitmap bitmap, DeviceRotation rotation)
+    {
         SKBitmap? rotated = null;
         var frame = bitmap;
-        if (document.DeviceRotation != DeviceRotation.Degrees0)
+
+        if (rotation != DeviceRotation.Degrees0)
         {
-            rotated = Rotate(bitmap, document.DeviceRotation);
+            rotated = Rotate(bitmap, rotation);
             frame = rotated;
         }
 
         try
         {
-            if (frame.Width != _screen.Width || frame.Height != _screen.Height)
+            if (frame.Width != screen.Width || frame.Height != screen.Height)
             {
                 throw new InvalidOperationException(
-                    $"Rendered frame is {frame.Width}x{frame.Height}, but the device expects {_screen.Width}x{_screen.Height}.");
+                    $"Rendered frame is {frame.Width}x{frame.Height}, but the device expects {screen.Width}x{screen.Height}.");
             }
 
             var buffer = new ScreenBuffer(frame.Width, frame.Height);
             var pixels = frame.Pixels;
+
             for (var i = 0; i < pixels.Length; i++)
             {
                 var p = pixels[i];
@@ -66,7 +143,7 @@ public sealed class DeviceService : IDisposable
                 buffer[x, y] = ScreenBuffer.FullRgbToColor565(p.Red, p.Green, p.Blue);
             }
 
-            _screen.DisplayBuffer(0, 0, buffer);
+            screen.DisplayBuffer(0, 0, buffer);
         }
         finally
         {
@@ -84,6 +161,7 @@ public sealed class DeviceService : IDisposable
             SKAlphaType.Premul);
 
         using var canvas = new SKCanvas(result);
+
         switch (rotation)
         {
             case DeviceRotation.Degrees90:
@@ -104,17 +182,26 @@ public sealed class DeviceService : IDisposable
         return result;
     }
 
-    public void SetBrightness(int percent) => _screen?.SetBrightness(percent);
-    public void RunBenchmark() => _screen?.RunBenchmark();
-
-    public void Disconnect()
+    private void DisconnectCore()
     {
-        _screen?.Dispose();
+        var screen = _screen;
         _screen = null;
         ConnectedPort = null;
+        try { screen?.Dispose(); } catch { }
     }
 
-    public void Dispose() => Disconnect();
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        DisconnectCore();
+        _ioGate.Dispose();
+    }
+
+    private void ThrowIfDisposed()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+    }
 
     private static int ParsePortNumber(string port)
         => int.TryParse(port.Replace("COM", "", StringComparison.OrdinalIgnoreCase), out var n) ? n : -1;
@@ -125,8 +212,6 @@ public sealed class DeviceService : IDisposable
         var quarterTurn = rotation is DeviceRotation.Degrees90 or DeviceRotation.Degrees270;
         var finalLandscape = quarterTurn ? !startsLandscape : startsLandscape;
 
-        // Rotation itself is applied to the rendered bitmap. The driver only needs
-        // the logical dimensions/memory mapping, so normal Portrait/Landscape is enough.
         return finalLandscape
             ? TuringScreenOrientation.Landscape
             : TuringScreenOrientation.Portrait;
