@@ -56,6 +56,8 @@ public sealed class TuringScreen : IDisposable
 
     private int _lastBrightness = 100;
     private byte _lastOrientationIndex = 0;
+    private RevACompatibilityMode _compatibilityMode;
+    private Rgb565Encoding _pixelEncoding;
 
     // ########################################################################
     // 3. PUBLIC API
@@ -65,11 +67,19 @@ public sealed class TuringScreen : IDisposable
     public int Width => _cachedWidth;
     public int Height => _cachedHeight;
     public string DetectedModel { get; private set; } = "Turing 3.5-inch";
+    public RevACompatibilityMode CompatibilityMode => _compatibilityMode;
+    public Rgb565Encoding PixelEncoding => _pixelEncoding;
 
-    public TuringScreen(int comPort, int baudRate = 921600)
+    public TuringScreen(
+        int comPort,
+        int baudRate = 921600,
+        RevACompatibilityMode compatibilityMode = RevACompatibilityMode.HardwareLogicalDimensions,
+        Rgb565Encoding pixelEncoding = Rgb565Encoding.RgbLittleEndian)
     {
         _comPortName = comPort;
         _baudRate = baudRate;
+        _compatibilityMode = compatibilityMode;
+        _pixelEncoding = pixelEncoding;
         _screenBuffer = new ScreenBuffer(HwWidth, HwHeight);
         _cachedWidth = HwWidth;
         _cachedHeight = HwHeight;
@@ -87,13 +97,38 @@ public sealed class TuringScreen : IDisposable
 
     public void DisplayBuffer(int x, int y, ScreenBuffer buffer)
     {
+        if (_compatibilityMode == RevACompatibilityMode.NativePortraitSoftwareRotation)
+        {
+            SendFullEncodedFrame(buffer, rotateLandscapeToNativePortrait: true);
+            return;
+        }
+
+        if (_pixelEncoding != Rgb565Encoding.RgbLittleEndian)
+        {
+            SendFullEncodedFrame(buffer, rotateLandscapeToNativePortrait: false);
+            return;
+        }
+
         WriteSmartCommand(CmdDraw, x, y, buffer.Width, buffer.Height, buffer.Buffer);
+    }
+
+    public void ConfigureCompatibility(RevACompatibilityMode compatibilityMode, Rgb565Encoding pixelEncoding)
+    {
+        _compatibilityMode = compatibilityMode;
+        _pixelEncoding = pixelEncoding;
+        SetOrientation(Orientation);
     }
 
     public void Clear()
     {
-        // Revision-A firmware has a known clear-screen quirk outside portrait mode.
-        // Clear in portrait, then restore the selected orientation.
+        if (_compatibilityMode == RevACompatibilityMode.NativePortraitSoftwareRotation)
+        {
+            WriteCommand(CmdClear);
+            _screenBuffer.Clear(Color656.White);
+            return;
+        }
+
+        // Some Revision-A firmware only clears correctly in portrait mode.
         var restore = Orientation;
         if (restore != ScreenOrientation.Portrait)
             WriteOrientationCommand(CmdOrientation, (byte)ScreenOrientation.Portrait);
@@ -188,13 +223,14 @@ public sealed class TuringScreen : IDisposable
             _cachedHeight = HwHeight;
         }
 
-        // Revision-A firmware performs orientation itself. Sending a second
-        // software transpose causes the clipped 320x320/square output seen on
-        // physical 3.5-inch displays.
         _useSoftwareRotation = false;
-
         _lastOrientationIndex = (byte)orientation;
-        WriteOrientationCommand(CmdOrientation, _lastOrientationIndex);
+
+        // The native-portrait compatibility mode deliberately avoids command
+        // 121. The logical 480x320 frame is rotated to the controller's native
+        // 320x480 portrait framebuffer immediately before transmission.
+        if (_compatibilityMode != RevACompatibilityMode.NativePortraitSoftwareRotation)
+            WriteOrientationCommand(CmdOrientation, _lastOrientationIndex);
 
         _screenBuffer = new ScreenBuffer(_cachedWidth, _cachedHeight);
         Clear();
@@ -420,6 +456,87 @@ public sealed class TuringScreen : IDisposable
         SafeWrite(_commandBuffer, 8);
     }
 
+    private void SendFullEncodedFrame(ScreenBuffer buffer, bool rotateLandscapeToNativePortrait)
+    {
+        var source = MemoryMarshal.Cast<byte, ushort>(buffer.Buffer.AsSpan());
+
+        int physicalWidth;
+        int physicalHeight;
+        byte[] payload;
+
+        if (rotateLandscapeToNativePortrait && buffer.Width == HwHeight && buffer.Height == HwWidth)
+        {
+            // Same transform used by proven USB35INCHIPSV2 implementations:
+            // 480x320 logical landscape -> clockwise rotation -> 320x480 native.
+            physicalWidth = HwWidth;
+            physicalHeight = HwHeight;
+            payload = new byte[physicalWidth * physicalHeight * 2];
+
+            for (var dy = 0; dy < physicalHeight; dy++)
+            {
+                for (var dx = 0; dx < physicalWidth; dx++)
+                {
+                    var sx = dy;
+                    var sy = buffer.Height - 1 - dx;
+                    var rgb565 = source[sy * buffer.Width + sx];
+                    WriteEncodedPixel(payload, (dy * physicalWidth + dx) * 2, rgb565);
+                }
+            }
+        }
+        else
+        {
+            physicalWidth = buffer.Width;
+            physicalHeight = buffer.Height;
+            payload = new byte[physicalWidth * physicalHeight * 2];
+
+            for (var i = 0; i < source.Length; i++)
+                WriteEncodedPixel(payload, i * 2, source[i]);
+        }
+
+        PrepareHeader(CmdDraw, 0, 0, physicalWidth, physicalHeight);
+        WriteFrameWithChunks(_commandBuffer, 6, payload, physicalWidth * MaxBlockHeight * 2);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void WriteEncodedPixel(byte[] destination, int offset, ushort rgb565)
+    {
+        var value = rgb565;
+
+        if (_pixelEncoding is Rgb565Encoding.BgrLittleEndian or Rgb565Encoding.BgrBigEndian)
+        {
+            value = (ushort)(
+                ((rgb565 & 0x001F) << 11) |
+                (rgb565 & 0x07E0) |
+                ((rgb565 & 0xF800) >> 11));
+        }
+
+        if (_pixelEncoding is Rgb565Encoding.RgbBigEndian or Rgb565Encoding.BgrBigEndian)
+        {
+            destination[offset] = (byte)(value >> 8);
+            destination[offset + 1] = (byte)value;
+        }
+        else
+        {
+            destination[offset] = (byte)value;
+            destination[offset + 1] = (byte)(value >> 8);
+        }
+    }
+
+    private void WriteFrameWithChunks(byte[] header, int headerLength, byte[] payload, int chunkSize)
+    {
+        if (_port is null || !_port.IsOpen)
+            throw new IOException("Disconnected");
+
+        _port.Write(header, 0, headerLength);
+
+        chunkSize = Math.Max(2, chunkSize);
+        for (var offset = 0; offset < payload.Length; offset += chunkSize)
+        {
+            var count = Math.Min(chunkSize, payload.Length - offset);
+            _port.Write(payload, offset, count);
+        }
+    }
+
     // ########################################################################
     // 5. I/O OPTIMIZATION (THE FIX)
     // ########################################################################
@@ -452,10 +569,30 @@ public sealed class TuringScreen : IDisposable
 
     private void WriteOrientationCommand(byte command, byte orientation)
     {
+        if (_compatibilityMode == RevACompatibilityMode.NativePortraitSoftwareRotation)
+            return;
+
         var target = (ScreenOrientation)orientation;
         var landscape = target is ScreenOrientation.Landscape or ScreenOrientation.ReverseLandscape;
-        int w = landscape ? HwHeight : HwWidth;
-        int h = landscape ? HwWidth : HwHeight;
+
+        int w;
+        int h;
+        int commandLength;
+
+        if (_compatibilityMode == RevACompatibilityMode.HardwareNativeDimensions)
+        {
+            // TuringSmartScreenLib Revision-A behavior.
+            w = HwWidth;
+            h = HwHeight;
+            commandLength = 11;
+        }
+        else
+        {
+            // turing-smart-screen-python / TuringMonitor behavior.
+            w = landscape ? HwHeight : HwWidth;
+            h = landscape ? HwWidth : HwHeight;
+            commandLength = 16;
+        }
 
         Array.Clear(_commandBuffer, 0, _commandBuffer.Length);
         _commandBuffer[5] = command;
@@ -464,7 +601,7 @@ public sealed class TuringScreen : IDisposable
         _commandBuffer[8] = (byte)(w & 255);
         _commandBuffer[9] = (byte)(h >> 8);
         _commandBuffer[10] = (byte)(h & 255);
-        SafeWrite(_commandBuffer, 11);
+        SafeWrite(_commandBuffer, commandLength);
     }
 
     private void Connect(int waitForConnect = 0)
@@ -497,8 +634,11 @@ public sealed class TuringScreen : IDisposable
                 _port.DiscardInBuffer();
                 _port.DiscardOutBuffer();
 
-                if (Orientation != ScreenOrientation.Portrait)
+                if (Orientation != ScreenOrientation.Portrait &&
+                    _compatibilityMode != RevACompatibilityMode.NativePortraitSoftwareRotation)
+                {
                     WriteOrientationCommand(CmdOrientation, _lastOrientationIndex);
+                }
                 break;
             }
             catch (IOException)
