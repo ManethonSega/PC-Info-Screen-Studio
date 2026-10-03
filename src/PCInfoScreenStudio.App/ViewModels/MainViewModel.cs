@@ -1032,7 +1032,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             widget.Suffix = " MHz"; widget.Minimum = 0; widget.Maximum = Math.Max(6000, widget.Maximum); return;
         }
-        if (source.Contains("[Load]", StringComparison.OrdinalIgnoreCase))
+        if (source.Contains("[Load]", StringComparison.OrdinalIgnoreCase) ||
+            source.Contains("[Usage]", StringComparison.OrdinalIgnoreCase))
         {
             widget.Suffix = "%"; widget.Minimum = 0; widget.Maximum = 100;
         }
@@ -1116,7 +1117,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private static bool IsTemperatureSource(string source)
         => source.Contains("Temperature", StringComparison.OrdinalIgnoreCase) ||
            source.Contains("Hotspot", StringComparison.OrdinalIgnoreCase) ||
-           source.Contains("[Temperature]", StringComparison.OrdinalIgnoreCase) ||
+           (source.Contains("[Temperature]", StringComparison.OrdinalIgnoreCase) || source.Contains("[Temp]", StringComparison.OrdinalIgnoreCase)) ||
            source.Equals("Weather.FeelsLike", StringComparison.OrdinalIgnoreCase) ||
            source.Equals("Weather.TodayHigh", StringComparison.OrdinalIgnoreCase) ||
            source.Equals("Weather.TodayLow", StringComparison.OrdinalIgnoreCase);
