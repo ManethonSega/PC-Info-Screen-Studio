@@ -121,7 +121,7 @@ public partial class MainWindow : Window
         // The normal window close button keeps the display/runtime alive and
         // moves the editor to the notification area. Use the tray menu's Exit
         // command for an actual application shutdown.
-        if (!_exitRequested)
+        if (!_exitRequested && _viewModel.CloseToTray)
         {
             e.Cancel = true;
             Hide();
