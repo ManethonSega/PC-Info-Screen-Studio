@@ -56,7 +56,7 @@
                     ToolTip="Detected serial devices" />
           <Button Content="Refresh ports" Command="{Binding RefreshPortsCommand}" />
           <Button Content="Detect screen" Command="{Binding DetectScreenCommand}" ToolTip="Find the most likely USB serial screen automatically" />
-          <Button Content="Test screen" Command="{Binding TestScreenCommand}" ToolTip="Send a full-screen RGB test pattern to the connected display" />
+          <Button Content="Color test" Command="{Binding TestScreenCommand}" ToolTip="Send a full-screen RGB/C/M/Y color diagnostic pattern using the selected protocol and color mode" />
           <Button Content="Connect / Disconnect" Command="{Binding ConnectCommand}" />
         </StackPanel>
       </DockPanel>
@@ -80,7 +80,24 @@
           </Grid.RowDefinitions>
 
           <StackPanel Grid.Row="0">
-            <TextBlock Text="THEMES" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="4,2,0,7" />
+            <TextBlock Text="DISPLAY" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="4,2,0,7" />
+            <TextBlock Text="Protocol" Foreground="{StaticResource MutedTextBrush}" FontSize="10" Margin="2,0,0,2" />
+            <ComboBox ItemsSource="{Binding DisplayProtocolOptions}"
+                      DisplayMemberPath="Label"
+                      SelectedValuePath="Value"
+                      SelectedValue="{Binding DisplayProtocol}"
+                      Margin="2,0,2,5"
+                      ToolTip="Auto detects known USB35INCHIPSV2 Rev-A screens. Change only for firmware compatibility." />
+
+            <TextBlock Text="Color mode" Foreground="{StaticResource MutedTextBrush}" FontSize="10" Margin="2,0,0,2" />
+            <ComboBox ItemsSource="{Binding DisplayColorOptions}"
+                      DisplayMemberPath="Label"
+                      SelectedValuePath="Value"
+                      SelectedValue="{Binding DisplayColorMode}"
+                      Margin="2,0,2,5"
+                      ToolTip="RGB565 little-endian is standard for Rev-A. Use Color test to diagnose red/blue swaps or byte order." />
+
+            <TextBlock Text="THEMES" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="4,12,0,7" />
             <ComboBox ItemsSource="{Binding Themes}"
                       SelectedItem="{Binding SelectedTheme}"
                       DisplayMemberPath="DisplayName"
