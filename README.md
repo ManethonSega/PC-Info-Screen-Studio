@@ -2,7 +2,7 @@
 
 A visual Windows theme editor and runtime for 3.5-inch Turing/TURZX-style USB-CDC PC info screens.
 
-> **Status:** early development milestone (`0.3-dev`). The editor foundation, theme package format, core widgets, custom asset embedding and the Tedd screen driver integration are present. Live hardware sensors, animated GIF playback, video transcoding/audio stripping and automatic media optimization are intentionally tracked as the next milestones.
+> **Status:** active alpha development (`0.7.0-alpha.1`). The visual editor, shareable theme format, live Windows/hardware/weather data, Revision-A display compatibility layer and physical-display diagnostics are implemented. Animated GIF/video playback and advanced media optimization remain active development items.
 
 PC Info Screen Studio is designed around a simple workflow: add a widget, drag it on a real 480x320 or 320x480 canvas, style it, bind it to data, preview it on the physical display, and save everything as one shareable `.t3theme` file.
 
@@ -103,6 +103,19 @@ MyTheme.t3theme
 
 The format is documented in [`docs/THEME_FORMAT.md`](docs/THEME_FORMAT.md).
 
+## 0.7 alpha display compatibility
+
+Revision-A 3.5-inch screens are not completely uniform. PC Info Screen Studio now supports three transport strategies instead of hard-coding one interpretation of the protocol:
+
+- **Auto (recommended):** USB35INCHIPSV2 / VID `1A86:5722` and HELLO-identified UsbMonitor 3.5-inch devices use native 320×480 portrait transfer with software rotation. Other Revision-A devices use the logical-dimensions hardware-rotation profile.
+- **Rev-A native portrait:** renders the application's 480×320 landscape frame, rotates it to the physical 320×480 framebuffer, packs RGB565 little-endian and sends it in four-row chunks.
+- **Rev-A hardware landscape:** uses command 121 with logical dimensions, including 480×320 in landscape.
+- **Rev-A legacy 320×480:** uses hardware orientation while retaining native 320×480 dimensions in command 121.
+
+The **Color mode** control defaults to standard Revision-A **RGB565 little-endian**. Alternate BGR and byte-swapped modes are available for firmware variants and diagnostics. **Color test** sends six known bars in this exact order: red, green, blue, cyan, magenta, yellow. This makes red/blue channel swaps and byte-order errors immediately visible.
+
+Both settings are local device preferences, not part of shared theme files, and can be changed while the display is connected.
+
 ## 0.6 alpha highlights
 
 - **Rev-A display transport:** 115200 baud, RTS/CTS flow control, HELLO/model handshake, correct orientation dimensions and four-row framebuffer chunks.
@@ -118,7 +131,7 @@ If CPU package temperature, CPU power, motherboard fans or pump sensors are miss
 
 Use **Detect screen** to inspect Windows USB/serial device information and select the most likely screen port. PC Info Screen Studio also sends the Rev-A HELLO handshake after reset and uses the returned model code when the display supports it.
 
-For the 3.5-inch Rev-A/UsbMonitor protocol, the app now tries 115200 first, matching the established vendor-compatible protocol implementation, and falls back to 921600 only if necessary. The display is reset, allowed to re-enumerate, switched on, configured for orientation and brightness, and then receives the rendered frame. Use **Test screen** after connecting to send a high-contrast RGB test pattern before troubleshooting theme rendering.
+For the 3.5-inch Rev-A/UsbMonitor protocol, the app tries 115200 first, uses RTS/CTS hardware flow control and DTR, sends the HELLO model probe, and can re-detect the COM port if Windows assigns a new number after reset. Use **Color test** after connecting to validate geometry and RGB565 ordering before troubleshooting theme rendering.
 
 If Windows reports **Access denied** for a COM port, close any other program that is using that screen/port, including the manufacturer's monitor application or tray process, before reconnecting.
 
