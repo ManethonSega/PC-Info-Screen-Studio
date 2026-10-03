@@ -7,6 +7,18 @@
              Background="Transparent"
              PreviewMouseLeftButtonDown="OnSelect">
   <UserControl.Resources>
+    <Style x:Key="TransparentMoveThumb" TargetType="Thumb">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Cursor" Value="SizeAll" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Thumb">
+            <Border Background="Transparent" />
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
     <Style x:Key="ResizeThumb" TargetType="Thumb">
       <Setter Property="Width" Value="9" />
       <Setter Property="Height" Value="9" />
@@ -14,6 +26,15 @@
       <Setter Property="BorderBrush" Value="#FF3377FF" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="Visibility" Value="Collapsed" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Thumb">
+            <Border Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}" />
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
       <EventSetter Event="DragDelta" Handler="OnResize" />
       <Style.Triggers>
         <DataTrigger Binding="{Binding IsSelected}" Value="True">
@@ -27,7 +48,10 @@
   </UserControl.Resources>
 
   <Grid>
-    <Border x:Name="SelectionBorder" BorderThickness="1" Background="#01000000">
+    <Border x:Name="SelectionBorder"
+            BorderThickness="1"
+            Background="Transparent"
+            IsHitTestVisible="False">
       <Border.Style>
         <Style TargetType="Border">
           <Setter Property="BorderBrush" Value="Transparent" />
@@ -40,7 +64,10 @@
       </Border.Style>
     </Border>
 
-    <Thumb x:Name="MoveThumb" Background="Transparent" Cursor="SizeAll" DragDelta="OnMove" DragStarted="OnDragStarted" />
+    <Thumb x:Name="MoveThumb"
+           Style="{StaticResource TransparentMoveThumb}"
+           DragDelta="OnMove"
+           DragStarted="OnDragStarted" />
 
     <Thumb Style="{StaticResource ResizeThumb}" Tag="NW" Cursor="SizeNWSE" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-4,-4,0,0" />
     <Thumb Style="{StaticResource ResizeThumb}" Tag="N" Cursor="SizeNS" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,-4,0,0" />
