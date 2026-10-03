@@ -492,7 +492,7 @@ public sealed class ThemeRenderer
         if (!string.IsNullOrWhiteSpace(w.RuntimeText))
             return w.RuntimeText!;
         var value = w.DisplayValue.ToString(string.IsNullOrWhiteSpace(w.ValueFormat) ? "0" : w.ValueFormat, CultureInfo.CurrentCulture);
-        return value + w.Suffix;
+        return value + (w.RuntimeUnit ?? w.Suffix);
     }
 
     private static double NormalizedValue(WidgetModel w)
