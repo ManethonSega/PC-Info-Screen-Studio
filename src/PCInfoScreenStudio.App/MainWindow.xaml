@@ -268,8 +268,19 @@
                               <DataTrigger Binding="{Binding DataSource}" Value="Weather.Humidity"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
                               <DataTrigger Binding="{Binding DataSource}" Value="Weather.Wind"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
                               <DataTrigger Binding="{Binding DataSource}" Value="Weather.WindDirection"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                              <DataTrigger Binding="{Binding DataSource}" Value="Weather.WindGust"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
                               <DataTrigger Binding="{Binding DataSource}" Value="Weather.Condition"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
                               <DataTrigger Binding="{Binding DataSource}" Value="Weather.Location"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                              <DataTrigger Binding="{Binding DataSource}" Value="Weather.Precipitation"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                              <DataTrigger Binding="{Binding DataSource}" Value="Weather.PrecipitationChance"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                              <DataTrigger Binding="{Binding DataSource}" Value="Weather.CloudCover"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                              <DataTrigger Binding="{Binding DataSource}" Value="Weather.Pressure"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                              <DataTrigger Binding="{Binding DataSource}" Value="Weather.DayNight"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                              <DataTrigger Binding="{Binding DataSource}" Value="Weather.TodayHigh"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                              <DataTrigger Binding="{Binding DataSource}" Value="Weather.TodayLow"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                              <DataTrigger Binding="{Binding DataSource}" Value="Weather.TodayCondition"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                              <DataTrigger Binding="{Binding DataSource}" Value="Weather.Sunrise"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                              <DataTrigger Binding="{Binding DataSource}" Value="Weather.Sunset"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
                             </Style.Triggers>
                           </Style>
                         </StackPanel.Style>
