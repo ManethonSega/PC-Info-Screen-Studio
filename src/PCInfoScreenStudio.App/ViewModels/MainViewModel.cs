@@ -23,6 +23,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private bool _livePreview;
     private bool _useLiveData;
     private bool _suppressDirty;
+    private bool _isDeviceBusy;
+    private int _frameSendBusy;
 
     public MainViewModel()
     {
@@ -46,8 +48,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         ToggleOrientationCommand = new RelayCommand(ToggleOrientation);
         RotateDeviceCommand = new RelayCommand(RotateDevice);
         RefreshPortsCommand = new RelayCommand(RefreshPorts);
-        ConnectCommand = new RelayCommand(ConnectOrDisconnect);
-        BenchmarkCommand = new RelayCommand(RunBenchmark, () => _deviceService.IsConnected);
+        ConnectCommand = new RelayCommand(() => _ = ConnectOrDisconnectAsync(), () => !IsDeviceBusy);
+        BenchmarkCommand = new RelayCommand(() => _ = RunBenchmarkAsync(), () => _deviceService.IsConnected && !IsDeviceBusy);
 
         _dataTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
@@ -143,6 +145,17 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    public bool IsDeviceBusy
+    {
+        get => _isDeviceBusy;
+        private set
+        {
+            if (!SetProperty(ref _isDeviceBusy, value)) return;
+            ConnectCommand.RaiseCanExecuteChanged();
+            BenchmarkCommand.RaiseCanExecuteChanged();
+        }
+    }
+
     public bool IsDirty => Workspace.IsDirty;
     public string WindowTitle => $"{Document.Name}{(IsDirty ? " *" : string.Empty)} - PC Info Screen Studio";
 
@@ -176,14 +189,32 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public void SendLiveFrame(SkiaSharp.SKBitmap bitmap)
     {
         if (!LivePreview || !_deviceService.IsConnected) return;
+
+        if (Interlocked.CompareExchange(ref _frameSendBusy, 1, 0) != 0)
+            return;
+
+        var copy = bitmap.Copy();
+        var rotation = Document.DeviceRotation;
+        _ = SendLiveFrameAsync(copy, rotation);
+    }
+
+    private async Task SendLiveFrameAsync(SkiaSharp.SKBitmap bitmap, DeviceRotation rotation)
+    {
         try
         {
-            _deviceService.Display(bitmap, Document);
-            DeviceStatus = $"Connected: {_deviceService.ConnectedPort}";
+            await _deviceService.DisplayAsync(bitmap, rotation);
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+                DeviceStatus = $"Connected: {_deviceService.ConnectedPort}");
         }
         catch (Exception ex)
         {
-            DeviceStatus = "Display error: " + ex.Message;
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+                DeviceStatus = "Display error: " + ex.Message);
+        }
+        finally
+        {
+            bitmap.Dispose();
+            Interlocked.Exchange(ref _frameSendBusy, 0);
         }
     }
 
@@ -238,10 +269,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         if (parameter is null || !Enum.TryParse<WidgetType>(parameter.ToString(), out var type)) return;
         var widget = NewWidget(type);
-        widget.ZIndex = Document.Widgets.Count == 0 ? 0 : Document.Widgets.Max(w => w.ZIndex) + 1;
-        Document.Widgets.Add(widget);
+        Document.Widgets.Insert(0, widget);
+        NormalizeZIndices();
         SelectedWidget = widget;
-        MarkDirty();
+        MarkDirtyAndRefresh();
     }
 
     private WidgetModel NewWidget(WidgetType type)
@@ -291,10 +322,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             widget.Y = 0;
             widget.Width = Document.CanvasWidth;
             widget.Height = Document.CanvasHeight;
-            widget.ZIndex = Document.Widgets.Count == 0 ? 0 : Document.Widgets.Max(w => w.ZIndex) + 1;
-            Document.Widgets.Add(widget);
+            Document.Widgets.Insert(0, widget);
+            NormalizeZIndices();
             SelectedWidget = widget;
-            MarkDirty();
+            MarkDirtyAndRefresh();
         }
         catch (Exception ex)
         {
@@ -343,23 +374,32 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         if (SelectedWidget is null) return;
         var clone = SelectedWidget.Clone();
-        Document.Widgets.Add(clone);
+        var selectedIndex = Document.Widgets.IndexOf(SelectedWidget);
+        Document.Widgets.Insert(Math.Max(0, selectedIndex), clone);
+        NormalizeZIndices();
         SelectedWidget = clone;
-        MarkDirty();
+        MarkDirtyAndRefresh();
     }
 
     private void MoveLayer(int delta)
     {
         if (SelectedWidget is null) return;
-        SelectedWidget.ZIndex += delta;
+
+        var current = Document.Widgets.IndexOf(SelectedWidget);
+        if (current < 0) return;
+
+        var target = Math.Clamp(current - delta, 0, Document.Widgets.Count - 1);
+        if (target == current) return;
+
+        Document.Widgets.Move(current, target);
         NormalizeZIndices();
-        MarkDirty();
+        MarkDirtyAndRefresh();
     }
 
     private void NormalizeZIndices()
     {
-        var ordered = Document.Widgets.OrderBy(w => w.ZIndex).ThenBy(w => w.Id).ToArray();
-        for (var i = 0; i < ordered.Length; i++) ordered[i].ZIndex = i;
+        for (var i = 0; i < Document.Widgets.Count; i++)
+            Document.Widgets[i].ZIndex = Document.Widgets.Count - 1 - i;
     }
 
     private void ToggleOrientation()
@@ -375,7 +415,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             w.Width = Math.Min(Document.CanvasWidth - w.X, w.Width * scaleX);
             w.Height = Math.Min(Document.CanvasHeight - w.Y, w.Height * scaleY);
         }
-        MarkDirty();
+        MarkDirtyAndRefresh();
     }
 
     private void RotateDevice()
@@ -388,11 +428,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             _ => DeviceRotation.Degrees0
         };
         if (_deviceService.IsConnected)
-        {
-            try { _deviceService.ApplyOrientation(Document); }
-            catch (Exception ex) { DeviceStatus = "Rotation error: " + ex.Message; }
-        }
-        MarkDirty();
+            _ = ApplyDeviceOrientationAsync();
+
+        MarkDirtyAndRefresh();
     }
 
     private void RefreshPorts()
@@ -402,13 +440,28 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (SelectedPort is null || !Ports.Contains(SelectedPort)) SelectedPort = Ports.FirstOrDefault();
     }
 
-    private void ConnectOrDisconnect()
+    private async Task ConnectOrDisconnectAsync()
     {
+        if (IsDeviceBusy) return;
+
         if (_deviceService.IsConnected)
         {
-            _deviceService.Disconnect();
-            DeviceStatus = "Not connected";
-            BenchmarkCommand.RaiseCanExecuteChanged();
+            IsDeviceBusy = true;
+            DeviceStatus = "Disconnecting...";
+            try
+            {
+                await _deviceService.DisconnectAsync();
+                DeviceStatus = "Not connected";
+            }
+            catch (Exception ex)
+            {
+                DeviceStatus = "Disconnect error: " + ex.Message;
+            }
+            finally
+            {
+                IsDeviceBusy = false;
+                BenchmarkCommand.RaiseCanExecuteChanged();
+            }
             return;
         }
 
@@ -418,11 +471,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
+        IsDeviceBusy = true;
+        DeviceStatus = $"Connecting to {SelectedPort}...";
         try
         {
-            _deviceService.Connect(SelectedPort, Document);
+            await _deviceService.ConnectAsync(SelectedPort, Document.Orientation, Document.DeviceRotation);
             DeviceStatus = $"Connected: {SelectedPort}";
-            BenchmarkCommand.RaiseCanExecuteChanged();
             RequestLiveFrame?.Invoke(this, EventArgs.Empty);
         }
         catch (Exception ex)
@@ -430,18 +484,47 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             DeviceStatus = "Connection failed";
             MessageBox.Show(ex.Message, "Could not connect display", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+        finally
+        {
+            IsDeviceBusy = false;
+            BenchmarkCommand.RaiseCanExecuteChanged();
+        }
     }
 
-    private void RunBenchmark()
+    private async Task ApplyDeviceOrientationAsync()
     {
         try
         {
-            _deviceService.RunBenchmark();
-            MessageBox.Show("The driver benchmark completed. In a later milestone its measured crossover will be captured automatically instead of only being printed by the upstream driver.", "Benchmark", MessageBoxButton.OK, MessageBoxImage.Information);
+            await _deviceService.ApplyOrientationAsync(Document.Orientation, Document.DeviceRotation);
+            if (LivePreview)
+                RequestLiveFrame?.Invoke(this, EventArgs.Empty);
         }
         catch (Exception ex)
         {
+            DeviceStatus = "Rotation error: " + ex.Message;
+        }
+    }
+
+    private async Task RunBenchmarkAsync()
+    {
+        if (IsDeviceBusy) return;
+
+        IsDeviceBusy = true;
+        DeviceStatus = "Benchmarking display...";
+        try
+        {
+            await _deviceService.RunBenchmarkAsync();
+            DeviceStatus = $"Connected: {_deviceService.ConnectedPort}";
+            MessageBox.Show("The driver benchmark completed.", "Benchmark", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            DeviceStatus = "Benchmark failed";
             MessageBox.Show(ex.Message, "Benchmark failed", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsDeviceBusy = false;
         }
     }
 
@@ -500,7 +583,16 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         foreach (var w in workspace.Document.Widgets) w.PropertyChanged -= OnWidgetPropertyChanged;
     }
 
-    private void OnDocumentPropertyChanged(object? sender, PropertyChangedEventArgs e) => MarkDirtyAndRefresh();
+    private void OnDocumentPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        MarkDirtyAndRefresh();
+
+        if (_deviceService.IsConnected &&
+            e.PropertyName is nameof(ThemeDocument.Orientation) or nameof(ThemeDocument.DeviceRotation))
+        {
+            _ = ApplyDeviceOrientationAsync();
+        }
+    }
     private void OnWidgetPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(WidgetModel.IsSelected) or nameof(WidgetModel.RuntimeValue) or nameof(WidgetModel.RuntimeText)) return;
