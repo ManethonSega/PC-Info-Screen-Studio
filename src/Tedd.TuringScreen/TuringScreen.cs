@@ -524,6 +524,21 @@ public sealed class TuringScreen : IDisposable
 
     private void WriteFrameWithChunks(byte[] header, int headerLength, byte[] payload, int chunkSize)
     {
+        try
+        {
+            WriteFrameWithChunksRaw(header, headerLength, payload, chunkSize);
+        }
+        catch (Exception ex) when (ex is IOException or ObjectDisposedException or InvalidOperationException)
+        {
+            if (!RecoverConnection())
+                throw new IOException("The display disconnected while sending a frame.", ex);
+
+            WriteFrameWithChunksRaw(header, headerLength, payload, chunkSize);
+        }
+    }
+
+    private void WriteFrameWithChunksRaw(byte[] header, int headerLength, byte[] payload, int chunkSize)
+    {
         if (_port is null || !_port.IsOpen)
             throw new IOException("Disconnected");
 
@@ -663,61 +678,85 @@ public sealed class TuringScreen : IDisposable
 
     private void SafeWrite(byte[] header, int headerLen, byte[]? payload = null, int payloadLen = 0)
     {
-        // 1. Direct Stream Write
-        // We do NOT manually check bytesToWrite or sleep. We rely on the 512KB Driver Buffer.
-        // If the buffer fills, BaseStream.Write will block automatically (efficiently), 
-        // rather than us spinning in a loop consuming CPU.
-
         try
         {
-            if (_baseStream == null) throw new IOException("Disconnected");
-
-            // Write Header
-            _baseStream.Write(header, 0, headerLen);
-
-            // Write Payload (One giant chunk)
-            if (payload != null && payloadLen > 0)
-            {
-                _baseStream.Write(payload, 0, payloadLen);
-            }
+            WriteRaw(header, headerLen, payload, payloadLen);
         }
-        catch (IOException)
+        catch (Exception ex) when (ex is IOException or ObjectDisposedException or InvalidOperationException)
         {
-            RecoverConnection();
-        }
-        catch (ObjectDisposedException)
-        {
-            // Ignore or signal disconnect
+            if (!RecoverConnection())
+                throw new IOException("The display disconnected and automatic reconnection failed.", ex);
+
+            // Retry the command once after state restoration. This is important
+            // for partial framebuffer updates: reconnecting without resending
+            // the failed payload leaves the LCD visually corrupted.
+            WriteRaw(header, headerLen, payload, payloadLen);
         }
     }
 
-    private void RecoverConnection()
+    private void WriteRaw(byte[] header, int headerLen, byte[]? payload = null, int payloadLen = 0)
+    {
+        if (_baseStream == null)
+            throw new IOException("Disconnected");
+
+        _baseStream.Write(header, 0, headerLen);
+
+        if (payload is not null && payloadLen > 0)
+            _baseStream.Write(payload, 0, payloadLen);
+    }
+
+    private bool RecoverConnection()
     {
         try
         {
             Debug.WriteLine("--- RECOVERING CONNECTION ---");
             Close();
-            Connect(waitForConnect: 1000);
-            if (_baseStream != null)
+            Connect(waitForConnect: 2000);
+
+            if (_port is null || !_port.IsOpen)
+                return false;
+
+            // HELLO is safe to repeat and helps restore communication on
+            // UsbMonitor sub-revisions after USB/serial reconnection.
+            try { InitializeComm(); } catch { }
+
+            Array.Clear(_commandBuffer, 0, _commandBuffer.Length);
+            _commandBuffer[5] = CmdScreenOn;
+            _port.Write(_commandBuffer, 0, 6);
+
+            if (_compatibilityMode != RevACompatibilityMode.NativePortraitSoftwareRotation &&
+                Orientation != ScreenOrientation.Portrait)
             {
-                // Restore State
-                _commandBuffer[5] = CmdReset;
-                _baseStream.Write(_commandBuffer, 0, 6);
-                Thread.Sleep(50);
+                var target = Orientation;
+                var landscape = target is ScreenOrientation.Landscape or ScreenOrientation.ReverseLandscape;
+                var nativeDimensions = _compatibilityMode == RevACompatibilityMode.HardwareNativeDimensions;
+                var w = nativeDimensions ? HwWidth : landscape ? HwHeight : HwWidth;
+                var h = nativeDimensions ? HwHeight : landscape ? HwWidth : HwHeight;
+                var length = nativeDimensions ? 11 : 16;
 
-                _commandBuffer[5] = CmdClear;
-                _baseStream.Write(_commandBuffer, 0, 6);
-
-                var protocolBrightness = 255 - (int)Math.Round(Math.Clamp(_lastBrightness, 0, 100) / 100d * 255d);
-                _commandBuffer[0] = (byte)(protocolBrightness >> 2);
-                _commandBuffer[1] = (byte)((protocolBrightness & 3) << 6);
-                _commandBuffer[5] = CmdBrightness;
-                _baseStream.Write(_commandBuffer, 0, 6);
-
-                // Trigger full refresh (omitted for brevity, same logic as before)
+                Array.Clear(_commandBuffer, 0, _commandBuffer.Length);
+                _commandBuffer[5] = CmdOrientation;
+                _commandBuffer[6] = (byte)(_lastOrientationIndex + 100);
+                _commandBuffer[7] = (byte)(w >> 8);
+                _commandBuffer[8] = (byte)(w & 255);
+                _commandBuffer[9] = (byte)(h >> 8);
+                _commandBuffer[10] = (byte)(h & 255);
+                _port.Write(_commandBuffer, 0, length);
             }
+
+            var protocolBrightness = 255 - (int)Math.Round(Math.Clamp(_lastBrightness, 0, 100) / 100d * 255d);
+            Array.Clear(_commandBuffer, 0, _commandBuffer.Length);
+            _commandBuffer[0] = (byte)(protocolBrightness >> 2);
+            _commandBuffer[1] = (byte)((protocolBrightness & 3) << 6);
+            _commandBuffer[5] = CmdBrightness;
+            _port.Write(_commandBuffer, 0, 6);
+
+            return true;
         }
-        catch { }
+        catch
+        {
+            return false;
+        }
     }
 
     // ########################################################################
