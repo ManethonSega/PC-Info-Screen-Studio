@@ -15,6 +15,21 @@ public sealed class HardwareMetricsService : IDisposable
     public string Status { get; private set; } = "Not initialized";
     public bool IsElevated => IsAdministrator();
 
+    public bool IsLowLevelDriverInstalled
+    {
+        get
+        {
+            try
+            {
+                return LibreHardwareMonitor.PawnIo.PawnIo.IsInstalled;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
+
     public IReadOnlyDictionary<string, MetricValue> Sample()
     {
         lock (_sync)
@@ -52,9 +67,12 @@ public sealed class HardwareMetricsService : IDisposable
                 if (hwInfoActive)
                     sources += $" · HWiNFO: {hwInfoCount} readings";
 
-                Status = missingLowLevel && !elevated
-                    ? $"{sources} · some CPU/storage sensors need Administrator access"
-                    : $"{sources} · {(elevated ? "elevated" : "standard access")}";
+                if (missingLowLevel && !IsLowLevelDriverInstalled)
+                    Status = $"{sources} · full CPU/motherboard sensors need the optional PawnIO hardware-access driver";
+                else if (missingLowLevel && !elevated)
+                    Status = $"{sources} · some CPU/storage sensors need Administrator access";
+                else
+                    Status = $"{sources} · {(elevated ? "elevated" : "standard access")}";
 
                 return result;
             }
