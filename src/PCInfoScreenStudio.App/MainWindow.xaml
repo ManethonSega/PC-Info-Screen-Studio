@@ -56,6 +56,7 @@
                     ToolTip="Detected serial devices" />
           <Button Content="Refresh ports" Command="{Binding RefreshPortsCommand}" />
           <Button Content="Detect screen" Command="{Binding DetectScreenCommand}" ToolTip="Find the most likely USB serial screen automatically" />
+          <Button Content="Test screen" Command="{Binding TestScreenCommand}" ToolTip="Send a full-screen RGB test pattern to the connected display" />
           <Button Content="Connect / Disconnect" Command="{Binding ConnectCommand}" />
         </StackPanel>
       </DockPanel>
@@ -256,6 +257,42 @@
                       <TextBlock Text="DATA" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="0,8,0,6" />
                       <TextBlock Text="Source" Foreground="{StaticResource MutedTextBrush}" />
                       <ComboBox ItemsSource="{Binding DataContext.DataSources, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding DataSource}" Margin="0,3,0,7" />
+
+                      <StackPanel Margin="0,2,0,8">
+                        <StackPanel.Style>
+                          <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                              <DataTrigger Binding="{Binding DataSource}" Value="Weather.Temperature"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                              <DataTrigger Binding="{Binding DataSource}" Value="Weather.FeelsLike"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                              <DataTrigger Binding="{Binding DataSource}" Value="Weather.Humidity"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                              <DataTrigger Binding="{Binding DataSource}" Value="Weather.Wind"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                              <DataTrigger Binding="{Binding DataSource}" Value="Weather.WindDirection"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                              <DataTrigger Binding="{Binding DataSource}" Value="Weather.Condition"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                              <DataTrigger Binding="{Binding DataSource}" Value="Weather.Location"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                            </Style.Triggers>
+                          </Style>
+                        </StackPanel.Style>
+
+                        <TextBlock Text="Weather city" Foreground="{StaticResource MutedTextBrush}" />
+                        <Grid Margin="0,3,0,2">
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                          </Grid.ColumnDefinitions>
+                          <TextBox Text="{Binding DataContext.WeatherCity, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=PropertyChanged}"
+                                   ToolTip="City or City, Country, for example Düsseldorf, Germany" />
+                          <Button Grid.Column="1"
+                                  Content="Update"
+                                  Command="{Binding DataContext.UpdateWeatherCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  Margin="6,0,0,0"
+                                  Padding="9,4" />
+                        </Grid>
+                        <TextBlock Text="{Binding DataContext.WeatherStatus, RelativeSource={RelativeSource AncestorType=Window}}"
+                                   Foreground="{StaticResource MutedTextBrush}"
+                                   FontSize="10"
+                                   TextWrapping="Wrap" />
+                      </StackPanel>
                       <TextBlock Text="Label" Foreground="{StaticResource MutedTextBrush}" />
                       <TextBox Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,7" />
                       <Grid>
@@ -414,7 +451,11 @@
     <!-- status -->
     <Border Grid.Row="2" Background="#0C0F13" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0">
       <DockPanel Margin="10,0">
-        <TextBlock DockPanel.Dock="Left" Text="{Binding DeviceStatus}" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
+        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
+          <TextBlock Text="{Binding DeviceStatus}" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
+          <TextBlock Text="   Sensors: " VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
+          <TextBlock Text="{Binding HardwareStatus}" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" ToolTip="{Binding HardwareStatus}" />
+        </StackPanel>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
           <TextBlock Text="Theme: " Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" />
           <TextBlock Text="{Binding Document.Name}" VerticalAlignment="Center" />
