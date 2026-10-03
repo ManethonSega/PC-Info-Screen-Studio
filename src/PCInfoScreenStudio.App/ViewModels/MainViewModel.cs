@@ -76,7 +76,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         RefreshThemesCommand = new RelayCommand(RefreshThemes);
         LoadThemeCommand = new RelayCommand(() => _ = LoadSelectedThemeAsync(), () => SelectedTheme is not null);
         UpdateWeatherCommand = new RelayCommand(() => _ = UpdateWeatherAsync());
-        RestartElevatedCommand = new RelayCommand(RestartElevated);
+        RestartElevatedCommand = new RelayCommand(() => RestartElevated());
         EnableFullSensorsCommand = new RelayCommand(() => _ = EnableFullSensorsAsync());
 
         _dataTimer = new DispatcherTimer(DispatcherPriority.Background)
