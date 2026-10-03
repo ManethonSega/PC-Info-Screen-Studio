@@ -47,9 +47,9 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
         });
 
     private void OnRequestLiveFrame(object? sender, EventArgs e)
-        => Dispatcher.BeginInvoke(() => RenderPreview(sendLive: true));
+        => Dispatcher.BeginInvoke(() => RenderPreview(sendLive: true, forceSend: true));
 
-    private void RenderPreview(bool sendLive)
+    private void RenderPreview(bool sendLive, bool forceSend = false)
     {
         if (_viewModel is null)
         {
@@ -60,8 +60,8 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
         using var bitmap = _renderer.Render(_viewModel.Workspace);
         RenderSurface.Source = ToBitmapSource(bitmap);
 
-        if (sendLive && _viewModel.LivePreview)
-            _viewModel.SendLiveFrame(bitmap);
+        if (sendLive && (_viewModel.LivePreview || forceSend))
+            _viewModel.SendLiveFrame(bitmap, forceSend);
     }
 
 
