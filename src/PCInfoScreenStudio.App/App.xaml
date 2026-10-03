@@ -12,6 +12,11 @@
     <DrawingImage x:Key="AppIconImage">
       <DrawingImage.Drawing>
         <DrawingGroup>
+          <GeometryDrawing Brush="#00000000">
+            <GeometryDrawing.Geometry>
+              <RectangleGeometry Rect="0,0,256,256" />
+            </GeometryDrawing.Geometry>
+          </GeometryDrawing>
           <GeometryDrawing Brush="#6A1731">
             <GeometryDrawing.Geometry>
               <PathGeometry Figures="M 121,14 L 120,15 L 106,16 L 83,23 L 61,35 L 52,42 L 40,54 L 29,69 L 21,85 L 17,96 L 13,117 L 13,139 L 17,159 L 25,179 L 36,196 L 52,213 L 70,226 L 87,234 L 111,240 L 134,241 L 135,240 L 143,240 L 161,236 L 184,226 L 200,215 L 216,199 L 228,182 L 233,172 L 239,155 L 241,145 L 241,137 L 242,136 L 242,120 L 241,119 L 240,105 L 233,83 L 221,62 L 205,44 L 186,30 L 167,21 L 144,15 Z" />
