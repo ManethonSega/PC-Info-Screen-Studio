@@ -1,6 +1,14 @@
-MIT License
+# Third-party notices
 
-Copyright (c) 2026 PCInfoScreenStudio contributors
+## Tedd.TuringScreen
+
+This repository vendors source derived from **Tedd.TuringScreen** by Tedd.
+
+Original project: https://github.com/tedd/Tedd.TuringScreen
+
+License: MIT
+
+Copyright (c) 2025 Tedd
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,3 +27,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+The vendored project has been changed from a console executable into a class
+library and excludes the original demo `Program.cs` and demo GIF assets.
