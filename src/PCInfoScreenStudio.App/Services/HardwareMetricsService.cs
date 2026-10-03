@@ -142,7 +142,7 @@ public sealed class HardwareMetricsService : IDisposable
         Add(output, "CPU.Temperature",
             PickPreferred(
                 sensors, IsCpu, "Temperature",
-                ["core average", "cpu package", "package", "core max", "tctl", "tdie", "core"],
+                ["cpu package", "package", "core average", "core max", "tctl", "tdie", "core"],
                 1, 125),
             "°C");
 
@@ -298,7 +298,7 @@ public sealed class HardwareMetricsService : IDisposable
                     readings,
                     IsHwInfoCpu,
                     Hwinfo.SharedMemory.SensorType.Temp,
-                    ["core average", "cpu package", "core max", "tctl", "tdie", "core"],
+                    ["cpu package", "package", "core average", "core max", "tctl", "tdie", "core"],
                     1, 125);
 
                 Add(output, "CPU.Temperature", temp, "°C");
