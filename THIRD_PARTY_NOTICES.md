@@ -30,3 +30,28 @@ SOFTWARE.
 
 The vendored project has been changed from a console executable into a class
 library and excludes the original demo `Program.cs` and demo GIF assets.
+
+
+## LibreHardwareMonitor
+
+PC Info Screen Studio uses the **LibreHardwareMonitorLib** NuGet package for live CPU, GPU, storage, motherboard, fan, pump and power sensors.
+
+Original project: https://github.com/LibreHardwareMonitor/LibreHardwareMonitor
+
+NuGet package: https://www.nuget.org/packages/LibreHardwareMonitorLib/
+
+Package version currently referenced: 0.9.6
+
+License: Mozilla Public License 2.0 (MPL-2.0)
+
+The LibreHardwareMonitor library remains under its own licence. PC Info Screen Studio does not relicense that dependency under MIT.
+
+## Open-Meteo
+
+Weather and geocoding data are retrieved from Open-Meteo.
+
+Weather API: https://open-meteo.com/
+
+Geocoding API: https://open-meteo.com/en/docs/geocoding-api
+
+Open-Meteo weather data is provided under CC BY 4.0 and requires attribution. Geocoding results use GeoNames-derived location data. PC Info Screen Studio caches current conditions to avoid unnecessary API traffic.
