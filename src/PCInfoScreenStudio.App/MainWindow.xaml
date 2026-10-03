@@ -195,7 +195,7 @@
             <CheckBox Content="Grid" IsChecked="{Binding Document.EditorGridVisible}" Margin="4,0,8,0" />
             <CheckBox Content="Snap" IsChecked="{Binding Document.SnapToGrid}" Margin="0,0,8,0" />
             <TextBlock Text="Size" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" Margin="0,0,4,0" />
-            <TextBox Width="42" Text="{Binding Document.GridSize, UpdateSourceTrigger=PropertyChanged}" ToolTip="Grid spacing in screen pixels" />
+            <TextBox Width="42" Text="{Binding Document.GridSize, UpdateSourceTrigger=LostFocus}" ToolTip="Grid spacing in screen pixels" />
           </StackPanel>
         </Grid>
         <Border Grid.Row="1" Margin="18" Padding="18" Background="#111419" BorderBrush="#252A32" BorderThickness="1" CornerRadius="8">
@@ -245,17 +245,17 @@
                       </Grid.ColumnDefinitions>
                       <Grid.RowDefinitions><RowDefinition /><RowDefinition /><RowDefinition /></Grid.RowDefinitions>
                       <TextBlock Grid.Row="0" Grid.Column="0" Text="X" VerticalAlignment="Center" Margin="0,0,5,0" />
-                      <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding X, UpdateSourceTrigger=PropertyChanged}" Margin="0,2,8,2" />
+                      <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding X, UpdateSourceTrigger=LostFocus}" Margin="0,2,8,2" />
                       <TextBlock Grid.Row="0" Grid.Column="2" Text="Y" VerticalAlignment="Center" Margin="0,0,5,0" />
-                      <TextBox Grid.Row="0" Grid.Column="3" Text="{Binding Y, UpdateSourceTrigger=PropertyChanged}" Margin="0,2,0,2" />
+                      <TextBox Grid.Row="0" Grid.Column="3" Text="{Binding Y, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,2" />
                       <TextBlock Grid.Row="1" Grid.Column="0" Text="W" VerticalAlignment="Center" Margin="0,0,5,0" />
-                      <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Width, UpdateSourceTrigger=PropertyChanged}" Margin="0,2,8,2" />
+                      <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Width, UpdateSourceTrigger=LostFocus}" Margin="0,2,8,2" />
                       <TextBlock Grid.Row="1" Grid.Column="2" Text="H" VerticalAlignment="Center" Margin="0,0,5,0" />
-                      <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding Height, UpdateSourceTrigger=PropertyChanged}" Margin="0,2,0,2" />
+                      <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding Height, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,2" />
                       <TextBlock Grid.Row="2" Grid.Column="0" Text="Rot" VerticalAlignment="Center" Margin="0,0,5,0" />
-                      <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Rotation, UpdateSourceTrigger=PropertyChanged}" Margin="0,2,8,2" />
+                      <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Rotation, UpdateSourceTrigger=LostFocus}" Margin="0,2,8,2" />
                       <TextBlock Grid.Row="2" Grid.Column="2" Text="Opacity" VerticalAlignment="Center" Margin="0,0,5,0" />
-                      <TextBox Grid.Row="2" Grid.Column="3" Text="{Binding Opacity, UpdateSourceTrigger=PropertyChanged}" Margin="0,2,0,2" />
+                      <TextBox Grid.Row="2" Grid.Column="3" Text="{Binding Opacity, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,2" />
                     </Grid>
 
                     <!-- Data controls -->
@@ -330,12 +330,12 @@
                           <TextBlock Text="Preview value" Foreground="{StaticResource MutedTextBrush}" />
                           <Slider Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding SimulatedValue}" />
                         </StackPanel>
-                        <TextBox Grid.Column="1" Text="{Binding SimulatedValue, UpdateSourceTrigger=PropertyChanged}" Margin="8,18,0,0" />
+                        <TextBox Grid.Column="1" Text="{Binding SimulatedValue, UpdateSourceTrigger=LostFocus}" Margin="8,18,0,0" />
                       </Grid>
                       <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0" Margin="0,0,5,0"><TextBlock Text="Min" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding Minimum, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>
-                        <StackPanel Grid.Column="1" Margin="5,0"><TextBlock Text="Max" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding Maximum, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>
+                        <StackPanel Grid.Column="0" Margin="0,0,5,0"><TextBlock Text="Min" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding Minimum, UpdateSourceTrigger=LostFocus}" /></StackPanel>
+                        <StackPanel Grid.Column="1" Margin="5,0"><TextBlock Text="Max" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding Maximum, UpdateSourceTrigger=LostFocus}" /></StackPanel>
                         <StackPanel Grid.Column="2" Margin="5,0,0,0"><TextBlock Text="Suffix" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding Suffix, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>
                       </Grid>
                       <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
@@ -383,7 +383,7 @@
                             </Style>
                           </StackPanel.Style>
                           <TextBlock Text="Size" Foreground="{StaticResource MutedTextBrush}" />
-                          <TextBox Text="{Binding FontSize, UpdateSourceTrigger=PropertyChanged}" />
+                          <TextBox Text="{Binding FontSize, UpdateSourceTrigger=LostFocus}" />
                         </StackPanel>
                         <CheckBox Grid.Column="1" Content="Bold" IsChecked="{Binding FontBold}" Margin="12,18,5,0" />
                         <CheckBox Grid.Column="2" Content="Italic" IsChecked="{Binding FontItalic}" Margin="5,18,0,0" />
@@ -403,8 +403,8 @@
                       <ComboBox ItemsSource="{Binding DataContext.GraphStyles, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding GraphStyle}" Margin="0,3,0,6" />
                       <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                        <StackPanel Margin="0,0,5,0"><TextBlock Text="History (s)" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding HistorySeconds, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>
-                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="Line width" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding LineThickness, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>
+                        <StackPanel Margin="0,0,5,0"><TextBlock Text="History (s)" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding HistorySeconds, UpdateSourceTrigger=LostFocus}" /></StackPanel>
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="Line width" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding LineThickness, UpdateSourceTrigger=LostFocus}" /></StackPanel>
                       </Grid>
                       <StackPanel Orientation="Horizontal"><CheckBox Content="Grid" IsChecked="{Binding ShowGrid}" Margin="0,4,15,0" /><CheckBox Content="Auto scale" IsChecked="{Binding AutoScale}" Margin="0,4,0,0" /></StackPanel>
                     </StackPanel>
@@ -423,8 +423,8 @@
                       <TextBlock Text="GAUGE" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="0,8,0,6" />
                       <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                        <StackPanel Margin="0,0,5,0"><TextBlock Text="Thickness" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding GaugeThickness, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>
-                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="Segments" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding SegmentCount, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>
+                        <StackPanel Margin="0,0,5,0"><TextBlock Text="Thickness" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding GaugeThickness, UpdateSourceTrigger=LostFocus}" /></StackPanel>
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="Segments" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding SegmentCount, UpdateSourceTrigger=LostFocus}" /></StackPanel>
                       </Grid>
                     </StackPanel>
 
@@ -447,8 +447,8 @@
                       <CheckBox Content="Automatic optimization" IsChecked="{Binding AutoOptimize}" />
                       <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                        <StackPanel Margin="0,0,5,0"><TextBlock Text="Speed" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding PlaybackSpeed, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>
-                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="FPS (0=Auto)" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding TargetFps, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>
+                        <StackPanel Margin="0,0,5,0"><TextBlock Text="Speed" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding PlaybackSpeed, UpdateSourceTrigger=LostFocus}" /></StackPanel>
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="FPS (0=Auto)" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding TargetFps, UpdateSourceTrigger=LostFocus}" /></StackPanel>
                       </Grid>
                     </StackPanel>
 
@@ -460,7 +460,7 @@
                       <TextBlock Text="SHAPE" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="0,8,0,6" />
                       <ComboBox ItemsSource="{Binding DataContext.ShapeStyles, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding ShapeStyle}" />
                       <TextBlock Text="Corner radius" Foreground="{StaticResource MutedTextBrush}" Margin="0,6,0,0" />
-                      <TextBox Text="{Binding CornerRadius, UpdateSourceTrigger=PropertyChanged}" />
+                      <TextBox Text="{Binding CornerRadius, UpdateSourceTrigger=LostFocus}" />
                     </StackPanel>
 
                     <TextBlock Text="COLORS" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="0,16,0,6" />
