@@ -11,7 +11,7 @@
     <KeyBinding Key="N" Modifiers="Control" Command="{Binding NewCommand}" />
     <KeyBinding Key="O" Modifiers="Control" Command="{Binding OpenCommand}" />
     <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveCommand}" />
-    <KeyBinding Key="S" Modifiers="Control,Shift" Command="{Binding SaveAsCommand}" />
+    <KeyBinding Key="S" Modifiers="Control+Shift" Command="{Binding SaveAsCommand}" />
     <KeyBinding Key="Delete" Command="{Binding DeleteWidgetCommand}" />
     <KeyBinding Key="D" Modifiers="Control" Command="{Binding DuplicateWidgetCommand}" />
   </Window.InputBindings>
