@@ -693,6 +693,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             await _deviceService.TestPatternAsync();
             DeviceStatus = "Color test visible for 8 seconds. Expected: red · green · blue · cyan · magenta · yellow.";
+            _ = ResumeLiveDisplayAfterDiagnosticAsync();
         }
         catch (Exception ex)
         {
@@ -702,6 +703,23 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         finally
         {
             IsDeviceBusy = false;
+        }
+    }
+
+    private async Task ResumeLiveDisplayAfterDiagnosticAsync()
+    {
+        try
+        {
+            var delay = _suspendLiveDisplayUntil - DateTimeOffset.UtcNow;
+            if (delay > TimeSpan.Zero)
+                await Task.Delay(delay);
+
+            if (LivePreview && _deviceService.IsConnected)
+                await Application.Current.Dispatcher.InvokeAsync(() => RequestLiveFrame?.Invoke(this, EventArgs.Empty));
+        }
+        catch
+        {
+            // Diagnostic display restoration is best-effort.
         }
     }
 
