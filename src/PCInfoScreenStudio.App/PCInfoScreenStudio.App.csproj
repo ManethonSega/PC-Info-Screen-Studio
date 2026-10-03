@@ -26,6 +26,10 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
+    <Content Include="Prerequisites\*.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
@@ -35,4 +39,9 @@
     <PackageReference Include="Hwinfo.SharedMemory.Net" Version="4.0.0" />
     <PackageReference Include="System.Management" Version="10.0.2" />
   </ItemGroup>
+  <Target Name="GenerateApplicationIcon"
+          BeforeTargets="CoreCompile"
+          Condition="'$(OS)' == 'Windows_NT'">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\..\..\scripts\Generate-AppIcon.ps1&quot; &quot;$(MSBuildProjectDirectory)\Assets\PCInfoScreenStudio.ico&quot;" />
+  </Target>
 </Project>
