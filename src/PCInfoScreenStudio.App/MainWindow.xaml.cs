@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Windows;
-using PCInfoScreenStudio.ViewModels;
 using PCInfoScreenStudio.Models;
+using PCInfoScreenStudio.ViewModels;
 
 namespace PCInfoScreenStudio;
 
@@ -15,15 +15,18 @@ public partial class MainWindow : Window
         DataContext = _viewModel;
     }
 
-    private void OnDragOver(object sender, DragEventArgs e)
+    private void OnDragOver(object sender, System.Windows.DragEventArgs e)
     {
-        e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;
+        e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop)
+            ? DragDropEffects.Copy
+            : DragDropEffects.None;
         e.Handled = true;
     }
 
-    private async void OnDrop(object sender, DragEventArgs e)
+    private async void OnDrop(object sender, System.Windows.DragEventArgs e)
     {
-        if (e.Data.GetData(DataFormats.FileDrop) is not string[] files || files.Length == 0) return;
+        if (e.Data.GetData(DataFormats.FileDrop) is not string[] files || files.Length == 0)
+            return;
 
         foreach (var path in files)
         {
@@ -66,12 +69,14 @@ public partial class MainWindow : Window
                 "Unsaved changes",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Warning);
+
             if (result != MessageBoxResult.Yes)
             {
                 e.Cancel = true;
                 return;
             }
         }
+
         _viewModel.Dispose();
     }
 }
