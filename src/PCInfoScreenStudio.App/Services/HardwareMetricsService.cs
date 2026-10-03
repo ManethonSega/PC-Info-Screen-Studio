@@ -63,16 +63,21 @@ public sealed class HardwareMetricsService : IDisposable
                     !result.ContainsKey("CPU.Power") ||
                     !result.ContainsKey("Disk.Temperature");
 
-                var sources = $"LibreHardwareMonitor: {sensors.Count} sensors";
+                var summary =
+                    $"CPU {MetricText(result, "CPU.Temperature")} / {MetricText(result, "CPU.Power")} · " +
+                    $"GPU {MetricText(result, "GPU.Temperature")} / VRAM {MetricText(result, "GPU.VRAM")} · " +
+                    $"Disk {MetricText(result, "Disk.Temperature")}";
+
+                var sources = $"LHM {sensors.Count}";
                 if (hwInfoActive)
-                    sources += $" · HWiNFO: {hwInfoCount} readings";
+                    sources += $" · HWiNFO {hwInfoCount}";
 
                 if (missingLowLevel && !IsLowLevelDriverInstalled)
-                    Status = $"{sources} · full CPU/motherboard sensors need the optional PawnIO hardware-access driver";
+                    Status = $"{summary} · {sources} · PawnIO not installed";
                 else if (missingLowLevel && !elevated)
-                    Status = $"{sources} · some CPU/storage sensors need Administrator access";
+                    Status = $"{summary} · {sources} · restart as Administrator for remaining low-level sensors";
                 else
-                    Status = $"{sources} · {(elevated ? "elevated" : "standard access")}";
+                    Status = $"{summary} · {sources}";
 
                 return result;
             }
@@ -525,6 +530,22 @@ public sealed class HardwareMetricsService : IDisposable
         {
             return null;
         }
+    }
+
+    private static string MetricText(
+        IReadOnlyDictionary<string, MetricValue> values,
+        string key)
+    {
+        if (!values.TryGetValue(key, out var metric) ||
+            metric.Numeric is not double number ||
+            !double.IsFinite(number))
+        {
+            return "N/A";
+        }
+
+        var unit = metric.Unit?.Trim() ?? string.Empty;
+        var decimals = unit is "%" or "°C" or "W" ? 0 : 1;
+        return number.ToString($"F{decimals}", System.Globalization.CultureInfo.CurrentCulture) + unit;
     }
 
     private static bool HasUseful(IDictionary<string, MetricValue> output, string key)
