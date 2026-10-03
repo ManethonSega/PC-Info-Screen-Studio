@@ -55,3 +55,17 @@ Weather API: https://open-meteo.com/
 Geocoding API: https://open-meteo.com/en/docs/geocoding-api
 
 Open-Meteo weather data is provided under CC BY 4.0 and requires attribution. Geocoding results use GeoNames-derived location data. PC Info Screen Studio caches current conditions to avoid unnecessary API traffic.
+
+
+## Bundled Google Fonts
+
+PC Info Screen Studio bundles the following fonts from the Google Fonts project:
+
+- Bungee
+- Fredoka
+- Monoton
+- Orbitron
+
+Source: https://github.com/google/fonts
+
+These font families are distributed under the SIL Open Font License 1.1 (OFL-1.1). Their font files remain under the OFL and are not relicensed under the application's MIT licence.
