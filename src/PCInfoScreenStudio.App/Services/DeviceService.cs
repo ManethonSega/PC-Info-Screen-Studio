@@ -15,6 +15,7 @@ public sealed class DeviceService : IDisposable
     public bool IsConnected => _screen is not null;
     public string? ConnectedPort { get; private set; }
     public int? ConnectedBaudRate { get; private set; }
+    public string? ConnectedModel { get; private set; }
 
     public IReadOnlyList<string> GetPorts()
         => SerialPort.GetPortNames().OrderBy(ParsePortNumber).ToArray();
@@ -42,13 +43,15 @@ public sealed class DeviceService : IDisposable
                     {
                         screen = new TuringScreen(number, baudRate);
                         screen.Reset();
+                        screen.InitializeComm();
                         screen.ScreenOn();
                         screen.SetOrientation(MapOrientation(theme, rotation));
-                        screen.SetBrightness(100);
+                        screen.SetBrightness(50);
 
                         _screen = screen;
                         ConnectedPort = portName;
                         ConnectedBaudRate = baudRate;
+                        ConnectedModel = screen.DetectedModel;
                         return;
                     }
                     catch (UnauthorizedAccessException)
@@ -161,7 +164,7 @@ public sealed class DeviceService : IDisposable
                 }
 
                 screen.ScreenOn();
-                screen.SetBrightness(100);
+                screen.SetBrightness(50);
                 screen.DisplayBuffer(0, 0, buffer);
             }, cancellationToken);
         }
@@ -260,6 +263,7 @@ public sealed class DeviceService : IDisposable
         _screen = null;
         ConnectedPort = null;
         ConnectedBaudRate = null;
+        ConnectedModel = null;
         try { screen?.Dispose(); } catch { }
     }
 
@@ -298,12 +302,19 @@ public sealed class DeviceService : IDisposable
 
     private static TuringScreenOrientation MapOrientation(ThemeOrientation theme, DeviceRotation rotation)
     {
-        var startsLandscape = theme == ThemeOrientation.Landscape;
-        var quarterTurn = rotation is DeviceRotation.Degrees90 or DeviceRotation.Degrees270;
-        var finalLandscape = quarterTurn ? !startsLandscape : startsLandscape;
+        return (theme, rotation) switch
+        {
+            (ThemeOrientation.Portrait, DeviceRotation.Degrees0) => TuringScreenOrientation.Portrait,
+            (ThemeOrientation.Portrait, DeviceRotation.Degrees90) => TuringScreenOrientation.Landscape,
+            (ThemeOrientation.Portrait, DeviceRotation.Degrees180) => TuringScreenOrientation.ReversePortrait,
+            (ThemeOrientation.Portrait, DeviceRotation.Degrees270) => TuringScreenOrientation.ReverseLandscape,
 
-        return finalLandscape
-            ? TuringScreenOrientation.Landscape
-            : TuringScreenOrientation.Portrait;
+            (ThemeOrientation.Landscape, DeviceRotation.Degrees0) => TuringScreenOrientation.Landscape,
+            (ThemeOrientation.Landscape, DeviceRotation.Degrees90) => TuringScreenOrientation.ReversePortrait,
+            (ThemeOrientation.Landscape, DeviceRotation.Degrees180) => TuringScreenOrientation.ReverseLandscape,
+            (ThemeOrientation.Landscape, DeviceRotation.Degrees270) => TuringScreenOrientation.Portrait,
+
+            _ => TuringScreenOrientation.Portrait
+        };
     }
 }
