@@ -490,6 +490,23 @@
           <TextBlock Text="{Binding DeviceStatus}" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
           <TextBlock Text="   Sensors: " VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
           <TextBlock Text="{Binding HardwareStatus}" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" ToolTip="{Binding HardwareStatus}" />
+          <Button Content="Restart as admin"
+                  Command="{Binding RestartElevatedCommand}"
+                  FontSize="10"
+                  Padding="7,2"
+                  Margin="8,2,0,2"
+                  ToolTip="Restart with elevated access for CPU temperature, CPU package power, storage and motherboard sensors">
+            <Button.Style>
+              <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                <Setter Property="Visibility" Value="Visible" />
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding IsHardwareElevated}" Value="True">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </Button.Style>
+          </Button>
         </StackPanel>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
           <TextBlock Text="Theme: " Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" />
