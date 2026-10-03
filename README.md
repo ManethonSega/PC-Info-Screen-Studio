@@ -103,9 +103,20 @@ MyTheme.t3theme
 
 The format is documented in [`docs/THEME_FORMAT.md`](docs/THEME_FORMAT.md).
 
+## 0.6 alpha highlights
+
+- **Rev-A display transport:** 115200 baud, RTS/CTS flow control, HELLO/model handshake, correct orientation dimensions and four-row framebuffer chunks.
+- **Automatic labels:** selecting `CPU.Temperature`, `Weather.FeelsLike`, `Cooling.Fan2RPM`, etc. updates the widget label automatically.
+- **Regional formats:** temperature follows the Windows measurement setting, while date/time and sunrise/sunset follow the current Windows culture and clock format.
+- **Hardware sources:** in addition to friendly aliases, detected LibreHardwareMonitor sensors are added to the Source list as exact `Sensor: ...` entries. This is useful for motherboard-specific fan and pump names.
+- **Traditional clock:** use **Add → Clock** for an analog clock with hour, minute and second hands.
+- **Built-in fonts:** Bungee, Fredoka, Monoton and Orbitron are bundled with the application and can be selected without installing them in Windows.
+
+If CPU package temperature, CPU power, motherboard fans or pump sensors are missing, try running PC Info Screen Studio as Administrator once. Some motherboard sensor chips require elevated low-level access.
+
 ## Connecting the screen
 
-Use **Detect screen** to inspect Windows USB/serial device information and select the most likely screen port. The protocol does not expose a reliable model-identification response, so detection is based on Windows Plug and Play metadata such as USB serial, CH340/CH341/CH910, CP210x, FTDI, CDC, Turing and TURZX descriptors.
+Use **Detect screen** to inspect Windows USB/serial device information and select the most likely screen port. PC Info Screen Studio also sends the Rev-A HELLO handshake after reset and uses the returned model code when the display supports it.
 
 For the 3.5-inch Rev-A/UsbMonitor protocol, the app now tries 115200 first, matching the established vendor-compatible protocol implementation, and falls back to 921600 only if necessary. The display is reset, allowed to re-enumerate, switched on, configured for orientation and brightness, and then receives the rendered frame. Use **Test screen** after connecting to send a high-contrast RGB test pattern before troubleshooting theme rendering.
 
