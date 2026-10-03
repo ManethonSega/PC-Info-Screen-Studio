@@ -30,7 +30,13 @@ Implemented in the source tree:
 - COM-port discovery and live display path through the vendored `Tedd.TuringScreen` driver
 - simulated data values for layout design
 - optional live Windows data mode for CPU load, RAM, system-drive usage/free space, network throughput, date and time
+- clear N/A state for sensor sources not yet implemented instead of presenting simulated values as live data
 - live graph history buffering without modifying the saved theme
+- USB serial device discovery with friendly COM-port names and likely-screen selection
+- 921600 to 115200 automatic baud fallback for screen drivers with restricted serial line coding
+- configurable editor grid and snap-to-grid movement/resizing
+- built-in theme list plus user theme library under Documents/PC Info Screen Studio/Themes
+- automatic text scaling for Text, Value and Circular Gauge widgets as their layer is resized
 - GitHub-ready license, third-party notice, build workflow and self-contained publish scripts
 
 ## Planned next
@@ -94,6 +100,14 @@ MyTheme.t3theme
 ```
 
 The format is documented in [`docs/THEME_FORMAT.md`](docs/THEME_FORMAT.md).
+
+## Connecting the screen
+
+Use **Detect screen** to inspect Windows USB/serial device information and select the most likely screen port. The protocol does not expose a reliable model-identification response, so detection is based on Windows Plug and Play metadata such as USB serial, CH340/CH341/CH910, CP210x, FTDI, CDC, Turing and TURZX descriptors.
+
+The app first tries the driver's preferred 921600 serial line coding. If Windows reports that the device only accepts up to 115200, PC Info Screen Studio automatically retries at 115200. USB CDC devices may use the baud setting as line-coding metadata rather than as the physical USB transport rate.
+
+If Windows reports **Access denied** for a COM port, close any other program that is using that screen/port, including the manufacturer's monitor application or tray process, before reconnecting.
 
 ## Hardware driver
 
