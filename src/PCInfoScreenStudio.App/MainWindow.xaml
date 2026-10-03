@@ -490,17 +490,17 @@
           <TextBlock Text="{Binding DeviceStatus}" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
           <TextBlock Text="   Sensors: " VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
           <TextBlock Text="{Binding HardwareStatus}" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" ToolTip="{Binding HardwareStatus}" />
-          <Button Content="Restart as admin"
-                  Command="{Binding RestartElevatedCommand}"
+          <Button Content="Enable full sensors"
+                  Command="{Binding EnableFullSensorsCommand}"
                   FontSize="10"
                   Padding="7,2"
                   Margin="8,2,0,2"
-                  ToolTip="Restart with elevated access for CPU temperature, CPU package power, storage and motherboard sensors">
+                  ToolTip="Set up the optional low-level sensor driver if needed, then restart with elevated access">
             <Button.Style>
               <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
                 <Setter Property="Visibility" Value="Visible" />
                 <Style.Triggers>
-                  <DataTrigger Binding="{Binding IsHardwareElevated}" Value="True">
+                  <DataTrigger Binding="{Binding NeedsFullSensorAccess}" Value="False">
                     <Setter Property="Visibility" Value="Collapsed" />
                   </DataTrigger>
                 </Style.Triggers>
