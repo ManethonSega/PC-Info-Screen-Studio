@@ -43,6 +43,11 @@
           <ComboBox Width="92" ItemsSource="{Binding RotationOptions}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Document.DeviceRotation}" VerticalContentAlignment="Center" />
           <Button Content="Rotate" Command="{Binding RotateDeviceCommand}" />
           <CheckBox Content="Live data" IsChecked="{Binding UseLiveData}" VerticalAlignment="Center" Margin="12,0,0,0" />
+          <Button Content="Hardware sensors..."
+                  Command="{Binding EnableFullSensorsCommand}"
+                  Margin="8,0,0,0"
+                  Padding="9,5"
+                  ToolTip="Install/enable the optional low-level sensor driver when needed and restart with elevated access" />
           <CheckBox Content="Live display" IsChecked="{Binding LivePreview}" VerticalAlignment="Center" Margin="12,0,0,0" />
         </StackPanel>
 
@@ -490,23 +495,6 @@
           <TextBlock Text="{Binding DeviceStatus}" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
           <TextBlock Text="   Sensors: " VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
           <TextBlock Text="{Binding HardwareStatus}" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" ToolTip="{Binding HardwareStatus}" />
-          <Button Content="Enable full sensors"
-                  Command="{Binding EnableFullSensorsCommand}"
-                  FontSize="10"
-                  Padding="7,2"
-                  Margin="8,2,0,2"
-                  ToolTip="Set up the optional low-level sensor driver if needed, then restart with elevated access">
-            <Button.Style>
-              <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                <Setter Property="Visibility" Value="Visible" />
-                <Style.Triggers>
-                  <DataTrigger Binding="{Binding NeedsFullSensorAccess}" Value="False">
-                    <Setter Property="Visibility" Value="Collapsed" />
-                  </DataTrigger>
-                </Style.Triggers>
-              </Style>
-            </Button.Style>
-          </Button>
         </StackPanel>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
           <TextBlock Text="Theme: " Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" />
