@@ -22,6 +22,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly AppSettingsService _settingsService = new();
     private readonly AppSettings _appSettings;
     private readonly DispatcherTimer _dataTimer;
+    private readonly DispatcherTimer _animationTimer;
     private ThemeWorkspace _workspace;
     private WidgetModel? _selectedWidget;
     private string? _selectedPort;
@@ -91,6 +92,19 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             }
         };
         _dataTimer.Start();
+
+        _animationTimer = new DispatcherTimer(DispatcherPriority.Render)
+        {
+            Interval = TimeSpan.FromMilliseconds(50)
+        };
+        _animationTimer.Tick += (_, _) =>
+        {
+            if (!Document.Widgets.Any(w => w.IsVisible && w.Type == WidgetType.AnimatedImage))
+                return;
+
+            ThemeChanged?.Invoke(this, EventArgs.Empty);
+        };
+        _animationTimer.Start();
 
         AttachWorkspace(_workspace);
         CreateStarterLayout();
@@ -1270,6 +1284,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _dataTimer.Stop();
+        _animationTimer.Stop();
         _weatherMetrics.Dispose();
         _hardwareMetrics.Dispose();
         _deviceService.Dispose();
