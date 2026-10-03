@@ -19,7 +19,7 @@ public sealed class WeatherMetricsService : IDisposable
 
     public WeatherMetricsService()
     {
-        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("PCInfoScreenStudio/0.4");
+        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("PCInfoScreenStudio/0.5");
     }
 
     public async Task<IReadOnlyDictionary<string, MetricValue>> GetMetricsAsync(
@@ -168,7 +168,6 @@ public sealed class WeatherMetricsService : IDisposable
         AddNumber(output, current, "wind_speed_10m", "Weather.Wind", " km/h");
         AddNumber(output, current, "wind_direction_10m", "Weather.WindDirection", "°");
         AddNumber(output, current, "wind_gusts_10m", "Weather.WindGust", " km/h");
-        AddNumber(output, current, "relative_humidity_2m", "Weather.Humidity", "%");
         AddNumber(output, current, "precipitation", "Weather.Precipitation", " mm");
         AddNumber(output, current, "cloud_cover", "Weather.CloudCover", "%");
         AddNumber(output, current, "pressure_msl", "Weather.Pressure", " hPa");
