@@ -1,4 +1,5 @@
 using System.Text.Json;
+using PCInfoScreenStudio.Models;
 
 namespace PCInfoScreenStudio.Services;
 
@@ -43,4 +44,6 @@ public sealed class AppSettingsService
 public sealed class AppSettings
 {
     public string WeatherCity { get; set; } = string.Empty;
+    public DisplayProtocolProfile DisplayProtocol { get; set; } = DisplayProtocolProfile.Auto;
+    public DisplayColorMode DisplayColorMode { get; set; } = DisplayColorMode.Auto;
 }
