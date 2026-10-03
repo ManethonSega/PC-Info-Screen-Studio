@@ -23,5 +23,6 @@
   <ItemGroup>
     <ProjectReference Include="..\Tedd.TuringScreen\Tedd.TuringScreen.csproj" />
     <PackageReference Include="SkiaSharp" Version="3.119.1" />
+    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6" />
   </ItemGroup>
 </Project>
