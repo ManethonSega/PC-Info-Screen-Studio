@@ -183,8 +183,8 @@ public sealed class WeatherMetricsService : IDisposable
             AddFirstNumber(output, daily, "temperature_2m_max", "Weather.TodayHigh", "°C");
             AddFirstNumber(output, daily, "temperature_2m_min", "Weather.TodayLow", "°C");
             AddFirstNumber(output, daily, "precipitation_probability_max", "Weather.PrecipitationChance", "%");
-            AddFirstText(output, daily, "sunrise", "Weather.Sunrise");
-            AddFirstText(output, daily, "sunset", "Weather.Sunset");
+            AddFirstTime(output, daily, "sunrise", "Weather.Sunrise");
+            AddFirstTime(output, daily, "sunset", "Weather.Sunset");
 
             if (TryGetFirstDouble(daily, "weather_code", out var dailyCode))
                 output["Weather.TodayCondition"] = new MetricValue(Text: DescribeWeatherCode((int)Math.Round(dailyCode)));
@@ -205,7 +205,7 @@ public sealed class WeatherMetricsService : IDisposable
             output[metricName] = new MetricValue(value, Unit: unit);
     }
 
-    private static void AddFirstText(
+    private static void AddFirstTime(
         IDictionary<string, MetricValue> output,
         JsonElement parent,
         string sourceProperty,
@@ -218,8 +218,13 @@ public sealed class WeatherMetricsService : IDisposable
             return;
 
         var value = array[0].GetString();
-        if (!string.IsNullOrWhiteSpace(value))
-            output[metricName] = new MetricValue(Text: value);
+        if (string.IsNullOrWhiteSpace(value))
+            return;
+
+        if (DateTime.TryParse(value, out var time))
+            value = time.ToString("HH:mm");
+
+        output[metricName] = new MetricValue(Text: value);
     }
 
     private static bool TryGetFirstDouble(JsonElement parent, string property, out double value)
