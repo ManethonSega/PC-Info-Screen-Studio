@@ -26,6 +26,7 @@ public sealed class TuringScreen : IDisposable
         { 1000, 1200, 1400, 1500, 1600, 1700, 1800, 2000, 2500 };
 
     // PROTOCOL COMMANDS
+    private const byte CmdHello = 69;
     private const byte CmdReset = 101;
     private const byte CmdClear = 102;
     private const byte CmdScreenOff = 108;
@@ -60,6 +61,7 @@ public sealed class TuringScreen : IDisposable
     public ScreenOrientation Orientation { get; private set; } = ScreenOrientation.Portrait;
     public int Width => _cachedWidth;
     public int Height => _cachedHeight;
+    public string DetectedModel { get; private set; } = "Turing 3.5-inch";
 
     public TuringScreen(int comPort, int baudRate = 921600)
     {
@@ -87,7 +89,17 @@ public sealed class TuringScreen : IDisposable
 
     public void Clear()
     {
+        // Revision-A firmware has a known clear-screen quirk outside portrait mode.
+        // Clear in portrait, then restore the selected orientation.
+        var restore = Orientation;
+        if (restore != ScreenOrientation.Portrait)
+            WriteOrientationCommand(CmdOrientation, (byte)ScreenOrientation.Portrait);
+
         WriteCommand(CmdClear);
+
+        if (restore != ScreenOrientation.Portrait)
+            WriteOrientationCommand(CmdOrientation, (byte)restore);
+
         _screenBuffer.Clear(Color656.White);
     }
 
@@ -100,6 +112,49 @@ public sealed class TuringScreen : IDisposable
         // Give the controller time to restart before reopening the COM port.
         Thread.Sleep(5000);
         Connect(waitForConnect: 5000);
+    }
+
+    public void InitializeComm()
+    {
+        if (_port is null || !_port.IsOpen)
+            throw new IOException("Display serial port is not open.");
+
+        var hello = new byte[] { CmdHello, CmdHello, CmdHello, CmdHello, CmdHello, CmdHello };
+        _port.DiscardInBuffer();
+        _port.Write(hello, 0, hello.Length);
+
+        try
+        {
+            var response = new byte[6];
+            var read = 0;
+            var deadline = Stopwatch.StartNew();
+            while (read < response.Length && deadline.ElapsedMilliseconds < 450)
+            {
+                try
+                {
+                    var count = _port.Read(response, read, response.Length - read);
+                    if (count <= 0) break;
+                    read += count;
+                }
+                catch (TimeoutException)
+                {
+                    break;
+                }
+            }
+
+            if (read == 6 && response.All(b => b == 1))
+                DetectedModel = "UsbMonitor 3.5-inch";
+            else if (read == 6 && response.All(b => b == 2))
+                DetectedModel = "UsbMonitor 5-inch";
+            else if (read == 6 && response.All(b => b == 3))
+                DetectedModel = "UsbMonitor 7-inch";
+            else
+                DetectedModel = "Turing 3.5-inch";
+        }
+        finally
+        {
+            try { _port.DiscardInBuffer(); } catch { }
+        }
     }
 
     public void ScreenOff() => WriteCommand(CmdScreenOff);
@@ -123,14 +178,17 @@ public sealed class TuringScreen : IDisposable
         {
             _cachedWidth = HwHeight;
             _cachedHeight = HwWidth;
-            _useSoftwareRotation = true;
         }
         else
         {
             _cachedWidth = HwWidth;
             _cachedHeight = HwHeight;
-            _useSoftwareRotation = false;
         }
+
+        // Revision-A firmware performs orientation itself. Sending a second
+        // software transpose causes the clipped 320x320/square output seen on
+        // physical 3.5-inch displays.
+        _useSoftwareRotation = false;
 
         _lastOrientationIndex = (byte)orientation;
         WriteOrientationCommand(CmdOrientation, _lastOrientationIndex);
@@ -391,7 +449,12 @@ public sealed class TuringScreen : IDisposable
 
     private void WriteOrientationCommand(byte command, byte orientation)
     {
-        int w = HwWidth; int h = HwHeight;
+        var target = (ScreenOrientation)orientation;
+        var landscape = target is ScreenOrientation.Landscape or ScreenOrientation.ReverseLandscape;
+        int w = landscape ? HwHeight : HwWidth;
+        int h = landscape ? HwWidth : HwHeight;
+
+        Array.Clear(_commandBuffer);
         _commandBuffer[5] = command;
         _commandBuffer[6] = (byte)(orientation + 100);
         _commandBuffer[7] = (byte)(w >> 8);
@@ -411,9 +474,9 @@ public sealed class TuringScreen : IDisposable
             {
                 _port = new SerialPort("COM" + _comPortName)
                 {
-                    DtrEnable = true,
-                    RtsEnable = true,
-                    ReadTimeout = 1000,
+                    DtrEnable = false,
+                    Handshake = Handshake.RequestToSend,
+                    ReadTimeout = 350,
                     BaudRate = _baudRate,
                     DataBits = 8,
                     StopBits = StopBits.One,
@@ -431,17 +494,8 @@ public sealed class TuringScreen : IDisposable
                 _port.DiscardInBuffer();
                 _port.DiscardOutBuffer();
 
-                if (_useSoftwareRotation || Orientation != ScreenOrientation.Portrait)
-                {
-                    int w = HwWidth; int h = HwHeight;
-                    _commandBuffer[5] = CmdOrientation;
-                    _commandBuffer[6] = (byte)(_lastOrientationIndex + 100);
-                    _commandBuffer[7] = (byte)(w >> 8);
-                    _commandBuffer[8] = (byte)(w & 255);
-                    _commandBuffer[9] = (byte)(h >> 8);
-                    _commandBuffer[10] = (byte)(h & 255);
-                    _baseStream.Write(_commandBuffer, 0, 11);
-                }
+                if (Orientation != ScreenOrientation.Portrait)
+                    WriteOrientationCommand(CmdOrientation, _lastOrientationIndex);
                 break;
             }
             catch (IOException)
@@ -511,8 +565,9 @@ public sealed class TuringScreen : IDisposable
                 _commandBuffer[5] = CmdClear;
                 _baseStream.Write(_commandBuffer, 0, 6);
 
-                _commandBuffer[0] = (byte)(_lastBrightness >> 2);
-                _commandBuffer[1] = (byte)((_lastBrightness & 3) << 6);
+                var protocolBrightness = 255 - (int)Math.Round(Math.Clamp(_lastBrightness, 0, 100) / 100d * 255d);
+                _commandBuffer[0] = (byte)(protocolBrightness >> 2);
+                _commandBuffer[1] = (byte)((protocolBrightness & 3) << 6);
                 _commandBuffer[5] = CmdBrightness;
                 _baseStream.Write(_commandBuffer, 0, 6);
 
