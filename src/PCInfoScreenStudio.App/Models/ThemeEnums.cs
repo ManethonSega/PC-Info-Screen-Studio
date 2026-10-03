@@ -19,6 +19,7 @@ public enum WidgetType
     Text,
     Value,
     CircularGauge,
+    AnalogClock,
     BarGauge,
     Graph,
     Image,
