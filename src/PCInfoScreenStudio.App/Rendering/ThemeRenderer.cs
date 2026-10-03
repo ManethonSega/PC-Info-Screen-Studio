@@ -38,6 +38,9 @@ public sealed class ThemeRenderer
             case WidgetType.CircularGauge:
                 DrawCircularGauge(canvas, workspace, w);
                 break;
+            case WidgetType.AnalogClock:
+                DrawAnalogClock(canvas, workspace, w);
+                break;
             case WidgetType.BarGauge:
                 DrawBarGauge(canvas, workspace, w);
                 break;
@@ -124,6 +127,68 @@ public sealed class ThemeRenderer
             var labelSize = FitTextSize(workspace, w, w.Label, innerWidth, (float)Math.Max(7, diameter * .16), (float)Math.Max(7, diameter * .18));
             DrawCenteredText(canvas, workspace, w, w.Label, labelSize, w.ForegroundColor, (float)(top + diameter * .72));
         }
+    }
+
+    private static void DrawAnalogClock(SKCanvas canvas, ThemeWorkspace workspace, WidgetModel w)
+    {
+        FillBackground(canvas, w);
+
+        var padding = Math.Max(5f, (float)w.LineThickness + 3f);
+        var diameter = (float)Math.Max(12, Math.Min(w.Width, w.Height) - padding * 2);
+        var radius = diameter / 2f;
+        var cx = (float)w.Width / 2f;
+        var cy = (float)w.Height / 2f;
+
+        using var face = Paint(w.SecondaryColor, Math.Max(1.5f, (float)w.LineThickness), SKPaintStyle.Stroke);
+        canvas.DrawCircle(cx, cy, radius, face);
+
+        using var minorTick = Paint(WithAlpha(ParseColor(w.ForegroundColor), 130), Math.Max(1f, diameter * .006f), SKPaintStyle.Stroke);
+        using var majorTick = Paint(w.ForegroundColor, Math.Max(1.5f, diameter * .012f), SKPaintStyle.Stroke);
+
+        for (var i = 0; i < 60; i++)
+        {
+            var angle = (float)(i * Math.PI * 2 / 60d - Math.PI / 2d);
+            var major = i % 5 == 0;
+            var outer = radius - Math.Max(2f, diameter * .035f);
+            var inner = outer - (major ? diameter * .085f : diameter * .035f);
+
+            var x1 = cx + MathF.Cos(angle) * inner;
+            var y1 = cy + MathF.Sin(angle) * inner;
+            var x2 = cx + MathF.Cos(angle) * outer;
+            var y2 = cy + MathF.Sin(angle) * outer;
+            canvas.DrawLine(x1, y1, x2, y2, major ? majorTick : minorTick);
+        }
+
+        var now = DateTime.Now;
+        var hourAngle = (float)(((now.Hour % 12) + now.Minute / 60d + now.Second / 3600d) * 30d - 90d);
+        var minuteAngle = (float)((now.Minute + now.Second / 60d) * 6d - 90d);
+        var secondAngle = (float)(now.Second * 6d - 90d);
+
+        static SKPoint End(float centerX, float centerY, float length, float degrees)
+        {
+            var radians = degrees * MathF.PI / 180f;
+            return new SKPoint(
+                centerX + MathF.Cos(radians) * length,
+                centerY + MathF.Sin(radians) * length);
+        }
+
+        var hourEnd = End(cx, cy, radius * .50f, hourAngle);
+        var minuteEnd = End(cx, cy, radius * .72f, minuteAngle);
+        var secondEnd = End(cx, cy, radius * .80f, secondAngle);
+
+        using var hourPaint = Paint(w.ForegroundColor, Math.Max(3f, diameter * .035f), SKPaintStyle.Stroke);
+        hourPaint.StrokeCap = SKStrokeCap.Round;
+        using var minutePaint = Paint(w.ForegroundColor, Math.Max(2f, diameter * .022f), SKPaintStyle.Stroke);
+        minutePaint.StrokeCap = SKStrokeCap.Round;
+        using var secondPaint = Paint(w.AccentColor, Math.Max(1f, diameter * .010f), SKPaintStyle.Stroke);
+        secondPaint.StrokeCap = SKStrokeCap.Round;
+
+        canvas.DrawLine(cx, cy, hourEnd.X, hourEnd.Y, hourPaint);
+        canvas.DrawLine(cx, cy, minuteEnd.X, minuteEnd.Y, minutePaint);
+        canvas.DrawLine(cx, cy, secondEnd.X, secondEnd.Y, secondPaint);
+
+        using var centerPaint = Paint(w.AccentColor, style: SKPaintStyle.Fill);
+        canvas.DrawCircle(cx, cy, Math.Max(2.5f, diameter * .025f), centerPaint);
     }
 
     private static void DrawBarGauge(SKCanvas canvas, ThemeWorkspace workspace, WidgetModel w)
