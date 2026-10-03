@@ -124,6 +124,53 @@ public sealed class DeviceService : IDisposable
         }
     }
 
+    public async Task TestPatternAsync(CancellationToken cancellationToken = default)
+    {
+        await _ioGate.WaitAsync(cancellationToken);
+        try
+        {
+            var screen = _screen ?? throw new InvalidOperationException("Connect the display first.");
+
+            await Task.Run(() =>
+            {
+                var buffer = new ScreenBuffer(screen.Width, screen.Height);
+                var red = ScreenBuffer.FullRgbToColor565(255, 45, 45);
+                var green = ScreenBuffer.FullRgbToColor565(45, 220, 90);
+                var blue = ScreenBuffer.FullRgbToColor565(55, 120, 255);
+                var white = ScreenBuffer.FullRgbToColor565(255, 255, 255);
+                var black = ScreenBuffer.FullRgbToColor565(0, 0, 0);
+
+                for (var y = 0; y < screen.Height; y++)
+                {
+                    for (var x = 0; x < screen.Width; x++)
+                    {
+                        var color = x < screen.Width / 3
+                            ? red
+                            : x < screen.Width * 2 / 3
+                                ? green
+                                : blue;
+
+                        if (y < 8 || y >= screen.Height - 8 || x < 8 || x >= screen.Width - 8)
+                            color = white;
+
+                        if (y > screen.Height / 2 - 3 && y < screen.Height / 2 + 3)
+                            color = black;
+
+                        buffer[x, y] = color;
+                    }
+                }
+
+                screen.ScreenOn();
+                screen.SetBrightness(100);
+                screen.DisplayBuffer(0, 0, buffer);
+            }, cancellationToken);
+        }
+        finally
+        {
+            _ioGate.Release();
+        }
+    }
+
     public async Task RunBenchmarkAsync(CancellationToken cancellationToken = default)
     {
         await _ioGate.WaitAsync(cancellationToken);
