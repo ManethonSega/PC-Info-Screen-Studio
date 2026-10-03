@@ -102,7 +102,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         "Network.Download", "Network.Upload",
         "Cooling.FanRPM", "Cooling.PumpRPM",
         "Weather.Temperature", "Weather.FeelsLike", "Weather.Humidity", "Weather.Wind",
-        "Weather.WindDirection", "Weather.Condition", "Weather.Location",
+        "Weather.WindDirection", "Weather.WindGust", "Weather.Condition", "Weather.Location",
+        "Weather.Precipitation", "Weather.PrecipitationChance", "Weather.CloudCover", "Weather.Pressure",
+        "Weather.DayNight", "Weather.TodayHigh", "Weather.TodayLow", "Weather.TodayCondition",
+        "Weather.Sunrise", "Weather.Sunset",
         "Clock.Time", "Clock.Date", "Clock.Day"
     ];
 
@@ -790,7 +793,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         var source = widget.DataSource ?? string.Empty;
         if (source.StartsWith("Clock.", StringComparison.OrdinalIgnoreCase) ||
-            source is "Weather.Condition" or "Weather.Location")
+            source is "Weather.Condition" or "Weather.Location" or "Weather.DayNight" or
+                "Weather.TodayCondition" or "Weather.Sunrise" or "Weather.Sunset")
         {
             widget.Suffix = string.Empty;
             return;
@@ -801,12 +805,25 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             widget.Suffix = "°"; widget.Minimum = 0; widget.Maximum = 360; return;
         }
 
-        if (source.Equals("Weather.Wind", StringComparison.OrdinalIgnoreCase))
+        if (source.Equals("Weather.Wind", StringComparison.OrdinalIgnoreCase) ||
+            source.Equals("Weather.WindGust", StringComparison.OrdinalIgnoreCase))
         {
             widget.Suffix = " km/h"; widget.Minimum = 0; widget.Maximum = Math.Max(150, widget.Maximum); return;
         }
 
-        if (source.Equals("Weather.Humidity", StringComparison.OrdinalIgnoreCase))
+        if (source.Equals("Weather.Pressure", StringComparison.OrdinalIgnoreCase))
+        {
+            widget.Suffix = " hPa"; widget.Minimum = 900; widget.Maximum = 1100; return;
+        }
+
+        if (source.Equals("Weather.Precipitation", StringComparison.OrdinalIgnoreCase))
+        {
+            widget.Suffix = " mm"; widget.Minimum = 0; widget.Maximum = Math.Max(50, widget.Maximum); return;
+        }
+
+        if (source.Equals("Weather.Humidity", StringComparison.OrdinalIgnoreCase) ||
+            source.Equals("Weather.CloudCover", StringComparison.OrdinalIgnoreCase) ||
+            source.Equals("Weather.PrecipitationChance", StringComparison.OrdinalIgnoreCase))
         {
             widget.Suffix = "%"; widget.Minimum = 0; widget.Maximum = 100; return;
         }
