@@ -89,17 +89,23 @@ public sealed class HardwareMetricsService : IDisposable
         if (_computer is not null)
             return;
 
+        var lowLevel = IsLowLevelDriverInstalled;
+
+        // Keep driver-independent providers alive even when PawnIO is not yet
+        // installed. Enabling motherboard/controller groups without the driver
+        // can make one low-level initialization failure hide otherwise healthy
+        // GPU and storage telemetry.
         _computer = new Computer
         {
             IsCpuEnabled = true,
             IsGpuEnabled = true,
             IsMemoryEnabled = true,
-            IsMotherboardEnabled = true,
-            IsControllerEnabled = true,
+            IsMotherboardEnabled = lowLevel,
+            IsControllerEnabled = lowLevel,
             IsStorageEnabled = true,
             IsNetworkEnabled = false,
-            IsPowerMonitorEnabled = true,
-            IsPsuEnabled = true
+            IsPowerMonitorEnabled = false,
+            IsPsuEnabled = false
         };
 
         _computer.Open();
