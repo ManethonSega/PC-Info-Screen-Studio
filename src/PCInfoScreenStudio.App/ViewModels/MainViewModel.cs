@@ -1265,11 +1265,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (!OperatingSystem.IsWindows())
             return;
 
+        var installedNow = false;
+
         if (!_hardwareMetrics.IsLowLevelDriverInstalled)
         {
             var answer = MessageBox.Show(
-                "Full CPU temperature, CPU package power and motherboard sensor access on current Windows systems requires PawnIO, the signed low-level hardware driver used by LibreHardwareMonitor.\n\nPC Info Screen Studio can ask Windows Package Manager to install the official PawnIO package. Windows will show a UAC prompt.\n\nInstall PawnIO now?",
-                "Enable full hardware sensors",
+                "CPU Package temperature, CPU Package power and many motherboard sensors need the signed PawnIO hardware-access driver used by LibreHardwareMonitor.\n\nRunning PC Info Screen Studio as Administrator by itself does NOT install this driver.\n\nInstall PawnIO now using Windows Package Manager?",
+                "Hardware sensors",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Information);
 
@@ -1295,12 +1297,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 if (process.ExitCode != 0)
                 {
                     MessageBox.Show(
-                        $"PawnIO setup returned exit code {process.ExitCode}. You can install the package manually with: winget install --exact --id namazso.PawnIO",
-                        "Sensor driver setup",
+                        $"PawnIO setup returned exit code {process.ExitCode}.\n\nYou can install it manually from Windows Terminal with:\nwinget install --exact --id namazso.PawnIO",
+                        "Hardware sensors",
                         MessageBoxButton.OK,
                         MessageBoxImage.Warning);
                     return;
                 }
+
+                installedNow = true;
             }
             catch (Win32Exception ex) when (ex.NativeErrorCode == 1223)
             {
@@ -1309,7 +1313,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             catch (Exception ex)
             {
                 MessageBox.Show(
-                    ex.Message + "\n\nYou can install PawnIO manually with: winget install --exact --id namazso.PawnIO",
+                    ex.Message + "\n\nYou can install PawnIO manually from Windows Terminal with:\nwinget install --exact --id namazso.PawnIO",
                     "Could not install sensor driver",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
@@ -1317,15 +1321,27 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             }
         }
 
-        RestartElevated();
+        // PawnIO installation is detected when LibreHardwareMonitor starts, so
+        // a process restart is required even if this process is already elevated.
+        if (installedNow || !IsHardwareElevated)
+        {
+            RestartElevated(forceRestart: installedNow);
+            return;
+        }
+
+        MessageBox.Show(
+            "Full sensor access is already enabled. Turn on 'Live data' to populate CPU, GPU, storage and cooling values.\n\nThe Sensors status line at the bottom reports the active provider and any remaining limitation.",
+            "Hardware sensors",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
     }
 
-    private void RestartElevated()
+    private void RestartElevated(bool forceRestart = false)
     {
         if (!OperatingSystem.IsWindows())
             return;
 
-        if (IsHardwareElevated)
+        if (IsHardwareElevated && !forceRestart)
         {
             MessageBox.Show(
                 "PC Info Screen Studio is already running as administrator.",
@@ -1338,8 +1354,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (Workspace.IsDirty)
         {
             var result = MessageBox.Show(
-                "This theme has unsaved changes. Restarting as administrator will discard them. Continue?",
-                "Restart as administrator",
+                "This theme has unsaved changes. Restarting will discard them. Continue?",
+                "Restart PC Info Screen Studio",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Warning);
 
@@ -1370,7 +1386,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             MessageBox.Show(
                 ex.Message,
-                "Could not restart as administrator",
+                "Could not restart PC Info Screen Studio",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
