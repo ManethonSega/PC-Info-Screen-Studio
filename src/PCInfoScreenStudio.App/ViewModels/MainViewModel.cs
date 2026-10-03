@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Threading;
 using PCInfoScreenStudio.Models;
@@ -75,6 +76,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         RefreshThemesCommand = new RelayCommand(RefreshThemes);
         LoadThemeCommand = new RelayCommand(() => _ = LoadSelectedThemeAsync(), () => SelectedTheme is not null);
         UpdateWeatherCommand = new RelayCommand(() => _ = UpdateWeatherAsync());
+        RestartElevatedCommand = new RelayCommand(RestartElevated);
 
         _dataTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
@@ -260,6 +262,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         private set => SetProperty(ref _hardwareStatus, value);
     }
 
+    public bool IsHardwareElevated => _hardwareMetrics.IsElevated;
+
     public bool LivePreview
     {
         get => _livePreview;
@@ -323,6 +327,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand RefreshThemesCommand { get; }
     public RelayCommand LoadThemeCommand { get; }
     public RelayCommand UpdateWeatherCommand { get; }
+    public RelayCommand RestartElevatedCommand { get; }
 
     public void SelectWidget(WidgetModel? widget) => SelectedWidget = widget;
 
@@ -1169,6 +1174,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 sample[pair.Key] = pair.Value;
 
             HardwareStatus = _hardwareMetrics.Status;
+            RaisePropertyChanged(nameof(IsHardwareElevated));
             WeatherStatus = _weatherMetrics.Status;
 
             foreach (var widget in Document.Widgets)
@@ -1244,6 +1250,62 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             await _weatherMetrics.GetMetricsAsync(WeatherCity, forceRefresh: true);
             WeatherStatus = _weatherMetrics.Status;
+        }
+    }
+
+    private void RestartElevated()
+    {
+        if (!OperatingSystem.IsWindows())
+            return;
+
+        if (IsHardwareElevated)
+        {
+            MessageBox.Show(
+                "PC Info Screen Studio is already running as administrator.",
+                "Hardware sensors",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        if (Workspace.IsDirty)
+        {
+            var result = MessageBox.Show(
+                "This theme has unsaved changes. Restarting as administrator will discard them. Continue?",
+                "Restart as administrator",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result != MessageBoxResult.Yes)
+                return;
+        }
+
+        var executable = Environment.ProcessPath;
+        if (string.IsNullOrWhiteSpace(executable))
+            return;
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(executable)
+            {
+                UseShellExecute = true,
+                Verb = "runas",
+                WorkingDirectory = AppContext.BaseDirectory
+            });
+
+            Application.Current.Shutdown();
+        }
+        catch (Win32Exception ex) when (ex.NativeErrorCode == 1223)
+        {
+            // User cancelled the UAC prompt.
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                ex.Message,
+                "Could not restart as administrator",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
     }
 
