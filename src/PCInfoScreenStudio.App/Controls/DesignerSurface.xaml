@@ -14,6 +14,12 @@
                  Stretch="Fill"
                  IsHitTestVisible="False"
                  SnapsToDevicePixels="True" />
+
+          <Canvas x:Name="GridOverlay"
+                  Width="{Binding Document.CanvasWidth}"
+                  Height="{Binding Document.CanvasHeight}"
+                  IsHitTestVisible="False" />
+
           <ItemsControl ItemsSource="{Binding Document.Widgets}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
