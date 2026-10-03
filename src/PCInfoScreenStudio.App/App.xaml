@@ -8,6 +8,33 @@
     <SolidColorBrush x:Key="TextBrush" Color="#F0F2F5" />
     <SolidColorBrush x:Key="MutedTextBrush" Color="#AAB1BC" />
     <SolidColorBrush x:Key="AccentBrush" Color="#5B8CFF" />
+
+    <Style TargetType="TextBlock">
+      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+    </Style>
+
+    <Style TargetType="ListBox">
+      <Setter Property="Background" Value="#101318" />
+      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+    </Style>
+
+    <Style TargetType="ListBoxItem">
+      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Style.Triggers>
+        <Trigger Property="IsSelected" Value="True">
+          <Setter Property="Background" Value="#46505D" />
+          <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+        </Trigger>
+        <Trigger Property="IsMouseOver" Value="True">
+          <Setter Property="Background" Value="#2A3038" />
+          <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+
     <Style TargetType="Window">
       <Setter Property="Background" Value="#101216" />
       <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
@@ -30,7 +57,7 @@
     </Style>
     <Style TargetType="ComboBox">
       <Setter Property="Background" Value="#111419" />
-      <Setter Property="Foreground" Value="#111111" />
+      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
       <Setter Property="Padding" Value="6,4" />
     </Style>
     <Style TargetType="CheckBox">
