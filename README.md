@@ -84,6 +84,8 @@ End users do **not** have to install .NET when the application is published self
 
 The output is placed under `artifacts/win-x64`. The build is self-contained, so the user does not need to install .NET. During alpha development it is intentionally published as a folder rather than a single EXE for maximum native-library reliability. Extract the complete GitHub artifact and keep all files together when running `PCInfoScreenStudio.exe`.
 
+The editor, USB display driver, weather, standard Windows metrics, GPU telemetry and available hardware sensors work from the self-contained package. On current Windows systems, full low-level CPU package temperature/power and motherboard Super I/O access can additionally require PawnIO. That driver is optional, is not bundled, and is only installed after the user explicitly chooses **Enable full sensors**.
+
 If the repository is hosted on GitHub, the included **Actions** workflow builds the self-contained `PCInfoScreenStudio-win-x64` artifact automatically on pushes to `main` and runs a startup smoke test against the published application before uploading it. The artifact can also be produced manually with **Run workflow**.
 
 ## Theme files
