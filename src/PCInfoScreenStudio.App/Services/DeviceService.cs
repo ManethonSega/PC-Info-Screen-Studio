@@ -16,11 +16,20 @@ public sealed class DeviceService : IDisposable
     public string? ConnectedPort { get; private set; }
     public int? ConnectedBaudRate { get; private set; }
     public string? ConnectedModel { get; private set; }
+    public DisplayProtocolProfile ConnectedProtocol { get; private set; } = DisplayProtocolProfile.Auto;
+    public DisplayColorMode ConnectedColorMode { get; private set; } = DisplayColorMode.Auto;
 
     public IReadOnlyList<string> GetPorts()
         => SerialPort.GetPortNames().OrderBy(ParsePortNumber).ToArray();
 
-    public async Task ConnectAsync(string portName, ThemeOrientation theme, DeviceRotation rotation, CancellationToken cancellationToken = default)
+    public async Task ConnectAsync(
+        string portName,
+        ThemeOrientation theme,
+        DeviceRotation rotation,
+        DisplayProtocolProfile requestedProtocol,
+        DisplayColorMode requestedColorMode,
+        SerialPortOption? deviceInfo = null,
+        CancellationToken cancellationToken = default)
     {
         var number = ParsePortNumber(portName);
         if (number <= 0)
@@ -36,14 +45,33 @@ public sealed class DeviceService : IDisposable
                 DisconnectCore();
 
                 Exception? firstFailure = null;
+                var protocol = ResolveProtocol(requestedProtocol, deviceInfo);
+                var colorMode = ResolveColorMode(requestedColorMode);
+
                 foreach (var baudRate in new[] { 115200, 921600 })
                 {
                     TuringScreen? screen = null;
                     try
                     {
-                        screen = new TuringScreen(number, baudRate);
+                        screen = new TuringScreen(
+                            number,
+                            baudRate,
+                            MapProtocol(protocol),
+                            MapColorMode(colorMode));
+
                         screen.Reset();
                         screen.InitializeComm();
+
+                        // Some USB35INCHIPSV2 devices only identify themselves
+                        // after HELLO. In Auto mode prefer the proven native-
+                        // portrait software-rotation path for that sub-revision.
+                        if (requestedProtocol == DisplayProtocolProfile.Auto &&
+                            screen.DetectedModel.Contains("UsbMonitor 3.5", StringComparison.OrdinalIgnoreCase))
+                        {
+                            protocol = DisplayProtocolProfile.RevANativePortrait;
+                            screen.ConfigureCompatibility(MapProtocol(protocol), MapColorMode(colorMode));
+                        }
+
                         screen.ScreenOn();
                         screen.SetOrientation(MapOrientation(theme, rotation));
                         screen.SetBrightness(50);
@@ -52,6 +80,8 @@ public sealed class DeviceService : IDisposable
                         ConnectedPort = portName;
                         ConnectedBaudRate = baudRate;
                         ConnectedModel = screen.DetectedModel;
+                        ConnectedProtocol = protocol;
+                        ConnectedColorMode = colorMode;
                         return;
                     }
                     catch (UnauthorizedAccessException)
@@ -137,9 +167,15 @@ public sealed class DeviceService : IDisposable
             await Task.Run(() =>
             {
                 var buffer = new ScreenBuffer(screen.Width, screen.Height);
-                var red = ScreenBuffer.FullRgbToColor565(255, 45, 45);
-                var green = ScreenBuffer.FullRgbToColor565(45, 220, 90);
-                var blue = ScreenBuffer.FullRgbToColor565(55, 120, 255);
+                var bars = new[]
+                {
+                    ScreenBuffer.FullRgbToColor565(255, 0, 0),
+                    ScreenBuffer.FullRgbToColor565(0, 255, 0),
+                    ScreenBuffer.FullRgbToColor565(0, 0, 255),
+                    ScreenBuffer.FullRgbToColor565(0, 255, 255),
+                    ScreenBuffer.FullRgbToColor565(255, 0, 255),
+                    ScreenBuffer.FullRgbToColor565(255, 255, 0)
+                };
                 var white = ScreenBuffer.FullRgbToColor565(255, 255, 255);
                 var black = ScreenBuffer.FullRgbToColor565(0, 0, 0);
 
@@ -147,11 +183,8 @@ public sealed class DeviceService : IDisposable
                 {
                     for (var x = 0; x < screen.Width; x++)
                     {
-                        var color = x < screen.Width / 3
-                            ? red
-                            : x < screen.Width * 2 / 3
-                                ? green
-                                : blue;
+                        var index = Math.Min(bars.Length - 1, x * bars.Length / Math.Max(1, screen.Width));
+                        var color = bars[index];
 
                         if (y < 8 || y >= screen.Height - 8 || x < 8 || x >= screen.Width - 8)
                             color = white;
@@ -264,6 +297,8 @@ public sealed class DeviceService : IDisposable
         ConnectedPort = null;
         ConnectedBaudRate = null;
         ConnectedModel = null;
+        ConnectedProtocol = DisplayProtocolProfile.Auto;
+        ConnectedColorMode = DisplayColorMode.Auto;
         try { screen?.Dispose(); } catch { }
     }
 
@@ -280,6 +315,50 @@ public sealed class DeviceService : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
     }
 
+
+    private static DisplayProtocolProfile ResolveProtocol(
+        DisplayProtocolProfile requested,
+        SerialPortOption? deviceInfo)
+    {
+        if (requested != DisplayProtocolProfile.Auto)
+            return requested;
+
+        var metadata = string.Join(" ",
+            deviceInfo?.FriendlyName ?? string.Empty,
+            deviceInfo?.HardwareId ?? string.Empty,
+            deviceInfo?.Manufacturer ?? string.Empty);
+
+        if (metadata.Contains("USB35INCHIPSV2", StringComparison.OrdinalIgnoreCase) ||
+            metadata.Contains("VID_1A86&PID_5722", StringComparison.OrdinalIgnoreCase) ||
+            metadata.Contains("USBMONITOR", StringComparison.OrdinalIgnoreCase))
+        {
+            return DisplayProtocolProfile.RevANativePortrait;
+        }
+
+        return DisplayProtocolProfile.RevAHardwareLogical;
+    }
+
+    private static DisplayColorMode ResolveColorMode(DisplayColorMode requested)
+        => requested == DisplayColorMode.Auto
+            ? DisplayColorMode.Rgb565LittleEndian
+            : requested;
+
+    private static RevACompatibilityMode MapProtocol(DisplayProtocolProfile profile)
+        => profile switch
+        {
+            DisplayProtocolProfile.RevANativePortrait => RevACompatibilityMode.NativePortraitSoftwareRotation,
+            DisplayProtocolProfile.RevAHardwareNative => RevACompatibilityMode.HardwareNativeDimensions,
+            _ => RevACompatibilityMode.HardwareLogicalDimensions
+        };
+
+    private static Rgb565Encoding MapColorMode(DisplayColorMode mode)
+        => mode switch
+        {
+            DisplayColorMode.Bgr565LittleEndian => Rgb565Encoding.BgrLittleEndian,
+            DisplayColorMode.Rgb565BigEndian => Rgb565Encoding.RgbBigEndian,
+            DisplayColorMode.Bgr565BigEndian => Rgb565Encoding.BgrBigEndian,
+            _ => Rgb565Encoding.RgbLittleEndian
+        };
 
     private static bool IsBaudRateFailure(Exception exception)
     {
