@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.7.0-alpha.1
+
+- Added three Revision-A compatibility profiles instead of assuming one firmware behavior:
+  - native 320×480 portrait transport with software rotation for USB35INCHIPSV2 / VID 1A86 PID 5722
+  - hardware rotation with logical 480×320 landscape dimensions
+  - legacy hardware rotation with native 320×480 dimensions in the orientation command
+- Auto mode now prefers the proven native-portrait path for USB35INCHIPSV2/UsbMonitor 3.5-inch devices and uses the HELLO model response as a second signal.
+- Added explicit RGB565 color modes: RGB little-endian, BGR little-endian, RGB byte-swapped and BGR byte-swapped. Auto uses the standard Revision-A RGB565 little-endian format.
+- Added a six-color full-screen diagnostic pattern: red, green, blue, cyan, magenta and yellow.
+- Protocol and color modes can be switched while connected and are remembered locally.
+- Added reliable four-row native framebuffer writes matching tested Revision-A implementations.
+- Added support for both 16-byte logical-dimension and 11-byte native-dimension orientation commands.
+- Matched proven 115200 baud + RTS/CTS + DTR serial behavior.
+- Added COM-port re-detection if the screen re-enumerates under a different port after reset.
+- Added third-party attribution for usausa/turing-smart-screen, viktorkav/usb-lcd-dashboard and Bendak/TuringMonitor, and kept GPL projects as protocol references only.
+
+
 ## 0.6.0-alpha.1
 
 - Fixed Rev-A landscape transport: orientation commands now send the correct 480×320 or 320×480 dimensions instead of always reporting portrait dimensions.
