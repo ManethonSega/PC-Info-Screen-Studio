@@ -198,8 +198,8 @@ public sealed class HardwareMetricsService : IDisposable
         if (gpuMemoryUsed is double used && gpuMemoryTotal is double total && total > 0)
         {
             gpuMemoryPercent = Math.Clamp(used / total * 100d, 0d, 100d);
-            output["GPU.VRAMUsed"] = new MetricValue(used, Unit: " MB");
-            output["GPU.VRAMTotal"] = new MetricValue(total, Unit: " MB");
+            output["GPU.VRAMUsed"] = new MetricValue(ToMemoryMegabytes(used), Unit: " MB");
+            output["GPU.VRAMTotal"] = new MetricValue(ToMemoryMegabytes(total), Unit: " MB");
         }
 
         gpuMemoryPercent ??= PickPreferred(
@@ -549,6 +549,15 @@ public sealed class HardwareMetricsService : IDisposable
             sensorName.Contains("memory", StringComparison.OrdinalIgnoreCase))
             return " MB";
         return string.Empty;
+    }
+
+    private static double ToMemoryMegabytes(double value)
+    {
+        // LibreHardwareMonitor's GPU Memory Used/Total Data sensors are bytes,
+        // while some D3D SmallData providers expose MB directly.
+        return value > 1024d * 1024d
+            ? value / (1024d * 1024d)
+            : value;
     }
 
     private static void Add(
