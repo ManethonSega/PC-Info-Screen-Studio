@@ -166,3 +166,42 @@ Source: https://github.com/mathoudebine/turing-smart-screen-python
 License: GPL-3.0
 
 This project is used as a protocol-behavior and hardware-compatibility reference. PC Info Screen Studio does not vendor or relicense GPL source from this project inside its MIT source tree.
+
+
+## Hwinfo.SharedMemory.Net
+
+PC Info Screen Studio optionally reads an already-running HWiNFO instance through its shared-memory interface using **Hwinfo.SharedMemory.Net**.
+
+Source: https://github.com/Seraksab/Hwinfo.SharedMemory.Net
+
+NuGet package: Hwinfo.SharedMemory.Net 4.0.0
+
+License: MIT
+
+Copyright (c) 2023 Manfred Graf
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+## PawnIO
+
+For full low-level CPU and motherboard sensor access, PC Info Screen Studio can optionally ask Windows Package Manager to install **PawnIO**, the signed hardware-access driver used by LibreHardwareMonitor.
+
+Source: https://github.com/namazso/PawnIO
+
+PC Info Screen Studio does not bundle PawnIO. Installation is only started after explicit user confirmation and is performed by the official Windows Package Manager package `namazso.PawnIO`.
