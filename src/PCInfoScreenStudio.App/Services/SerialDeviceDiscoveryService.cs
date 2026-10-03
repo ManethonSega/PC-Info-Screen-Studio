@@ -123,8 +123,7 @@ public sealed class SerialDeviceDiscoveryService
         var score = 0;
 
         if (text.Contains("USB35INCHIPSV2") ||
-            text.Contains("VID_1A86&PID_5722") ||
-            text.Contains("VID_1A86&PID_5722".Replace("&", "\\&")))
+            text.Contains("VID_1A86&PID_5722"))
             score += 20;
 
         if (text.Contains("TURING") || text.Contains("TURZX") || text.Contains("USBMONITOR"))
