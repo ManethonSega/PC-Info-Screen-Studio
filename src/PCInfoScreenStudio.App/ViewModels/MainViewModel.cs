@@ -125,7 +125,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     [
         "Preview.Value",
         "CPU.Usage", "CPU.Temperature", "CPU.Power", "CPU.Clock",
-        "GPU.Usage", "GPU.Temperature", "GPU.Hotspot", "GPU.VRAM", "GPU.Power", "GPU.FanRPM",
+        "GPU.Usage", "GPU.Temperature", "GPU.Hotspot", "GPU.VRAM", "GPU.VRAMUsed", "GPU.VRAMTotal", "GPU.Power", "GPU.FanRPM",
         "RAM.Usage", "RAM.UsedGB", "RAM.AvailableGB", "RAM.TotalGB",
         "Disk.Usage", "Disk.FreeGB", "Disk.Temperature", "Disk.Read", "Disk.Write",
         "Network.Download", "Network.Upload",
@@ -938,7 +938,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     }
     private void OnWidgetPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(WidgetModel.IsSelected) or nameof(WidgetModel.RuntimeValue) or nameof(WidgetModel.RuntimeText)) return;
+        if (e.PropertyName is nameof(WidgetModel.IsSelected) or nameof(WidgetModel.RuntimeValue) or nameof(WidgetModel.RuntimeText) or nameof(WidgetModel.RuntimeUnit)) return;
         if (e.PropertyName == nameof(WidgetModel.DataSource) && sender is WidgetModel widget)
             ApplyDataSourceDefaults(widget);
         MarkDirtyAndRefresh();
@@ -994,6 +994,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (source.EndsWith("Usage", StringComparison.OrdinalIgnoreCase) || source.EndsWith("VRAM", StringComparison.OrdinalIgnoreCase))
         {
             widget.Suffix = "%"; widget.Minimum = 0; widget.Maximum = 100; return;
+        }
+        if (source is "GPU.VRAMUsed" or "GPU.VRAMTotal")
+        {
+            widget.Suffix = " MB"; widget.Minimum = 0; widget.Maximum = Math.Max(16384, widget.Maximum); return;
         }
         if (source.EndsWith("GB", StringComparison.OrdinalIgnoreCase))
         {
@@ -1052,6 +1056,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             "GPU.Temperature" => "GPU Temp",
             "GPU.Hotspot" => "GPU Hotspot",
             "GPU.VRAM" => "VRAM",
+            "GPU.VRAMUsed" => "VRAM Used",
+            "GPU.VRAMTotal" => "VRAM Total",
             "GPU.Power" => "GPU Power",
             "GPU.FanRPM" => "GPU Fan",
             "RAM.Usage" => "RAM Usage",
@@ -1172,6 +1178,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                     var value = ApplyRegionalFormat(widget.DataSource, rawValue);
                     widget.RuntimeValue = value.Numeric;
                     widget.RuntimeText = value.Text;
+                    widget.RuntimeUnit = value.Unit;
 
                     if (value.Numeric is double numeric && IsTemperatureSource(widget.DataSource))
                         widget.RuntimeText = numeric.ToString(widget.ValueFormat, RegionalFormatService.Culture) + (value.Unit ?? string.Empty);
@@ -1190,13 +1197,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 {
                     if (!widget.DataSource.Equals("Preview.Value", StringComparison.OrdinalIgnoreCase))
                     {
-                        widget.RuntimeValue = 0;
+                        widget.RuntimeValue = null;
                         widget.RuntimeText = "N/A";
+                        widget.RuntimeUnit = null;
                     }
                     else
                     {
                         widget.RuntimeValue = null;
                         widget.RuntimeText = null;
+                        widget.RuntimeUnit = null;
                     }
                 }
             }
@@ -1244,6 +1253,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             widget.RuntimeValue = null;
             widget.RuntimeText = null;
+            widget.RuntimeUnit = null;
             widget.RuntimeSeries.Clear();
         }
     }
