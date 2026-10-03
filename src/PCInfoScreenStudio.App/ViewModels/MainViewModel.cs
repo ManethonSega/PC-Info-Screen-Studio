@@ -38,6 +38,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private bool _isDeviceBusy;
     private int _frameSendBusy;
     private int _dataSampleBusy;
+    private DateTimeOffset _suspendLiveDisplayUntil = DateTimeOffset.MinValue;
 
     public MainViewModel()
     {
@@ -320,6 +321,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public void SendLiveFrame(SkiaSharp.SKBitmap bitmap)
     {
         if (!LivePreview || !_deviceService.IsConnected) return;
+        if (DateTimeOffset.UtcNow < _suspendLiveDisplayUntil) return;
 
         if (Interlocked.CompareExchange(ref _frameSendBusy, 1, 0) != 0)
             return;
@@ -685,11 +687,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (IsDeviceBusy) return;
 
         IsDeviceBusy = true;
-        DeviceStatus = "Sending display test pattern...";
+        _suspendLiveDisplayUntil = DateTimeOffset.UtcNow.AddSeconds(8);
+        DeviceStatus = "Sending display color test...";
         try
         {
             await _deviceService.TestPatternAsync();
-            DeviceStatus = "Color test sent. " + BuildConnectionStatus();
+            DeviceStatus = "Color test visible for 8 seconds. Expected: red · green · blue · cyan · magenta · yellow.";
         }
         catch (Exception ex)
         {
