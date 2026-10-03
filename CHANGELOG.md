@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.0-alpha.1
+
+- Added automatic USB serial screen/COM-port discovery with friendly device names.
+- Added automatic fallback from 921600 to 115200 baud for screen drivers that reject the higher line-coding rate.
+- Added a clearer warning when a COM port is already owned by another program.
+- Added a built-in/user theme library. Saved themes default to Documents/PC Info Screen Studio/Themes and appear in the theme list.
+- Added a user-configurable editor grid and snap-to-grid for moving and resizing layers.
+- Text, Value and Circular Gauge widgets now scale their text automatically with the layer dimensions instead of exposing a manual text-size field.
+- Applied the supplied cat logo as the application/window icon.
+- Unified dark-interface text and layer-list styling.
+- Replaced the visible Benchmark control with screen detection. The low-level benchmark remains available internally for later diagnostics.
+- Unsupported live data sources now show N/A instead of silently looking like live simulated data.
+
+
 ## 0.3.0-alpha.3
 
 - Fixed the editor overlay that painted widgets as blank white rectangles.
