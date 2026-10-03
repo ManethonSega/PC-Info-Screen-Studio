@@ -6,23 +6,31 @@ public sealed class FileDialogService
 {
     public string? OpenTheme()
     {
+        var initialDirectory = new ThemeLibraryService().UserThemesDirectory;
+        Directory.CreateDirectory(initialDirectory);
+
         var dialog = new OpenFileDialog
         {
             Title = "Open theme",
-            Filter = "PC Info Screen Studio theme (*.t3theme)|*.t3theme|All files (*.*)|*.*"
+            Filter = "PC Info Screen Studio theme (*.t3theme)|*.t3theme|All files (*.*)|*.*",
+            InitialDirectory = initialDirectory
         };
         return dialog.ShowDialog() == true ? dialog.FileName : null;
     }
 
     public string? SaveTheme(string suggestedName)
     {
+        var initialDirectory = new ThemeLibraryService().UserThemesDirectory;
+        Directory.CreateDirectory(initialDirectory);
+
         var dialog = new SaveFileDialog
         {
             Title = "Save theme",
             Filter = "PC Info Screen Studio theme (*.t3theme)|*.t3theme",
             FileName = SanitizeFileName(suggestedName) + ".t3theme",
             AddExtension = true,
-            DefaultExt = ".t3theme"
+            DefaultExt = ".t3theme",
+            InitialDirectory = initialDirectory
         };
         return dialog.ShowDialog() == true ? dialog.FileName : null;
     }
