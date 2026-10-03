@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.2-alpha.1
+
+- Bundled the official unmodified PawnIO 2.2.0 setup executable inside Windows release artifacts under `Prerequisites`.
+- Release builds verify PawnIO's SHA-256 before packaging: `1f519a22e47187f70a1379a48ca604981c4fcf694f4e65b734aaa74a9fba3032`.
+- Hardware sensor setup now prefers the bundled PawnIO installer and falls back to Winget only when the bundled prerequisite is unavailable.
+- Added PawnIO GPL-2.0-or-later license text and source/version information beside the prerequisite.
+- Added a build-time multi-resolution Windows ICO generator using the PC Info Screen Studio cat artwork.
+- The generated icon is embedded into `PCInfoScreenStudio.exe`, fixing the generic File Explorer executable icon and the tray icon obtained from the executable.
+- Kept PawnIO as a separately installed driver component; Windows still shows UAC when the driver is installed.
+
+
 ## 0.8.1-alpha.1
 
 - Improved GIF refresh on UsbMonitor 3.5-inch Rev-A screens.
