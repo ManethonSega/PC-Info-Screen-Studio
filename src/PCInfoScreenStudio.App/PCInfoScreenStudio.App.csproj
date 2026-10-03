@@ -32,5 +32,7 @@
     <ProjectReference Include="..\Tedd.TuringScreen\Tedd.TuringScreen.csproj" />
     <PackageReference Include="SkiaSharp" Version="3.119.1" />
     <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6" />
+    <PackageReference Include="Hwinfo.SharedMemory.Net" Version="4.0.0" />
+    <PackageReference Include="System.Management" Version="10.0.0" />
   </ItemGroup>
 </Project>
