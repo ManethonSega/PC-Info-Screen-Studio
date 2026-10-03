@@ -208,8 +208,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             _appSettings.DisplayProtocol = value;
             _settingsService.Save(_appSettings);
 
-            if (_deviceService.IsConnected)
-                DeviceStatus = "Display protocol changed. Reconnect to apply.";
+            if (_deviceService.IsConnected && !IsDeviceBusy)
+                _ = ApplyDisplayCompatibilityAsync();
         }
     }
 
@@ -222,8 +222,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             _appSettings.DisplayColorMode = value;
             _settingsService.Save(_appSettings);
 
-            if (_deviceService.IsConnected)
-                DeviceStatus = "Color mode changed. Reconnect to apply.";
+            if (_deviceService.IsConnected && !IsDeviceBusy)
+                _ = ApplyDisplayCompatibilityAsync();
         }
     }
 
@@ -695,6 +695,40 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             DeviceStatus = "Screen test failed";
             MessageBox.Show(ex.Message, "Screen test failed", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsDeviceBusy = false;
+        }
+    }
+
+    private async Task ApplyDisplayCompatibilityAsync()
+    {
+        if (!_deviceService.IsConnected || IsDeviceBusy)
+            return;
+
+        IsDeviceBusy = true;
+        DeviceStatus = "Applying display compatibility settings...";
+        try
+        {
+            var deviceInfo = Ports.FirstOrDefault(p =>
+                string.Equals(p.PortName, _deviceService.ConnectedPort, StringComparison.OrdinalIgnoreCase));
+
+            await _deviceService.ApplyCompatibilityAsync(
+                DisplayProtocol,
+                DisplayColorMode,
+                deviceInfo,
+                Document.Orientation,
+                Document.DeviceRotation);
+
+            DeviceStatus = BuildConnectionStatus();
+
+            if (LivePreview)
+                RequestLiveFrame?.Invoke(this, EventArgs.Empty);
+        }
+        catch (Exception ex)
+        {
+            DeviceStatus = "Display compatibility error: " + ex.Message;
         }
         finally
         {
