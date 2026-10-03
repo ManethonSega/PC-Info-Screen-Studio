@@ -1,0 +1,43 @@
+name: build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore .\PCInfoScreenStudio.slnx
+
+      - name: Build
+        run: dotnet build .\PCInfoScreenStudio.slnx -c Release --no-restore
+
+      - name: Publish standalone Windows x64 build
+        if: github.event_name != 'pull_request'
+        run: >-
+          dotnet publish .\src\PCInfoScreenStudio.App\PCInfoScreenStudio.App.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -o .\artifacts\win-x64
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:PublishTrimmed=false
+
+      - name: Upload standalone build
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: PCInfoScreenStudio-win-x64
+          path: .\artifacts\win-x64\
+          if-no-files-found: error
