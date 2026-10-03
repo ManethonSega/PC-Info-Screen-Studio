@@ -99,6 +99,18 @@ public sealed class TuringScreen : IDisposable
     {
         if (_compatibilityMode == RevACompatibilityMode.NativePortraitSoftwareRotation)
         {
+            // UsbMonitor 3.5" is physically portrait. For the common 480x320
+            // landscape canvas, keep a logical backbuffer and rotate only the
+            // pixels that actually changed. Previously every animation frame
+            // retransmitted the full 300 KB framebuffer, which made GIFs look
+            // like a slide show.
+            if (buffer.Width == HwHeight && buffer.Height == HwWidth &&
+                x == 0 && y == 0)
+            {
+                WriteSmartNativePortrait(buffer);
+                return;
+            }
+
             SendFullEncodedFrame(buffer, rotateLandscapeToNativePortrait: true);
             return;
         }
@@ -395,6 +407,95 @@ public sealed class TuringScreen : IDisposable
         }
     }
 
+    private void WriteSmartNativePortrait(ScreenBuffer buffer)
+    {
+        var source = MemoryMarshal.Cast<byte, ushort>(buffer.Buffer.AsSpan());
+        var previous = MemoryMarshal.Cast<byte, ushort>(_screenBuffer.Buffer.AsSpan());
+
+        // The screen is small enough that tile-diffing is inexpensive, while it
+        // avoids one huge dirty rectangle when two distant small areas animate.
+        const int tileSize = 16;
+        var width = buffer.Width;
+        var height = buffer.Height;
+
+        for (var tileY = 0; tileY < height; tileY += tileSize)
+        {
+            var tileH = Math.Min(tileSize, height - tileY);
+
+            for (var tileX = 0; tileX < width; tileX += tileSize)
+            {
+                var tileW = Math.Min(tileSize, width - tileX);
+                var changed = false;
+
+                for (var row = 0; row < tileH && !changed; row++)
+                {
+                    var offset = (tileY + row) * width + tileX;
+                    if (!source.Slice(offset, tileW).SequenceEqual(previous.Slice(offset, tileW)))
+                        changed = true;
+                }
+
+                if (!changed)
+                    continue;
+
+                // Update the logical backbuffer first. If the USB write fails
+                // and reconnect recovery throws, the next frame will naturally
+                // redraw whichever tiles still differ.
+                for (var row = 0; row < tileH; row++)
+                {
+                    var offset = (tileY + row) * width + tileX;
+                    source.Slice(offset, tileW).CopyTo(previous.Slice(offset, tileW));
+                }
+
+                SendNativePortraitTile(tileX, tileY, tileW, tileH, source, width, height);
+            }
+        }
+    }
+
+    private void SendNativePortraitTile(
+        int logicalX,
+        int logicalY,
+        int logicalW,
+        int logicalH,
+        ReadOnlySpan<ushort> logicalPixels,
+        int logicalStride,
+        int logicalHeight)
+    {
+        // Clockwise rotation used by the proven UsbMonitor landscape path:
+        // logical (x,y) -> physical (logicalHeight - 1 - y, x).
+        var physicalX = logicalHeight - (logicalY + logicalH);
+        var physicalY = logicalX;
+        var physicalW = logicalH;
+        var physicalH = logicalW;
+        var payloadSize = physicalW * physicalH * 2;
+
+        var payload = ArrayPool<byte>.Shared.Rent(payloadSize);
+        try
+        {
+            var destination = payload.AsSpan(0, payloadSize);
+            var outIndex = 0;
+
+            for (var py = 0; py < physicalH; py++)
+            {
+                var sourceX = logicalX + py;
+
+                for (var px = 0; px < physicalW; px++)
+                {
+                    var sourceY = logicalY + logicalH - 1 - px;
+                    var rgb565 = logicalPixels[sourceY * logicalStride + sourceX];
+                    WriteEncodedPixel(destination, outIndex, rgb565);
+                    outIndex += 2;
+                }
+            }
+
+            PrepareHeader(CmdDraw, physicalX, physicalY, physicalW, physicalH);
+            SafeWrite(_commandBuffer, 6, payload, payloadSize);
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(payload);
+        }
+    }
+
     private void SendRotatedPayload(byte command, int logX, int logY, int logW, int logH, ReadOnlySpan<Color656> sourceData, int sourceStride)
     {
         int physX = logY; int physY = logX;
@@ -508,6 +609,10 @@ public sealed class TuringScreen : IDisposable
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void WriteEncodedPixel(byte[] destination, int offset, ushort rgb565)
+        => WriteEncodedPixel(destination.AsSpan(), offset, rgb565);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void WriteEncodedPixel(Span<byte> destination, int offset, ushort rgb565)
     {
         var value = rgb565;
 
