@@ -1,5 +1,6 @@
 using System.ComponentModel;
-using System.Drawing;
+using DrawingIcon = System.Drawing.Icon;
+using DrawingSystemIcons = System.Drawing.SystemIcons;
 using System.Windows;
 using PCInfoScreenStudio.Models;
 using PCInfoScreenStudio.ViewModels;
@@ -24,17 +25,17 @@ public partial class MainWindow : Window
         trayMenu.Items.Add(new WinForms.ToolStripSeparator());
         trayMenu.Items.Add("Exit", null, (_, _) => ExitFromTray());
 
-        Icon trayDrawingIcon;
+        DrawingIcon trayDrawingIcon;
         try
         {
             var executable = Environment.ProcessPath;
             trayDrawingIcon = !string.IsNullOrWhiteSpace(executable)
-                ? Icon.ExtractAssociatedIcon(executable) ?? SystemIcons.Application
-                : SystemIcons.Application;
+                ? DrawingIcon.ExtractAssociatedIcon(executable) ?? DrawingSystemIcons.Application
+                : DrawingSystemIcons.Application;
         }
         catch
         {
-            trayDrawingIcon = SystemIcons.Application;
+            trayDrawingIcon = DrawingSystemIcons.Application;
         }
 
         _trayIcon = new WinForms.NotifyIcon
