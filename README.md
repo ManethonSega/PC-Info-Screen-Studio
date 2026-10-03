@@ -35,7 +35,7 @@ Implemented in the source tree:
 - clear N/A state when a requested hardware sensor is genuinely unavailable on the current machine
 - live graph history buffering without modifying the saved theme
 - USB serial device discovery with friendly COM-port names and likely-screen selection
-- 921600 to 115200 automatic baud fallback for screen drivers with restricted serial line coding
+- 115200-first Revision-A serial transport with 921600 fallback, RTS/CTS flow control and reset-time COM re-detection
 - configurable editor grid and snap-to-grid movement/resizing
 - built-in theme list plus user theme library under Documents/PC Info Screen Studio/Themes
 - automatic text scaling for Text, Value and Circular Gauge widgets as their layer is resized
@@ -45,16 +45,16 @@ Implemented in the source tree:
 
 The next implementation milestones are:
 
-1. Temperature/GPU/fan/pump hardware sensor providers.
-2. Weather provider and location configuration.
-3. GIF frame playback in both editor and display runtime.
-4. Video import pipeline that **removes audio**, crops/resizes once, chooses an optimal FPS and creates a screen-optimized silent asset.
-5. Automatic device throughput benchmark with stored per-device tuning.
-6. Media change suppression for tiny RGB565 differences, reducing USB traffic.
-7. Undo/redo, snapping, guides, grouping, multi-selection and alignment tools.
-8. Dedicated lightweight tray runtime and Windows startup support.
-9. Automatic preview thumbnail inside `.t3theme` packages.
-10. Installer, file association and signed release packaging.
+1. GIF frame playback in both editor and display runtime.
+2. Video import pipeline that **removes audio**, crops/resizes once, chooses an optimal FPS and creates a screen-optimized silent asset.
+3. Automatic device throughput benchmark with stored per-device tuning.
+4. Media change suppression for tiny RGB565 differences, reducing USB traffic.
+5. Undo/redo, guides, grouping, multi-selection and alignment tools.
+6. Dedicated lightweight tray runtime and Windows startup support.
+7. Automatic preview thumbnail inside `.t3theme` packages.
+8. Installer, file association and signed release packaging.
+9. Broader display-family support beyond the current Revision-A focus.
+10. Community-theme discovery with explicit licensing/attribution metadata.
 
 See [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md) for the target feature set and [`docs/ROADMAP.md`](docs/ROADMAP.md) for implementation status.
 
