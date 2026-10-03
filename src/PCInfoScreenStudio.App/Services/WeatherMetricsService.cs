@@ -126,13 +126,27 @@ public sealed class WeatherMetricsService : IDisposable
             "apparent_temperature",
             "weather_code",
             "wind_speed_10m",
-            "wind_direction_10m");
+            "wind_direction_10m",
+            "wind_gusts_10m",
+            "precipitation",
+            "cloud_cover",
+            "pressure_msl",
+            "is_day");
+
+        var dailyVariables = string.Join(",",
+            "temperature_2m_max",
+            "temperature_2m_min",
+            "precipitation_probability_max",
+            "sunrise",
+            "sunset",
+            "weather_code");
 
         var url =
             "https://api.open-meteo.com/v1/forecast" +
             $"?latitude={location.Latitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}" +
             $"&longitude={location.Longitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}" +
-            $"&current={currentVariables}&timezone=auto";
+            $"&current={currentVariables}" +
+            $"&daily={dailyVariables}&forecast_days=1&timezone=auto";
 
         using var response = await _httpClient.GetAsync(url, cancellationToken);
         response.EnsureSuccessStatusCode();
@@ -153,11 +167,70 @@ public sealed class WeatherMetricsService : IDisposable
         AddNumber(output, current, "relative_humidity_2m", "Weather.Humidity", "%");
         AddNumber(output, current, "wind_speed_10m", "Weather.Wind", " km/h");
         AddNumber(output, current, "wind_direction_10m", "Weather.WindDirection", "°");
+        AddNumber(output, current, "wind_gusts_10m", "Weather.WindGust", " km/h");
+        AddNumber(output, current, "relative_humidity_2m", "Weather.Humidity", "%");
+        AddNumber(output, current, "precipitation", "Weather.Precipitation", " mm");
+        AddNumber(output, current, "cloud_cover", "Weather.CloudCover", "%");
+        AddNumber(output, current, "pressure_msl", "Weather.Pressure", " hPa");
 
         if (TryGetDouble(current, "weather_code", out var code))
             output["Weather.Condition"] = new MetricValue(Text: DescribeWeatherCode((int)Math.Round(code)));
 
+        if (TryGetDouble(current, "is_day", out var isDay))
+            output["Weather.DayNight"] = new MetricValue(Text: isDay >= 0.5 ? "Day" : "Night");
+
+        if (json.RootElement.TryGetProperty("daily", out var daily))
+        {
+            AddFirstNumber(output, daily, "temperature_2m_max", "Weather.TodayHigh", "°C");
+            AddFirstNumber(output, daily, "temperature_2m_min", "Weather.TodayLow", "°C");
+            AddFirstNumber(output, daily, "precipitation_probability_max", "Weather.PrecipitationChance", "%");
+            AddFirstText(output, daily, "sunrise", "Weather.Sunrise");
+            AddFirstText(output, daily, "sunset", "Weather.Sunset");
+
+            if (TryGetFirstDouble(daily, "weather_code", out var dailyCode))
+                output["Weather.TodayCondition"] = new MetricValue(Text: DescribeWeatherCode((int)Math.Round(dailyCode)));
+        }
+
         return output;
+    }
+
+
+    private static void AddFirstNumber(
+        IDictionary<string, MetricValue> output,
+        JsonElement parent,
+        string sourceProperty,
+        string metricName,
+        string unit)
+    {
+        if (TryGetFirstDouble(parent, sourceProperty, out var value))
+            output[metricName] = new MetricValue(value, Unit: unit);
+    }
+
+    private static void AddFirstText(
+        IDictionary<string, MetricValue> output,
+        JsonElement parent,
+        string sourceProperty,
+        string metricName)
+    {
+        if (!parent.TryGetProperty(sourceProperty, out var array) ||
+            array.ValueKind != JsonValueKind.Array ||
+            array.GetArrayLength() == 0 ||
+            array[0].ValueKind != JsonValueKind.String)
+            return;
+
+        var value = array[0].GetString();
+        if (!string.IsNullOrWhiteSpace(value))
+            output[metricName] = new MetricValue(Text: value);
+    }
+
+    private static bool TryGetFirstDouble(JsonElement parent, string property, out double value)
+    {
+        value = 0;
+        return parent.TryGetProperty(property, out var array) &&
+               array.ValueKind == JsonValueKind.Array &&
+               array.GetArrayLength() > 0 &&
+               array[0].ValueKind == JsonValueKind.Number &&
+               array[0].TryGetDouble(out value);
     }
 
     private static void AddNumber(
