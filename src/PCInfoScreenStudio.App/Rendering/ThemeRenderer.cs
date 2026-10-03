@@ -30,7 +30,7 @@ public sealed class ThemeRenderer
         switch (w.Type)
         {
             case WidgetType.Text:
-                DrawText(canvas, workspace, w, string.IsNullOrWhiteSpace(w.RuntimeText) ? w.Label : w.RuntimeText!, verticalCenter: true);
+                DrawAutoText(canvas, workspace, w, string.IsNullOrWhiteSpace(w.RuntimeText) ? w.Label : w.RuntimeText!);
                 break;
             case WidgetType.Value:
                 DrawValue(canvas, workspace, w);
@@ -58,14 +58,40 @@ public sealed class ThemeRenderer
         canvas.Restore();
     }
 
+    private static void DrawAutoText(SKCanvas canvas, ThemeWorkspace workspace, WidgetModel w, string text)
+    {
+        FillBackground(canvas, w);
+        var size = FitTextSize(workspace, w, text, (float)Math.Max(1, w.Width - 8), (float)Math.Max(1, w.Height - 8), (float)Math.Max(8, w.Height));
+        DrawCenteredText(canvas, workspace, w, text, size, w.ForegroundColor, (float)(w.Height / 2));
+    }
+
     private static void DrawValue(SKCanvas canvas, ThemeWorkspace workspace, WidgetModel w)
     {
         FillBackground(canvas, w);
         var value = FormatValue(w);
-        if (w.ShowLabel)
-            DrawText(canvas, workspace, w, w.Label, y: (float)(w.FontSize + 2), size: (float)Math.Max(8, w.FontSize * .55), color: w.ForegroundColor);
-        if (w.ShowValue)
-            DrawText(canvas, workspace, w, value, y: (float)(w.Height - 8), size: (float)w.FontSize, color: w.AccentColor);
+        var padding = 4f;
+        var availableWidth = (float)Math.Max(1, w.Width - padding * 2);
+
+        if (w.ShowLabel && w.ShowValue)
+        {
+            var labelArea = (float)Math.Max(8, w.Height * .28);
+            var valueArea = (float)Math.Max(8, w.Height - labelArea - padding * 2);
+            var labelSize = FitTextSize(workspace, w, w.Label, availableWidth, labelArea, Math.Max(8, labelArea));
+            var valueSize = FitTextSize(workspace, w, value, availableWidth, valueArea, Math.Max(8, valueArea));
+
+            DrawCenteredText(canvas, workspace, w, w.Label, labelSize, w.ForegroundColor, labelArea * .55f);
+            DrawCenteredText(canvas, workspace, w, value, valueSize, w.AccentColor, labelArea + valueArea * .50f);
+        }
+        else if (w.ShowLabel)
+        {
+            var labelSize = FitTextSize(workspace, w, w.Label, availableWidth, (float)Math.Max(1, w.Height - 8), (float)Math.Max(8, w.Height));
+            DrawCenteredText(canvas, workspace, w, w.Label, labelSize, w.ForegroundColor, (float)(w.Height / 2));
+        }
+        else if (w.ShowValue)
+        {
+            var valueSize = FitTextSize(workspace, w, value, availableWidth, (float)Math.Max(1, w.Height - 8), (float)Math.Max(8, w.Height));
+            DrawCenteredText(canvas, workspace, w, value, valueSize, w.AccentColor, (float)(w.Height / 2));
+        }
     }
 
     private static void DrawCircularGauge(SKCanvas canvas, ThemeWorkspace workspace, WidgetModel w)
@@ -86,10 +112,18 @@ public sealed class ThemeRenderer
         active.StrokeCap = SKStrokeCap.Round;
         canvas.DrawArc(rect, -90, (float)(360 * fraction), false, active);
 
+        var innerWidth = (float)Math.Max(8, diameter * .72);
         if (w.ShowValue)
-            DrawCenteredText(canvas, workspace, w, FormatValue(w), (float)(w.FontSize * .85), w.ForegroundColor, (float)(w.Height * .55));
+        {
+            var value = FormatValue(w);
+            var valueSize = FitTextSize(workspace, w, value, innerWidth, (float)Math.Max(8, diameter * .28), (float)Math.Max(8, diameter * .32));
+            DrawCenteredText(canvas, workspace, w, value, valueSize, w.ForegroundColor, (float)(top + diameter * .53));
+        }
         if (w.ShowLabel)
-            DrawCenteredText(canvas, workspace, w, w.Label, (float)Math.Max(8, w.FontSize * .4), w.ForegroundColor, (float)(w.Height * .75));
+        {
+            var labelSize = FitTextSize(workspace, w, w.Label, innerWidth, (float)Math.Max(7, diameter * .16), (float)Math.Max(7, diameter * .18));
+            DrawCenteredText(canvas, workspace, w, w.Label, labelSize, w.ForegroundColor, (float)(top + diameter * .72));
+        }
     }
 
     private static void DrawBarGauge(SKCanvas canvas, ThemeWorkspace workspace, WidgetModel w)
@@ -257,6 +291,36 @@ public sealed class ThemeRenderer
         if (color.Alpha == 0) return;
         using var paint = new SKPaint { Color = WithAlpha(color, (byte)(color.Alpha * w.Opacity)), Style = SKPaintStyle.Fill, IsAntialias = true };
         canvas.DrawRoundRect(new SKRect(0, 0, (float)w.Width, (float)w.Height), (float)w.CornerRadius, (float)w.CornerRadius, paint);
+    }
+
+    private static float FitTextSize(ThemeWorkspace workspace, WidgetModel w, string text, float maxWidth, float maxHeight, float maxSize)
+    {
+        if (string.IsNullOrEmpty(text))
+            return 6;
+
+        maxWidth = Math.Max(1, maxWidth);
+        maxHeight = Math.Max(1, maxHeight);
+        var low = 4f;
+        var high = Math.Clamp(maxSize, 6f, 300f);
+
+        using var typeface = Typeface(workspace, w);
+        using var paint = new SKPaint { IsAntialias = true };
+
+        for (var i = 0; i < 12; i++)
+        {
+            var mid = (low + high) / 2f;
+            using var font = new SKFont(typeface, mid);
+            var width = font.MeasureText(text, paint);
+            var metrics = font.Metrics;
+            var height = metrics.Descent - metrics.Ascent;
+
+            if (width <= maxWidth && height <= maxHeight)
+                low = mid;
+            else
+                high = mid;
+        }
+
+        return Math.Max(4, (float)Math.Floor(low));
     }
 
     private static void DrawText(SKCanvas canvas, ThemeWorkspace workspace, WidgetModel w, string text, bool verticalCenter = false, float? y = null, float? size = null, string? color = null)
