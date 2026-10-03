@@ -2,6 +2,7 @@ using System.IO.Ports;
 using SkiaSharp;
 using Tedd.TuringScreen;
 using PCInfoScreenStudio.Models;
+using TuringScreenOrientation = Tedd.TuringScreen.ScreenOrientation;
 
 namespace PCInfoScreenStudio.Services;
 
@@ -18,6 +19,7 @@ public sealed class DeviceService : IDisposable
     public void Connect(string portName, ThemeDocument document)
     {
         Disconnect();
+
         var number = ParsePortNumber(portName);
         if (number <= 0)
             throw new ArgumentException("Expected a Windows COM port such as COM6.", nameof(portName));
@@ -49,7 +51,10 @@ public sealed class DeviceService : IDisposable
         try
         {
             if (frame.Width != _screen.Width || frame.Height != _screen.Height)
-                throw new InvalidOperationException($"Rendered frame is {frame.Width}x{frame.Height}, but the device expects {_screen.Width}x{_screen.Height}.");
+            {
+                throw new InvalidOperationException(
+                    $"Rendered frame is {frame.Width}x{frame.Height}, but the device expects {_screen.Width}x{_screen.Height}.");
+            }
 
             var buffer = new ScreenBuffer(frame.Width, frame.Height);
             var pixels = frame.Pixels;
@@ -60,6 +65,7 @@ public sealed class DeviceService : IDisposable
                 var y = i / frame.Width;
                 buffer[x, y] = ScreenBuffer.FullRgbToColor565(p.Red, p.Green, p.Blue);
             }
+
             _screen.DisplayBuffer(0, 0, buffer);
         }
         finally
@@ -71,7 +77,12 @@ public sealed class DeviceService : IDisposable
     private static SKBitmap Rotate(SKBitmap source, DeviceRotation rotation)
     {
         var swap = rotation is DeviceRotation.Degrees90 or DeviceRotation.Degrees270;
-        var result = new SKBitmap(swap ? source.Height : source.Width, swap ? source.Width : source.Height, SKColorType.Bgra8888, SKAlphaType.Premul);
+        var result = new SKBitmap(
+            swap ? source.Height : source.Width,
+            swap ? source.Width : source.Height,
+            SKColorType.Bgra8888,
+            SKAlphaType.Premul);
+
         using var canvas = new SKCanvas(result);
         switch (rotation)
         {
@@ -88,6 +99,7 @@ public sealed class DeviceService : IDisposable
                 canvas.RotateDegrees(-90);
                 break;
         }
+
         canvas.DrawBitmap(source, 0, 0);
         return result;
     }
@@ -107,7 +119,7 @@ public sealed class DeviceService : IDisposable
     private static int ParsePortNumber(string port)
         => int.TryParse(port.Replace("COM", "", StringComparison.OrdinalIgnoreCase), out var n) ? n : -1;
 
-    private static ScreenOrientation MapOrientation(ThemeOrientation theme, DeviceRotation rotation)
+    private static TuringScreenOrientation MapOrientation(ThemeOrientation theme, DeviceRotation rotation)
     {
         var startsLandscape = theme == ThemeOrientation.Landscape;
         var quarterTurn = rotation is DeviceRotation.Degrees90 or DeviceRotation.Degrees270;
@@ -115,6 +127,8 @@ public sealed class DeviceService : IDisposable
 
         // Rotation itself is applied to the rendered bitmap. The driver only needs
         // the logical dimensions/memory mapping, so normal Portrait/Landscape is enough.
-        return finalLandscape ? ScreenOrientation.Landscape : ScreenOrientation.Portrait;
+        return finalLandscape
+            ? TuringScreenOrientation.Landscape
+            : TuringScreenOrientation.Portrait;
     }
 }
