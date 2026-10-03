@@ -2,7 +2,7 @@
 
 A visual Windows theme editor and runtime for 3.5-inch Turing/TURZX-style USB-CDC PC info screens.
 
-> **Status:** active alpha development (`0.8.1-alpha.1`). The visual editor, shareable theme format, live Windows/hardware/weather data, Revision-A display compatibility layer and physical-display diagnostics are implemented. Animated GIF/video playback and advanced media optimization remain active development items.
+> **Status:** active alpha development (`0.8.2-alpha.1`). The visual editor, shareable theme format, live Windows/hardware/weather data, Revision-A display compatibility layer and physical-display diagnostics are implemented. Animated GIF/video playback and advanced media optimization remain active development items.
 
 PC Info Screen Studio is designed around a simple workflow: add a widget, drag it on a real 480x320 or 320x480 canvas, style it, bind it to data, preview it on the physical display, and save everything as one shareable `.t3theme` file.
 
@@ -35,7 +35,7 @@ Implemented in the source tree:
 - clear N/A state when a requested hardware sensor is genuinely unavailable on the current machine
 - live graph history buffering without modifying the saved theme
 - USB serial device discovery with friendly COM-port names and likely-screen selection
-- 115200-first Revision-A serial transport with 921600 fallback, RTS/CTS flow control and reset-time COM re-detection
+- 921600-first Revision-A serial transport with 115200 fallback, RTS/CTS flow control and reset-time COM re-detection
 - configurable editor grid and snap-to-grid movement/resizing
 - built-in theme list plus user theme library under Documents/PC Info Screen Studio/Themes
 - automatic text scaling for Text, Value and Circular Gauge widgets as their layer is resized
@@ -50,7 +50,7 @@ The next implementation milestones are:
 3. Animated-media cache tuning and frame-delta optimization for high-frame-count GIF/video assets.
 4. Media change suppression for tiny RGB565 differences, reducing USB traffic.
 5. Undo/redo, guides, grouping, multi-selection and alignment tools.
-6. Dedicated lightweight tray runtime and Windows startup support.
+6. Windows startup support and lighter background runtime mode.
 7. Automatic preview thumbnail inside `.t3theme` packages.
 8. Installer, file association and signed release packaging.
 9. Broader display-family support beyond the current Revision-A focus.
@@ -84,7 +84,7 @@ End users do **not** have to install .NET when the application is published self
 
 The output is placed under `artifacts/win-x64`. The build is self-contained, so the user does not need to install .NET. During alpha development it is intentionally published as a folder rather than a single EXE for maximum native-library reliability. Extract the complete GitHub artifact and keep all files together when running `PCInfoScreenStudio.exe`.
 
-The editor, USB display driver, weather, standard Windows metrics, GPU telemetry and available hardware sensors work from the self-contained package. On current Windows systems, full low-level CPU package temperature/power and motherboard Super I/O access can additionally require PawnIO. That driver is optional, is not bundled, and is only installed after the user explicitly chooses **Enable full sensors**.
+The editor, USB display driver, weather, standard Windows metrics, GPU telemetry and available hardware sensors work from the self-contained package. Full low-level CPU package temperature/power and motherboard Super I/O access can additionally require PawnIO. Windows release artifacts now include the official unmodified PawnIO 2.2.0 setup under `Prerequisites`, together with its GPL license/source information. The driver is installed only after the user explicitly chooses **Hardware sensors...** and approves the Windows UAC prompt.
 
 If the repository is hosted on GitHub, the included **Actions** workflow builds the self-contained `PCInfoScreenStudio-win-x64` artifact automatically on pushes to `main` and runs a startup smoke test against the published application before uploading it. The artifact can also be produced manually with **Run workflow**.
 
@@ -104,6 +104,12 @@ MyTheme.t3theme
 ```
 
 The format is documented in [`docs/THEME_FORMAT.md`](docs/THEME_FORMAT.md).
+
+## 0.8.2 alpha packaging
+
+Windows release artifacts now contain `Prerequisites/PawnIO_setup.exe`, downloaded from the official PawnIO.Setup 2.2.0 release and SHA-256 verified during the build. The application uses this local installer first, so full hardware-sensor setup no longer depends on Winget being available. PawnIO remains a separate Windows driver and still requires explicit user confirmation/UAC.
+
+The Windows executable icon is now generated as a real multi-resolution ICO during the build and embedded through `ApplicationIcon`. This supplies the cat logo to File Explorer, the executable itself and the system-tray icon.
 
 ## 0.8.1 alpha update
 
