@@ -74,7 +74,17 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             Interval = TimeSpan.FromSeconds(1)
         };
-        _dataTimer.Tick += async (_, _) => await RefreshRuntimeDataAsync();
+        _dataTimer.Tick += async (_, _) =>
+        {
+            if (UseLiveData)
+                await RefreshRuntimeDataAsync();
+            else if (Document.Widgets.Any(w => w.Type == WidgetType.AnalogClock))
+            {
+                ThemeChanged?.Invoke(this, EventArgs.Empty);
+                if (LivePreview)
+                    RequestLiveFrame?.Invoke(this, EventArgs.Empty);
+            }
+        };
         _dataTimer.Start();
 
         AttachWorkspace(_workspace);
@@ -92,7 +102,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public ObservableCollection<ThemeLibraryItem> Themes { get; }
     public ObservableCollection<ThemeAsset> FontAssets { get; }
 
-    public IReadOnlyList<string> DataSources { get; } =
+    public ObservableCollection<string> DataSources { get; } =
     [
         "Preview.Value",
         "CPU.Usage", "CPU.Temperature", "CPU.Power", "CPU.Clock",
@@ -100,13 +110,25 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         "RAM.Usage", "RAM.UsedGB", "RAM.AvailableGB", "RAM.TotalGB",
         "Disk.Usage", "Disk.FreeGB", "Disk.Temperature", "Disk.Read", "Disk.Write",
         "Network.Download", "Network.Upload",
-        "Cooling.FanRPM", "Cooling.PumpRPM",
+        "Cooling.FanRPM", "Cooling.Fan1RPM", "Cooling.Fan2RPM", "Cooling.Fan3RPM",
+        "Cooling.Fan4RPM", "Cooling.Fan5RPM", "Cooling.Fan6RPM", "Cooling.PumpRPM",
         "Weather.Temperature", "Weather.FeelsLike", "Weather.Humidity", "Weather.Wind",
         "Weather.WindDirection", "Weather.WindGust", "Weather.Condition", "Weather.Location",
         "Weather.Precipitation", "Weather.PrecipitationChance", "Weather.CloudCover", "Weather.Pressure",
         "Weather.DayNight", "Weather.TodayHigh", "Weather.TodayLow", "Weather.TodayCondition",
         "Weather.Sunrise", "Weather.Sunset",
         "Clock.Time", "Clock.Date", "Clock.Day"
+    ];
+
+    public IReadOnlyList<string> FontChoices { get; } =
+    [
+        "Segoe UI",
+        "Arial",
+        "Consolas",
+        "Bungee",
+        "Fredoka",
+        "Monoton",
+        "Orbitron"
     ];
 
     public Array GraphStyles => Enum.GetValues(typeof(GraphStyle));
@@ -264,7 +286,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             await _deviceService.DisplayAsync(bitmap, rotation);
             await Application.Current.Dispatcher.InvokeAsync(() =>
-                DeviceStatus = $"Connected: {_deviceService.ConnectedPort} @ {_deviceService.ConnectedBaudRate ?? 0} baud");
+                DeviceStatus = $"Connected: {_deviceService.ConnectedModel ?? "screen"} on {_deviceService.ConnectedPort} @ {_deviceService.ConnectedBaudRate ?? 0} baud");
         }
         catch (Exception ex)
         {
@@ -344,8 +366,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             WidgetType.Text => new WidgetModel { Type = type, Name = "Text", Label = "Text", Width = 140, Height = 45, X = centerX, Y = centerY, FontSize = 24, Suffix = "" },
             WidgetType.Value => new WidgetModel { Type = type, Name = "Value", Label = "CPU", DataSource = "CPU.Usage", Width = 130, Height = 70, X = centerX, Y = centerY, FontSize = 30 },
-            WidgetType.CircularGauge => new WidgetModel { Type = type, Name = "Circular gauge", Label = "CPU", DataSource = "CPU.Usage", Width = 110, Height = 110, X = centerX, Y = centerY, FontSize = 26 },
-            WidgetType.BarGauge => new WidgetModel { Type = type, Name = "Bar gauge", Label = "RAM", DataSource = "RAM.Usage", Width = 180, Height = 62, X = centerX, Y = centerY, FontSize = 22, SegmentCount = 18 },
+            WidgetType.CircularGauge => new WidgetModel { Type = type, Name = "Circular gauge", Label = "CPU Usage", DataSource = "CPU.Usage", Width = 110, Height = 110, X = centerX, Y = centerY, FontSize = 26 },
+            WidgetType.AnalogClock => new WidgetModel { Type = type, Name = "Traditional clock", Label = "Clock", DataSource = "Clock.Time", Width = 120, Height = 120, X = centerX, Y = centerY, FontSize = 18, ShowLabel = false, ShowValue = false },
+            WidgetType.BarGauge => new WidgetModel { Type = type, Name = "Bar gauge", Label = "RAM Usage", DataSource = "RAM.Usage", Width = 180, Height = 62, X = centerX, Y = centerY, FontSize = 22, SegmentCount = 18 },
             WidgetType.Graph => new WidgetModel { Type = type, Name = "Graph", Label = "GPU TEMP", DataSource = "GPU.Temperature", Width = 210, Height = 95, X = centerX, Y = centerY, FontSize = 22, Suffix = "°C", SimulatedValue = 52, Maximum = 100, GraphStyle = GraphStyle.Blocks },
             WidgetType.Shape => new WidgetModel { Type = type, Name = "Shape", Width = 160, Height = 80, X = centerX, Y = centerY, BackgroundColor = "#301A1E26", AccentColor = "#FF67717F" },
             _ => new WidgetModel { Type = type, Name = type.ToString(), Width = 200, Height = 120, X = centerX, Y = centerY }
@@ -574,7 +597,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         try
         {
             await _deviceService.ConnectAsync(SelectedPort, Document.Orientation, Document.DeviceRotation);
-            DeviceStatus = $"Connected: {SelectedPort} @ {_deviceService.ConnectedBaudRate ?? 0} baud";
+            DeviceStatus = $"Connected: {_deviceService.ConnectedModel ?? "screen"} on {SelectedPort} @ {_deviceService.ConnectedBaudRate ?? 0} baud";
             RequestLiveFrame?.Invoke(this, EventArgs.Empty);
         }
         catch (UnauthorizedAccessException)
@@ -792,6 +815,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private static void ApplyDataSourceDefaults(WidgetModel widget)
     {
         var source = widget.DataSource ?? string.Empty;
+        widget.Label = FriendlyLabel(source);
         if (source.StartsWith("Clock.", StringComparison.OrdinalIgnoreCase) ||
             source is "Weather.Condition" or "Weather.Location" or "Weather.DayNight" or
                 "Weather.TodayCondition" or "Weather.Sunrise" or "Weather.Sunset")
@@ -830,7 +854,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         if (source.Contains("Temperature", StringComparison.OrdinalIgnoreCase) || source.Contains("Hotspot", StringComparison.OrdinalIgnoreCase) || source.StartsWith("Weather.Temperature", StringComparison.OrdinalIgnoreCase) || source.StartsWith("Weather.FeelsLike", StringComparison.OrdinalIgnoreCase))
         {
-            widget.Suffix = "°C"; widget.Minimum = 0; widget.Maximum = 100; return;
+            widget.Suffix = RegionalFormatService.TemperatureSuffix;
+            widget.Minimum = RegionalFormatService.UsesFahrenheit ? 20 : -10;
+            widget.Maximum = RegionalFormatService.UsesFahrenheit ? 230 : 110;
+            return;
         }
         if (source.EndsWith("Usage", StringComparison.OrdinalIgnoreCase) || source.EndsWith("VRAM", StringComparison.OrdinalIgnoreCase))
         {
@@ -856,6 +883,98 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             widget.Suffix = " MHz"; widget.Minimum = 0; widget.Maximum = Math.Max(6000, widget.Maximum);
         }
+    }
+
+    private static string FriendlyLabel(string source)
+    {
+        if (source.StartsWith("Sensor: ", StringComparison.OrdinalIgnoreCase))
+        {
+            var body = source["Sensor: ".Length..];
+            var parts = body.Split(" / ", StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 3)
+            {
+                var sensor = parts[^1];
+                var bracket = sensor.LastIndexOf(" [", StringComparison.Ordinal);
+                return bracket > 0 ? sensor[..bracket] : sensor;
+            }
+
+            return body;
+        }
+
+        return source switch
+        {
+            "Preview.Value" => "Value",
+            "CPU.Usage" => "CPU Usage",
+            "CPU.Temperature" => "CPU Temp",
+            "CPU.Power" => "CPU Power",
+            "CPU.Clock" => "CPU Clock",
+            "GPU.Usage" => "GPU Usage",
+            "GPU.Temperature" => "GPU Temp",
+            "GPU.Hotspot" => "GPU Hotspot",
+            "GPU.VRAM" => "VRAM",
+            "GPU.Power" => "GPU Power",
+            "GPU.FanRPM" => "GPU Fan",
+            "RAM.Usage" => "RAM Usage",
+            "RAM.UsedGB" => "RAM Used",
+            "RAM.AvailableGB" => "RAM Available",
+            "RAM.TotalGB" => "RAM Total",
+            "Disk.Usage" => "Disk Usage",
+            "Disk.FreeGB" => "Disk Free",
+            "Disk.Temperature" => "Disk Temp",
+            "Disk.Read" => "Disk Read",
+            "Disk.Write" => "Disk Write",
+            "Network.Download" => "Download",
+            "Network.Upload" => "Upload",
+            "Cooling.FanRPM" => "Fan",
+            "Cooling.Fan1RPM" => "Fan 1",
+            "Cooling.Fan2RPM" => "Fan 2",
+            "Cooling.Fan3RPM" => "Fan 3",
+            "Cooling.Fan4RPM" => "Fan 4",
+            "Cooling.Fan5RPM" => "Fan 5",
+            "Cooling.Fan6RPM" => "Fan 6",
+            "Cooling.PumpRPM" => "Pump",
+            "Weather.Temperature" => "Temperature",
+            "Weather.FeelsLike" => "Feels Like",
+            "Weather.Humidity" => "Humidity",
+            "Weather.Wind" => "Wind",
+            "Weather.WindDirection" => "Wind Direction",
+            "Weather.WindGust" => "Wind Gust",
+            "Weather.Condition" => "Condition",
+            "Weather.Location" => "Location",
+            "Weather.Precipitation" => "Precipitation",
+            "Weather.PrecipitationChance" => "Rain Chance",
+            "Weather.CloudCover" => "Cloud Cover",
+            "Weather.Pressure" => "Pressure",
+            "Weather.DayNight" => "Day / Night",
+            "Weather.TodayHigh" => "Today's High",
+            "Weather.TodayLow" => "Today's Low",
+            "Weather.TodayCondition" => "Today's Weather",
+            "Weather.Sunrise" => "Sunrise",
+            "Weather.Sunset" => "Sunset",
+            "Clock.Time" => "Time",
+            "Clock.Date" => "Date",
+            "Clock.Day" => "Day",
+            _ => source.Replace('.', ' ')
+        };
+    }
+
+    private static bool IsTemperatureSource(string source)
+        => source.Contains("Temperature", StringComparison.OrdinalIgnoreCase) ||
+           source.Contains("Hotspot", StringComparison.OrdinalIgnoreCase) ||
+           source.Contains("[Temperature]", StringComparison.OrdinalIgnoreCase) ||
+           source.Equals("Weather.FeelsLike", StringComparison.OrdinalIgnoreCase) ||
+           source.Equals("Weather.TodayHigh", StringComparison.OrdinalIgnoreCase) ||
+           source.Equals("Weather.TodayLow", StringComparison.OrdinalIgnoreCase);
+
+    private static MetricValue ApplyRegionalFormat(string source, MetricValue value)
+    {
+        if (value.Numeric is not double numeric || !IsTemperatureSource(source))
+            return value;
+
+        return new MetricValue(
+            RegionalFormatService.ConvertTemperatureFromCelsius(numeric),
+            value.Text,
+            RegionalFormatService.TemperatureSuffix);
     }
 
     private void OnWidgetsChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -890,7 +1009,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 sample[pair.Key] = pair.Value;
 
             foreach (var pair in hardwareTask.Result)
+            {
                 sample[pair.Key] = pair.Value;
+
+                if (pair.Key.StartsWith("Sensor: ", StringComparison.OrdinalIgnoreCase) &&
+                    !DataSources.Contains(pair.Key))
+                {
+                    DataSources.Add(pair.Key);
+                }
+            }
 
             foreach (var pair in weatherTask.Result)
                 sample[pair.Key] = pair.Value;
@@ -900,13 +1027,16 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
             foreach (var widget in Document.Widgets)
             {
-                if (sample.TryGetValue(widget.DataSource, out var value))
+                if (sample.TryGetValue(widget.DataSource, out var rawValue))
                 {
+                    var value = ApplyRegionalFormat(widget.DataSource, rawValue);
                     widget.RuntimeValue = value.Numeric;
                     widget.RuntimeText = value.Text;
 
-                    if (widget.Type == WidgetType.Text && value.Numeric is double numeric)
-                        widget.RuntimeText = numeric.ToString(widget.ValueFormat) + (value.Unit ?? string.Empty);
+                    if (value.Numeric is double numeric && IsTemperatureSource(widget.DataSource))
+                        widget.RuntimeText = numeric.ToString(widget.ValueFormat, RegionalFormatService.Culture) + (value.Unit ?? string.Empty);
+                    else if (widget.Type == WidgetType.Text && value.Numeric is double textNumeric)
+                        widget.RuntimeText = textNumeric.ToString(widget.ValueFormat, RegionalFormatService.Culture) + (value.Unit ?? string.Empty);
 
                     if (widget.Type == WidgetType.Graph && value.Numeric is double graphValue)
                     {
