@@ -1,6 +1,7 @@
 ﻿using System.Buffers;
 using System.Diagnostics;
 using System.IO.Ports;
+using System.Linq;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -19,8 +20,10 @@ public sealed class TuringScreen : IDisposable
     private const int HwHeight = 480;
     private const int HeuristicCostPerPixel = 12;
 
-    // DMA LIMIT: 320 * 40 = 12,800 pixels. Safe for 16-bit counters.
-    private const int MaxBlockHeight = 40;
+    // Revision-A reference implementations send image payloads in four-row
+    // chunks (display width * 8 bytes). Favor reliability first; this can be
+    // made adaptive after the physical display benchmark is stable.
+    private const int MaxBlockHeight = 4;
     // BENCHMARK CONFIGURATION:
     private static readonly int[] BenchmarkSteps =
         { 1000, 1200, 1400, 1500, 1600, 1700, 1800, 2000, 2500 };
@@ -454,7 +457,7 @@ public sealed class TuringScreen : IDisposable
         int w = landscape ? HwHeight : HwWidth;
         int h = landscape ? HwWidth : HwHeight;
 
-        Array.Clear(_commandBuffer);
+        Array.Clear(_commandBuffer, 0, _commandBuffer.Length);
         _commandBuffer[5] = command;
         _commandBuffer[6] = (byte)(orientation + 100);
         _commandBuffer[7] = (byte)(w >> 8);
