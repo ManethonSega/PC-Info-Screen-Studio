@@ -17,20 +17,30 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly SerialDeviceDiscoveryService _serialDiscovery = new();
     private readonly ThemeLibraryService _themeLibrary = new();
     private readonly SystemMetricsService _systemMetrics = new();
+    private readonly HardwareMetricsService _hardwareMetrics = new();
+    private readonly WeatherMetricsService _weatherMetrics = new();
+    private readonly AppSettingsService _settingsService = new();
+    private readonly AppSettings _appSettings;
     private readonly DispatcherTimer _dataTimer;
     private ThemeWorkspace _workspace;
     private WidgetModel? _selectedWidget;
     private string? _selectedPort;
     private ThemeLibraryItem? _selectedTheme;
     private string _deviceStatus = "Not connected";
+    private string _weatherCity = string.Empty;
+    private string _weatherStatus = "Weather city not configured.";
+    private string _hardwareStatus = "Hardware sensors not initialized.";
     private bool _livePreview;
     private bool _useLiveData;
     private bool _suppressDirty;
     private bool _isDeviceBusy;
     private int _frameSendBusy;
+    private int _dataSampleBusy;
 
     public MainViewModel()
     {
+        _appSettings = _settingsService.Load();
+        _weatherCity = _appSettings.WeatherCity;
         _workspace = _packageService.CreateNewWorkspace();
         Ports = [];
         Themes = [];
@@ -57,12 +67,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         BenchmarkCommand = new RelayCommand(() => _ = RunBenchmarkAsync(), () => _deviceService.IsConnected && !IsDeviceBusy);
         RefreshThemesCommand = new RelayCommand(RefreshThemes);
         LoadThemeCommand = new RelayCommand(() => _ = LoadSelectedThemeAsync(), () => SelectedTheme is not null);
+        UpdateWeatherCommand = new RelayCommand(() => _ = UpdateWeatherAsync());
 
         _dataTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
             Interval = TimeSpan.FromSeconds(1)
         };
-        _dataTimer.Tick += (_, _) => RefreshRuntimeData();
+        _dataTimer.Tick += async (_, _) => await RefreshRuntimeDataAsync();
         _dataTimer.Start();
 
         AttachWorkspace(_workspace);
@@ -90,6 +101,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         "Network.Download", "Network.Upload",
         "Cooling.FanRPM", "Cooling.PumpRPM",
         "Weather.Temperature", "Weather.FeelsLike", "Weather.Humidity", "Weather.Wind",
+        "Weather.WindDirection", "Weather.Condition", "Weather.Location",
         "Clock.Time", "Clock.Date", "Clock.Day"
     ];
 
@@ -140,6 +152,24 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         private set => SetProperty(ref _deviceStatus, value);
     }
 
+    public string WeatherCity
+    {
+        get => _weatherCity;
+        set => SetProperty(ref _weatherCity, value);
+    }
+
+    public string WeatherStatus
+    {
+        get => _weatherStatus;
+        private set => SetProperty(ref _weatherStatus, value);
+    }
+
+    public string HardwareStatus
+    {
+        get => _hardwareStatus;
+        private set => SetProperty(ref _hardwareStatus, value);
+    }
+
     public bool LivePreview
     {
         get => _livePreview;
@@ -157,7 +187,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             if (!SetProperty(ref _useLiveData, value)) return;
             if (value)
-                RefreshRuntimeData();
+                _ = RefreshRuntimeDataAsync();
             else
                 ClearRuntimeData();
             ThemeChanged?.Invoke(this, EventArgs.Empty);
@@ -200,6 +230,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand BenchmarkCommand { get; }
     public RelayCommand RefreshThemesCommand { get; }
     public RelayCommand LoadThemeCommand { get; }
+    public RelayCommand UpdateWeatherCommand { get; }
 
     public void SelectWidget(WidgetModel? widget) => SelectedWidget = widget;
 
@@ -733,10 +764,26 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private static void ApplyDataSourceDefaults(WidgetModel widget)
     {
         var source = widget.DataSource ?? string.Empty;
-        if (source.StartsWith("Clock.", StringComparison.OrdinalIgnoreCase))
+        if (source.StartsWith("Clock.", StringComparison.OrdinalIgnoreCase) ||
+            source is "Weather.Condition" or "Weather.Location")
         {
             widget.Suffix = string.Empty;
             return;
+        }
+
+        if (source.Equals("Weather.WindDirection", StringComparison.OrdinalIgnoreCase))
+        {
+            widget.Suffix = "°"; widget.Minimum = 0; widget.Maximum = 360; return;
+        }
+
+        if (source.Equals("Weather.Wind", StringComparison.OrdinalIgnoreCase))
+        {
+            widget.Suffix = " km/h"; widget.Minimum = 0; widget.Maximum = Math.Max(150, widget.Maximum); return;
+        }
+
+        if (source.Equals("Weather.Humidity", StringComparison.OrdinalIgnoreCase))
+        {
+            widget.Suffix = "%"; widget.Minimum = 0; widget.Maximum = 100; return;
         }
 
         if (source.Contains("Temperature", StringComparison.OrdinalIgnoreCase) || source.Contains("Hotspot", StringComparison.OrdinalIgnoreCase) || source.StartsWith("Weather.Temperature", StringComparison.OrdinalIgnoreCase) || source.StartsWith("Weather.FeelsLike", StringComparison.OrdinalIgnoreCase))
@@ -780,45 +827,103 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private void OnAssetsChanged(object? sender, NotifyCollectionChangedEventArgs e) => MarkDirtyAndRefresh();
 
-    private void RefreshRuntimeData()
+    private async Task RefreshRuntimeDataAsync(bool forceWeather = false)
     {
         if (!UseLiveData) return;
 
-        var sample = _systemMetrics.Sample();
-        foreach (var widget in Document.Widgets)
-        {
-            if (sample.TryGetValue(widget.DataSource, out var value))
-            {
-                widget.RuntimeValue = value.Numeric;
-                widget.RuntimeText = value.Text;
-                if (widget.Type == WidgetType.Text && value.Numeric is double numeric)
-                    widget.RuntimeText = numeric.ToString(widget.ValueFormat) + (value.Unit ?? string.Empty);
+        if (Interlocked.CompareExchange(ref _dataSampleBusy, 1, 0) != 0)
+            return;
 
-                if (widget.Type == WidgetType.Graph && value.Numeric is double graphValue)
-                {
-                    widget.RuntimeSeries.Add(graphValue);
-                    var maxSamples = Math.Clamp(widget.HistorySeconds, 5, 3600);
-                    if (widget.RuntimeSeries.Count > maxSamples)
-                        widget.RuntimeSeries.RemoveRange(0, widget.RuntimeSeries.Count - maxSamples);
-                }
-            }
-            else
+        try
+        {
+            var systemTask = Task.Run(_systemMetrics.Sample);
+            var hardwareTask = Task.Run(_hardwareMetrics.Sample);
+            var weatherTask = _weatherMetrics.GetMetricsAsync(WeatherCity, forceWeather);
+
+            await Task.WhenAll(systemTask, hardwareTask, weatherTask);
+
+            var sample = new Dictionary<string, MetricValue>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var pair in systemTask.Result)
+                sample[pair.Key] = pair.Value;
+
+            foreach (var pair in hardwareTask.Result)
+                sample[pair.Key] = pair.Value;
+
+            foreach (var pair in weatherTask.Result)
+                sample[pair.Key] = pair.Value;
+
+            HardwareStatus = _hardwareMetrics.Status;
+            WeatherStatus = _weatherMetrics.Status;
+
+            foreach (var widget in Document.Widgets)
             {
-                if (!widget.DataSource.Equals("Preview.Value", StringComparison.OrdinalIgnoreCase))
+                if (sample.TryGetValue(widget.DataSource, out var value))
                 {
-                    widget.RuntimeValue = 0;
-                    widget.RuntimeText = "N/A";
+                    widget.RuntimeValue = value.Numeric;
+                    widget.RuntimeText = value.Text;
+
+                    if (widget.Type == WidgetType.Text && value.Numeric is double numeric)
+                        widget.RuntimeText = numeric.ToString(widget.ValueFormat) + (value.Unit ?? string.Empty);
+
+                    if (widget.Type == WidgetType.Graph && value.Numeric is double graphValue)
+                    {
+                        widget.RuntimeSeries.Add(graphValue);
+                        var maxSamples = Math.Clamp(widget.HistorySeconds, 5, 3600);
+                        if (widget.RuntimeSeries.Count > maxSamples)
+                            widget.RuntimeSeries.RemoveRange(0, widget.RuntimeSeries.Count - maxSamples);
+                    }
                 }
                 else
                 {
-                    widget.RuntimeValue = null;
-                    widget.RuntimeText = null;
+                    if (!widget.DataSource.Equals("Preview.Value", StringComparison.OrdinalIgnoreCase))
+                    {
+                        widget.RuntimeValue = 0;
+                        widget.RuntimeText = "N/A";
+                    }
+                    else
+                    {
+                        widget.RuntimeValue = null;
+                        widget.RuntimeText = null;
+                    }
                 }
             }
+
+            ThemeChanged?.Invoke(this, EventArgs.Empty);
+            if (LivePreview)
+                RequestLiveFrame?.Invoke(this, EventArgs.Empty);
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _dataSampleBusy, 0);
+        }
+    }
+
+    private async Task UpdateWeatherAsync()
+    {
+        WeatherCity = WeatherCity.Trim();
+        _appSettings.WeatherCity = WeatherCity;
+        _settingsService.Save(_appSettings);
+
+        if (string.IsNullOrWhiteSpace(WeatherCity))
+        {
+            WeatherStatus = "Weather city not configured.";
+            if (UseLiveData)
+                await RefreshRuntimeDataAsync(forceWeather: true);
+            return;
         }
 
-        ThemeChanged?.Invoke(this, EventArgs.Empty);
-        if (LivePreview) RequestLiveFrame?.Invoke(this, EventArgs.Empty);
+        WeatherStatus = $"Looking up {WeatherCity}...";
+
+        if (UseLiveData)
+        {
+            await RefreshRuntimeDataAsync(forceWeather: true);
+        }
+        else
+        {
+            await _weatherMetrics.GetMetricsAsync(WeatherCity, forceRefresh: true);
+            WeatherStatus = _weatherMetrics.Status;
+        }
     }
 
     private void ClearRuntimeData()
@@ -867,6 +972,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _dataTimer.Stop();
+        _weatherMetrics.Dispose();
+        _hardwareMetrics.Dispose();
         _deviceService.Dispose();
         DetachWorkspace(_workspace);
         _workspace.Dispose();
