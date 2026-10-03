@@ -74,9 +74,9 @@ End users do **not** have to install .NET when the application is published self
 .\scripts\publish-win-x64.ps1
 ```
 
-The output is placed under `artifacts/win-x64`. The script uses a self-contained .NET runtime and does not trim WPF/Skia assemblies.
+The output is placed under `artifacts/win-x64`. The build is self-contained, so the user does not need to install .NET. During alpha development it is intentionally published as a folder rather than a single EXE for maximum native-library reliability. Extract the complete GitHub artifact and keep all files together when running `PCInfoScreenStudio.exe`.
 
-If the repository is hosted on GitHub, the included **Actions** workflow also builds and uploads a `PCInfoScreenStudio-win-x64` standalone artifact automatically on pushes to `main` (and can be run manually with **Run workflow**). This is useful if you do not want to install the .NET SDK locally just to produce a test executable.
+If the repository is hosted on GitHub, the included **Actions** workflow builds the self-contained `PCInfoScreenStudio-win-x64` artifact automatically on pushes to `main` and runs a startup smoke test against the published application before uploading it. The artifact can also be produced manually with **Run workflow**.
 
 ## Theme files
 

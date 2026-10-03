@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0-alpha.2
+
+- Removed the incompatible WPF/OpenTK Skia view package and now render the Skia framebuffer into a native WPF image surface.
+- Added startup crash logging under `%LOCALAPPDATA%\PCInfoScreenStudio\Logs\startup.log` and a visible fatal-error dialog.
+- Added a CI startup smoke test for the published application.
+- Switched alpha publishing from single-file bundling to a self-contained folder build for more reliable native-library loading.
+- Updated SkiaSharp text rendering calls to the current `SKFont` API.
+- Cleaned the vendored driver build warnings and updated GitHub Actions to current action versions.
+
+
 ## 0.3.0-alpha.1
 
 - Established the project identity as **PC Info Screen Studio**.

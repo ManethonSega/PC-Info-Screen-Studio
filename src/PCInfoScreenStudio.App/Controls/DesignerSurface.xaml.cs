@@ -1,6 +1,7 @@
 using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using SkiaSharp;
-using SkiaSharp.Views.Desktop;
 using PCInfoScreenStudio.Rendering;
 using PCInfoScreenStudio.ViewModels;
 
@@ -15,6 +16,7 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
+        Loaded += (_, _) => RenderPreview(sendLive: false);
     }
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
@@ -32,36 +34,44 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
             _viewModel.RequestLiveFrame += OnRequestLiveFrame;
         }
 
-        RenderSurface?.InvalidateVisual();
+        RenderPreview(sendLive: false);
     }
 
     private void OnThemeChanged(object? sender, EventArgs e)
-        => Dispatcher.BeginInvoke(() => RenderSurface.InvalidateVisual());
+        => Dispatcher.BeginInvoke(() => RenderPreview(_viewModel?.LivePreview == true));
 
     private void OnRequestLiveFrame(object? sender, EventArgs e)
-        => Dispatcher.BeginInvoke(RenderAndSend);
+        => Dispatcher.BeginInvoke(() => RenderPreview(sendLive: true));
 
-    private void OnPaintSurface(object? sender, SKPaintSurfaceEventArgs e)
+    private void RenderPreview(bool sendLive)
     {
         if (_viewModel is null)
         {
-            e.Surface.Canvas.Clear(SKColors.Black);
+            RenderSurface.Source = null;
             return;
         }
 
         using var bitmap = _renderer.Render(_viewModel.Workspace);
-        e.Surface.Canvas.Clear(SKColors.Black);
-        e.Surface.Canvas.DrawBitmap(bitmap, new SKRect(0, 0, e.Info.Width, e.Info.Height));
+        RenderSurface.Source = ToBitmapSource(bitmap);
 
-        if (_viewModel.LivePreview)
+        if (sendLive && _viewModel.LivePreview)
             _viewModel.SendLiveFrame(bitmap);
     }
 
-    private void RenderAndSend()
+    private static BitmapSource ToBitmapSource(SKBitmap bitmap)
     {
-        if (_viewModel is null) return;
+        var source = BitmapSource.Create(
+            bitmap.Width,
+            bitmap.Height,
+            96,
+            96,
+            PixelFormats.Bgra32,
+            null,
+            bitmap.GetPixels(),
+            bitmap.RowBytes * bitmap.Height,
+            bitmap.RowBytes);
 
-        using var bitmap = _renderer.Render(_viewModel.Workspace);
-        _viewModel.SendLiveFrame(bitmap);
+        source.Freeze();
+        return source;
     }
 }

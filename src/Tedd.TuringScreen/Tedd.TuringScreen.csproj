@@ -3,6 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
     <Description>Vendored MIT-licensed Tedd.TuringScreen driver, adapted as a class library.</Description>
   </PropertyGroup>
   <ItemGroup>

@@ -10,9 +10,9 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
 
@@ -22,21 +22,26 @@ jobs:
       - name: Build
         run: dotnet build .\PCInfoScreenStudio.slnx -c Release --no-restore
 
-      - name: Publish standalone Windows x64 build
+      - name: Publish self-contained Windows x64 build
         if: github.event_name != 'pull_request'
-        run: >-
-          dotnet publish .\src\PCInfoScreenStudio.App\PCInfoScreenStudio.App.csproj
-          -c Release
-          -r win-x64
-          --self-contained true
-          -o .\artifacts\win-x64
-          -p:PublishSingleFile=true
-          -p:IncludeNativeLibrariesForSelfExtract=true
-          -p:PublishTrimmed=false
+        run: dotnet publish .\src\PCInfoScreenStudio.App\PCInfoScreenStudio.App.csproj -c Release -r win-x64 --self-contained true -o .\artifacts\win-x64 -p:PublishSingleFile=false -p:PublishTrimmed=false
 
-      - name: Upload standalone build
+      - name: Smoke test published application
         if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath ".\artifacts\win-x64\PCInfoScreenStudio.exe" -ArgumentList "--smoke-test" -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            $log = Join-Path $env:LOCALAPPDATA "PCInfoScreenStudio\Logs\startup.log"
+            if (Test-Path $log) {
+              Get-Content $log
+            }
+            throw "Published application smoke test failed with exit code $($process.ExitCode)."
+          }
+
+      - name: Upload self-contained build
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v7
         with:
           name: PCInfoScreenStudio-win-x64
           path: .\artifacts\win-x64\

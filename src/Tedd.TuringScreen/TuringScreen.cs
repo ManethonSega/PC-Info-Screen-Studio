@@ -348,7 +348,7 @@ public sealed class TuringScreen : IDisposable
         _commandBuffer[3] = (byte)(((ex & 63) << 2) + (ey >> 8));
         _commandBuffer[4] = (byte)(ey & 255);
         _commandBuffer[5] = command;
-        MemoryMarshal.Write(_commandBuffer.AsSpan(6, 2), ref color);
+        MemoryMarshal.Write(_commandBuffer.AsSpan(6, 2), in color);
         SafeWrite(_commandBuffer, 8);
     }
 

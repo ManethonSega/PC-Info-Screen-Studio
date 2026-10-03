@@ -262,31 +262,49 @@ public sealed class ThemeRenderer
     private static void DrawText(SKCanvas canvas, ThemeWorkspace workspace, WidgetModel w, string text, bool verticalCenter = false, float? y = null, float? size = null, string? color = null)
     {
         using var typeface = Typeface(workspace, w);
+        using var font = new SKFont(typeface, size ?? (float)w.FontSize);
         using var paint = new SKPaint
         {
             Color = ParseColor(color ?? w.ForegroundColor),
-            TextSize = size ?? (float)w.FontSize,
-            IsAntialias = true,
-            Typeface = typeface
+            IsAntialias = true
         };
-        var baseline = y ?? (verticalCenter ? (float)(w.Height / 2 - (paint.FontMetrics.Ascent + paint.FontMetrics.Descent) / 2) : -paint.FontMetrics.Ascent);
-        canvas.DrawText(text ?? string.Empty, 4, baseline, paint);
+
+        var metrics = font.Metrics;
+        var baseline = y ?? (verticalCenter
+            ? (float)(w.Height / 2 - (metrics.Ascent + metrics.Descent) / 2)
+            : -metrics.Ascent);
+
+        canvas.DrawText(text ?? string.Empty, 4, baseline, SKTextAlign.Left, font, paint);
     }
 
     private static void DrawCenteredText(SKCanvas canvas, ThemeWorkspace workspace, WidgetModel w, string text, float size, string color, float centerY)
     {
         using var typeface = Typeface(workspace, w);
-        using var paint = new SKPaint { Color = ParseColor(color), TextSize = size, IsAntialias = true, Typeface = typeface };
-        var width = paint.MeasureText(text);
-        var baseline = centerY - (paint.FontMetrics.Ascent + paint.FontMetrics.Descent) / 2;
-        canvas.DrawText(text, ((float)w.Width - width) / 2, baseline, paint);
+        using var font = new SKFont(typeface, size);
+        using var paint = new SKPaint
+        {
+            Color = ParseColor(color),
+            IsAntialias = true
+        };
+
+        var width = font.MeasureText(text, paint);
+        var metrics = font.Metrics;
+        var baseline = centerY - (metrics.Ascent + metrics.Descent) / 2;
+        canvas.DrawText(text, ((float)w.Width - width) / 2, baseline, SKTextAlign.Left, font, paint);
     }
 
     private static void DrawRightText(SKCanvas canvas, ThemeWorkspace workspace, WidgetModel w, string text, float y, float size, string color)
     {
         using var typeface = Typeface(workspace, w);
-        using var paint = new SKPaint { Color = ParseColor(color), TextSize = size, IsAntialias = true, Typeface = typeface };
-        canvas.DrawText(text, (float)w.Width - paint.MeasureText(text) - 4, y, paint);
+        using var font = new SKFont(typeface, size);
+        using var paint = new SKPaint
+        {
+            Color = ParseColor(color),
+            IsAntialias = true
+        };
+
+        var width = font.MeasureText(text, paint);
+        canvas.DrawText(text, (float)w.Width - width - 4, y, SKTextAlign.Left, font, paint);
     }
 
     private static SKTypeface Typeface(ThemeWorkspace workspace, WidgetModel w)
