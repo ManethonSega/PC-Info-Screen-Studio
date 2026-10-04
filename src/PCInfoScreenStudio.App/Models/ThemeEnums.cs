@@ -59,3 +59,43 @@ public enum ThemeAssetKind
     Video,
     Font
 }
+
+public enum ScreenMode
+{
+    InfoScreen,
+    PhotoFrame,
+    Hybrid
+}
+
+public enum RuntimeScreenMode
+{
+    InfoScreen,
+    PhotoFrame,
+    Hybrid,
+    Off
+}
+
+public enum PhotoTransition
+{
+    Crossfade,
+    Slide,
+    Zoom,
+    KenBurns,
+    Instant,
+    Random
+}
+
+public enum PhotoBackgroundMode
+{
+    SolidColor,
+    BlurredImage
+}
+
+public enum PhotoCaptionMode
+{
+    None,
+    FileName,
+    DateTaken,
+    Location,
+    Custom
+}
