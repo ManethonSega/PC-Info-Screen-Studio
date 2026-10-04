@@ -7,6 +7,8 @@ namespace PCInfoScreenStudio.Rendering;
 
 public sealed class ThemeRenderer
 {
+    public static void ClearCaches() => RenderResourceCache.Clear();
+
     public SKBitmap Render(ThemeWorkspace workspace)
     {
         var doc = workspace.Document;
@@ -321,7 +323,7 @@ public sealed class ThemeRenderer
             return;
         }
 
-        using var bitmap = SKBitmap.Decode(path);
+        var bitmap = RenderResourceCache.GetImage(path);
         if (bitmap is null) return;
         var dest = new SKRect(0, 0, (float)w.Width, (float)w.Height);
         var src = SourceRectForFit(bitmap.Width, bitmap.Height, dest.Width, dest.Height, w.MediaFit);
@@ -400,7 +402,7 @@ public sealed class ThemeRenderer
         var low = 4f;
         var high = Math.Clamp(maxSize, 6f, 300f);
 
-        using var typeface = Typeface(workspace, w);
+        var typeface = Typeface(workspace, w);
         using var paint = new SKPaint { IsAntialias = true };
 
         for (var i = 0; i < 12; i++)
@@ -422,7 +424,7 @@ public sealed class ThemeRenderer
 
     private static void DrawText(SKCanvas canvas, ThemeWorkspace workspace, WidgetModel w, string text, bool verticalCenter = false, float? y = null, float? size = null, string? color = null)
     {
-        using var typeface = Typeface(workspace, w);
+        var typeface = Typeface(workspace, w);
         using var font = new SKFont(typeface, size ?? (float)w.FontSize);
         using var paint = new SKPaint
         {
@@ -440,7 +442,7 @@ public sealed class ThemeRenderer
 
     private static void DrawCenteredText(SKCanvas canvas, ThemeWorkspace workspace, WidgetModel w, string text, float size, string color, float centerY)
     {
-        using var typeface = Typeface(workspace, w);
+        var typeface = Typeface(workspace, w);
         using var font = new SKFont(typeface, size);
         using var paint = new SKPaint
         {
@@ -456,7 +458,7 @@ public sealed class ThemeRenderer
 
     private static void DrawRightText(SKCanvas canvas, ThemeWorkspace workspace, WidgetModel w, string text, float y, float size, string color)
     {
-        using var typeface = Typeface(workspace, w);
+        var typeface = Typeface(workspace, w);
         using var font = new SKFont(typeface, size);
         using var paint = new SKPaint
         {
@@ -477,14 +479,14 @@ public sealed class ThemeRenderer
             {
                 var path = workspace.GetAbsolutePath(asset);
                 if (File.Exists(path))
-                    return SKTypeface.FromFile(path);
+                    return RenderResourceCache.GetTypefaceFromFile(path);
             }
         }
         if (BuiltInFontCatalog.TryGetPath(w.FontFamily, out var builtInPath))
-            return SKTypeface.FromFile(builtInPath);
+            return RenderResourceCache.GetTypefaceFromFile(builtInPath);
 
         var style = w.FontBold && w.FontItalic ? SKFontStyle.BoldItalic : w.FontBold ? SKFontStyle.Bold : w.FontItalic ? SKFontStyle.Italic : SKFontStyle.Normal;
-        return SKTypeface.FromFamilyName(w.FontFamily, style) ?? SKTypeface.Default;
+        return RenderResourceCache.GetTypefaceFromFamily(w.FontFamily, style);
     }
 
     private static string FormatValue(WidgetModel w)
