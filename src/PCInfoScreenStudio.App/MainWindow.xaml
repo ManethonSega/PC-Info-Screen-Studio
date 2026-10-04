@@ -33,23 +33,23 @@
     <Border Grid.Row="0" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
       <DockPanel Margin="8,5">
         <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
-          <Button Content="New" Command="{Binding NewCommand}" />
-          <Button Content="Open" Command="{Binding OpenCommand}" />
-          <Button Content="Save" Command="{Binding SaveCommand}" />
-          <Button Content="Save as" Command="{Binding SaveAsCommand}" />
+          <Button Content="New" Command="{Binding NewCommand}" ToolTip="Create a new blank theme (Ctrl+N)." />
+          <Button Content="Open" Command="{Binding OpenCommand}" ToolTip="Open an existing .t3theme file (Ctrl+O)." />
+          <Button Content="Save" Command="{Binding SaveCommand}" ToolTip="Save changes to the current theme (Ctrl+S)." />
+          <Button Content="Save as" Command="{Binding SaveAsCommand}" ToolTip="Save a copy under a new name or location (Ctrl+Shift+S)." />
           <Button Content="Undo" Command="{Binding UndoCommand}" ToolTip="Undo (Ctrl+Z)" />
           <Button Content="Redo" Command="{Binding RedoCommand}" ToolTip="Redo (Ctrl+Y)" />
           <Separator Margin="7,3" />
-          <Button Command="{Binding ToggleOrientationCommand}" Padding="12,6">
+          <Button Command="{Binding ToggleOrientationCommand}" Padding="12,6" ToolTip="Switch the theme canvas between landscape and portrait.">
             <StackPanel Orientation="Horizontal">
               <TextBlock Text="Layout: " Foreground="{StaticResource MutedTextBrush}" />
               <TextBlock Text="{Binding Document.Orientation}" />
             </StackPanel>
           </Button>
           <TextBlock Text="Mount" Margin="12,0,4,0" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
-          <ComboBox Width="92" ItemsSource="{Binding RotationOptions}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Document.DeviceRotation}" VerticalContentAlignment="Center" />
-          <Button Content="Rotate" Command="{Binding RotateDeviceCommand}" />
-          <CheckBox Content="Live data" IsChecked="{Binding UseLiveData}" VerticalAlignment="Center" Margin="12,0,0,0" />
+          <ComboBox Width="92" ItemsSource="{Binding RotationOptions}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Document.DeviceRotation}" VerticalContentAlignment="Center" ToolTip="Choose how the finished image is rotated on the physical display." />
+          <Button Content="Rotate" Command="{Binding RotateDeviceCommand}" ToolTip="Rotate the current device mounting orientation by 90 degrees." />
+          <CheckBox Content="Live data" IsChecked="{Binding UseLiveData}" VerticalAlignment="Center" Margin="12,0,0,0" ToolTip="Use current computer sensor values instead of the preview values." />
           <Button Content="Hardware sensors..."
                   Command="{Binding EnableFullSensorsCommand}"
                   Margin="8,0,0,0"
@@ -69,18 +69,21 @@
     <!-- Main three-column editor -->
     <Grid Grid.Row="1">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="230" />
+        <ColumnDefinition Width="280" />
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="330" />
       </Grid.ColumnDefinitions>
 
       <!-- Left: add + layers -->
       <Border Grid.Column="0" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      CanContentScroll="False">
         <Grid Margin="10">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
           </Grid.RowDefinitions>
 
           <StackPanel Grid.Row="0">
@@ -91,10 +94,12 @@
                     ToolTip="Automatically detect, connect, send the theme and start live updates" />
             <CheckBox Content="Start automatically"
                       IsChecked="{Binding AutoStartDisplay}"
-                      Margin="3,4,0,0" />
+                      Margin="3,4,0,0"
+                      ToolTip="Automatically connect to the display and start updates when the app opens." />
             <CheckBox Content="Close window to system tray"
                       IsChecked="{Binding CloseToTray}"
-                      Margin="3,2,0,0" />
+                      Margin="3,2,0,0"
+                      ToolTip="Keep the display service running in the notification area when the window is closed." />
 
             <Expander Header="Advanced display"
                       IsExpanded="{Binding AdvancedDisplayExpanded}"
@@ -106,23 +111,26 @@
                           SelectedValue="{Binding SelectedPort}"
                           ToolTip="Detected serial devices" />
                 <UniformGrid Columns="2" Margin="0,3,0,5">
-                  <Button Content="Detect" Command="{Binding DetectScreenCommand}" />
-                  <Button Content="Refresh" Command="{Binding RefreshPortsCommand}" />
+                  <Button Content="Detect" Command="{Binding DetectScreenCommand}" ToolTip="Probe available serial ports and select the compatible display." />
+                  <Button Content="Refresh" Command="{Binding RefreshPortsCommand}" ToolTip="Scan Windows again for connected serial devices." />
                 </UniformGrid>
                 <TextBlock Text="Protocol" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
                 <ComboBox ItemsSource="{Binding DisplayProtocolOptions}"
                           DisplayMemberPath="Label"
                           SelectedValuePath="Value"
                           SelectedValue="{Binding DisplayProtocol}"
-                          Margin="0,2,0,5" />
+                          Margin="0,2,0,5"
+                          ToolTip="Select the USB/display protocol. Auto is recommended unless detection fails." />
                 <TextBlock Text="Colour mode" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
                 <ComboBox ItemsSource="{Binding DisplayColorOptions}"
                           DisplayMemberPath="Label"
                           SelectedValuePath="Value"
                           SelectedValue="{Binding DisplayColorMode}"
-                          Margin="0,2,0,5" />
+                          Margin="0,2,0,5"
+                          ToolTip="Select the display colour byte order. Auto is recommended." />
                 <CheckBox Content="Keep sending live changes"
-                          IsChecked="{Binding LivePreview}" />
+                          IsChecked="{Binding LivePreview}"
+                          ToolTip="Send editor changes to the connected display immediately." />
                 <Button Content="Colour test"
                         Command="{Binding TestScreenCommand}"
                         ToolTip="Send the six-colour diagnostic pattern" />
@@ -150,30 +158,30 @@
               </ComboBox.ItemTemplate>
             </ComboBox>
             <UniformGrid Columns="2">
-              <Button Content="Load" Command="{Binding LoadThemeCommand}" />
-              <Button Content="Refresh" Command="{Binding RefreshThemesCommand}" />
-              <Button Content="Duplicate" Command="{Binding DuplicateThemeCommand}" />
-              <Button Content="Rename" Command="{Binding RenameThemeCommand}" />
-              <Button Content="Delete" Command="{Binding DeleteThemeCommand}" />
+              <Button Content="Load" Command="{Binding LoadThemeCommand}" ToolTip="Open the selected theme in the editor." />
+              <Button Content="Refresh" Command="{Binding RefreshThemesCommand}" ToolTip="Reload the theme library and thumbnails from disk." />
+              <Button Content="Duplicate" Command="{Binding DuplicateThemeCommand}" ToolTip="Create an editable copy of the selected custom theme." />
+              <Button Content="Rename" Command="{Binding RenameThemeCommand}" ToolTip="Rename the selected custom theme." />
+              <Button Content="Delete" Command="{Binding DeleteThemeCommand}" ToolTip="Permanently delete the selected custom theme." />
             </UniformGrid>
 
             <TextBlock Text="ADD" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="4,14,0,7" />
             <UniformGrid Columns="2">
-              <Button Content="Text" Command="{Binding AddWidgetCommand}" CommandParameter="Text" />
-              <Button Content="Value" Command="{Binding AddWidgetCommand}" CommandParameter="Value" />
-              <Button Content="Circle" Command="{Binding AddWidgetCommand}" CommandParameter="CircularGauge" />
-              <Button Content="Clock" Command="{Binding AddWidgetCommand}" CommandParameter="AnalogClock" ToolTip="Traditional analog clock" />
-              <Button Content="Bar" Command="{Binding AddWidgetCommand}" CommandParameter="BarGauge" />
-              <Button Content="Graph" Command="{Binding AddWidgetCommand}" CommandParameter="Graph" />
-              <Button Content="Shape" Command="{Binding AddWidgetCommand}" CommandParameter="Shape" />
+              <Button Content="Text" Command="{Binding AddWidgetCommand}" CommandParameter="Text" ToolTip="Add a fixed-size text label to the canvas." />
+              <Button Content="Value" Command="{Binding AddWidgetCommand}" CommandParameter="Value" ToolTip="Add a label and live sensor value." />
+              <Button Content="Circle" Command="{Binding AddWidgetCommand}" CommandParameter="CircularGauge" ToolTip="Add a circular gauge with optional label and value." />
+              <Button Content="Clock" Command="{Binding AddWidgetCommand}" CommandParameter="AnalogClock" ToolTip="Add a traditional analogue clock." />
+              <Button Content="Bar" Command="{Binding AddWidgetCommand}" CommandParameter="BarGauge" ToolTip="Add a segmented horizontal sensor gauge." />
+              <Button Content="Graph" Command="{Binding AddWidgetCommand}" CommandParameter="Graph" ToolTip="Add a live history graph for a selected data source." />
+              <Button Content="Shape" Command="{Binding AddWidgetCommand}" CommandParameter="Shape" ToolTip="Add a coloured rectangle or ellipse for layout and backgrounds." />
             </UniformGrid>
 
             <TextBlock Text="MEDIA" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="4,14,0,7" />
             <UniformGrid Columns="2">
-              <Button Content="Image" Command="{Binding ImportImageCommand}" />
-              <Button Content="GIF" Command="{Binding ImportGifCommand}" />
-              <Button Content="Video" Command="{Binding ImportVideoCommand}" />
-              <Button Content="Font" Command="{Binding ImportFontCommand}" />
+              <Button Content="Image" Command="{Binding ImportImageCommand}" ToolTip="Import a still image and add it to the canvas." />
+              <Button Content="GIF" Command="{Binding ImportGifCommand}" ToolTip="Import an animated GIF and add it to the canvas." />
+              <Button Content="Video" Command="{Binding ImportVideoCommand}" ToolTip="Import a video asset for supported display workflows." />
+              <Button Content="Font" Command="{Binding ImportFontCommand}" ToolTip="Embed a redistributable font inside the theme file." />
             </UniformGrid>
           </StackPanel>
 
@@ -186,7 +194,7 @@
               <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             <TextBlock Text="LAYERS" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="4,0,0,7" />
-            <ListBox Grid.Row="1" ItemsSource="{Binding Document.Widgets}" SelectedItem="{Binding SelectedWidget}" Background="#101318" BorderBrush="{StaticResource BorderBrush}">
+            <ListBox Grid.Row="1" Height="300" MinHeight="180" ItemsSource="{Binding Document.Widgets}" SelectedItem="{Binding SelectedWidget}" Background="#101318" BorderBrush="{StaticResource BorderBrush}">
               <ListBox.ItemContainerStyle>
                 <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
                   <Style.Triggers>
@@ -204,24 +212,25 @@
                       <ColumnDefinition Width="*" />
                       <ColumnDefinition Width="30" />
                     </Grid.ColumnDefinitions>
-                    <CheckBox IsChecked="{Binding IsVisible}" ToolTip="Visible" HorizontalAlignment="Center" />
+                    <CheckBox IsChecked="{Binding IsVisible}" ToolTip="Show or hide this layer on the canvas and display." HorizontalAlignment="Center" />
                     <StackPanel Grid.Column="1">
                       <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
                       <TextBlock Text="{Binding Type}" FontSize="10" Foreground="{StaticResource MutedTextBrush}" />
                     </StackPanel>
-                    <CheckBox Grid.Column="2" IsChecked="{Binding IsLocked}" Content="L" ToolTip="Lock" HorizontalAlignment="Center" />
+                    <CheckBox Grid.Column="2" IsChecked="{Binding IsLocked}" Content="L" ToolTip="Lock this layer to prevent accidental movement or resizing." HorizontalAlignment="Center" />
                   </Grid>
                 </DataTemplate>
               </ListBox.ItemTemplate>
             </ListBox>
             <UniformGrid Grid.Row="2" Columns="4" Margin="0,6,0,0">
-              <Button Content="Up" Command="{Binding MoveLayerUpCommand}" ToolTip="Move layer forward" />
-              <Button Content="Down" Command="{Binding MoveLayerDownCommand}" ToolTip="Move layer backward" />
-              <Button Content="Copy" Command="{Binding DuplicateWidgetCommand}" ToolTip="Duplicate" />
-              <Button Content="Del" Command="{Binding DeleteWidgetCommand}" ToolTip="Delete" />
+              <Button Content="Up" Command="{Binding MoveLayerUpCommand}" ToolTip="Move the selected layer one level forward." />
+              <Button Content="Down" Command="{Binding MoveLayerDownCommand}" ToolTip="Move the selected layer one level backward." />
+              <Button Content="Copy" Command="{Binding DuplicateWidgetCommand}" ToolTip="Duplicate all selected widgets (Ctrl+D)." />
+              <Button Content="Del" Command="{Binding DeleteWidgetCommand}" ToolTip="Delete all selected widgets (Delete)." />
             </UniformGrid>
           </Grid>
         </Grid>
+        </ScrollViewer>
       </Border>
 
       <!-- Center: real pixel canvas -->
@@ -256,8 +265,8 @@
           </StackPanel>
 
           <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-            <CheckBox Content="Grid" IsChecked="{Binding Document.EditorGridVisible}" Margin="4,0,8,0" />
-            <CheckBox Content="Snap" IsChecked="{Binding Document.SnapToGrid}" Margin="0,0,8,0" />
+            <CheckBox Content="Grid" IsChecked="{Binding Document.EditorGridVisible}" Margin="4,0,8,0" ToolTip="Show or hide the editor grid. It is not included in the display output." />
+            <CheckBox Content="Snap" IsChecked="{Binding Document.SnapToGrid}" Margin="0,0,8,0" ToolTip="Snap dragging, resizing, and arrow-key movement to the configured grid spacing." />
             <TextBlock Text="Size" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" Margin="0,0,4,0" />
             <TextBox Width="42" Text="{Binding Document.GridSize, UpdateSourceTrigger=LostFocus}" ToolTip="Grid spacing in screen pixels" />
             <TextBlock Text="Zoom" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" Margin="10,0,4,0" />
@@ -298,11 +307,11 @@
                   <StackPanel>
                     <DockPanel Margin="0,0,0,10">
                       <TextBlock Text="{Binding Type}" FontSize="18" FontWeight="SemiBold" />
-                      <CheckBox DockPanel.Dock="Right" Content="Lock" IsChecked="{Binding IsLocked}" VerticalAlignment="Center" />
+                      <CheckBox DockPanel.Dock="Right" Content="Lock" IsChecked="{Binding IsLocked}" VerticalAlignment="Center" ToolTip="Prevent this widget from being moved, resized, or aligned." />
                     </DockPanel>
 
                     <TextBlock Text="Name" Foreground="{StaticResource MutedTextBrush}" />
-                    <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,8" />
+                    <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,8" ToolTip="The name shown for this widget in the Layers list." />
 
                     <Expander Header="POSITION &amp; SIZE"
                               IsExpanded="{Binding DataContext.PositionPanelExpanded, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
@@ -314,17 +323,17 @@
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions><RowDefinition /><RowDefinition /><RowDefinition /></Grid.RowDefinitions>
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="X" VerticalAlignment="Center" Margin="0,0,5,0" />
-                        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding X, UpdateSourceTrigger=LostFocus}" Margin="0,2,8,2" />
+                        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding X, UpdateSourceTrigger=LostFocus}" Margin="0,2,8,2" ToolTip="Horizontal position in screen pixels from the left edge." />
                         <TextBlock Grid.Row="0" Grid.Column="2" Text="Y" VerticalAlignment="Center" Margin="0,0,5,0" />
-                        <TextBox Grid.Row="0" Grid.Column="3" Text="{Binding Y, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,2" />
+                        <TextBox Grid.Row="0" Grid.Column="3" Text="{Binding Y, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,2" ToolTip="Vertical position in screen pixels from the top edge." />
                         <TextBlock Grid.Row="1" Grid.Column="0" Text="W" VerticalAlignment="Center" Margin="0,0,5,0" />
-                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Width, UpdateSourceTrigger=LostFocus}" Margin="0,2,8,2" />
+                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Width, UpdateSourceTrigger=LostFocus}" Margin="0,2,8,2" ToolTip="Widget width in screen pixels." />
                         <TextBlock Grid.Row="1" Grid.Column="2" Text="H" VerticalAlignment="Center" Margin="0,0,5,0" />
-                        <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding Height, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,2" />
+                        <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding Height, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,2" ToolTip="Widget height in screen pixels." />
                         <TextBlock Grid.Row="2" Grid.Column="0" Text="Rot" VerticalAlignment="Center" Margin="0,0,5,0" />
-                        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Rotation, UpdateSourceTrigger=LostFocus}" Margin="0,2,8,2" />
+                        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Rotation, UpdateSourceTrigger=LostFocus}" Margin="0,2,8,2" ToolTip="Rotate this widget clockwise by the entered number of degrees." />
                         <TextBlock Grid.Row="2" Grid.Column="2" Text="Opacity" VerticalAlignment="Center" Margin="0,0,5,0" />
-                        <TextBox Grid.Row="2" Grid.Column="3" Text="{Binding Opacity, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,2" />
+                        <TextBox Grid.Row="2" Grid.Column="3" Text="{Binding Opacity, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,2" ToolTip="Widget opacity from 0 (transparent) to 1 (fully visible)." />
                       </Grid>
                     </Expander>
 
@@ -353,7 +362,8 @@
                                 ToolTip="Select a CPU, GPU, disk, network, cooling, weather or clock source" />
                       <CheckBox Content="Show advanced hardware sensors"
                                 IsChecked="{Binding DataContext.ShowAdvancedSensors, RelativeSource={RelativeSource AncestorType=Window}}"
-                                Margin="0,0,0,7" />
+                                Margin="0,0,0,7"
+                                ToolTip="Include raw LibreHardwareMonitor and HWiNFO sensor entries in the Source list." />
 
                       <StackPanel Margin="0,2,0,8">
                         <StackPanel.Style>
@@ -394,7 +404,8 @@
                                   Content="Update"
                                   Command="{Binding DataContext.UpdateWeatherCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                   Margin="6,0,0,0"
-                                  Padding="9,4" />
+                                  Padding="9,4"
+                                  ToolTip="Download the latest weather data for the entered city." />
                         </Grid>
                         <TextBlock Text="{Binding DataContext.WeatherStatus, RelativeSource={RelativeSource AncestorType=Window}}"
                                    Foreground="{StaticResource MutedTextBrush}"
@@ -402,24 +413,24 @@
                                    TextWrapping="Wrap" />
                       </StackPanel>
                       <TextBlock Text="Label" Foreground="{StaticResource MutedTextBrush}" />
-                      <TextBox Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,7" />
+                      <TextBox Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,7" ToolTip="Text displayed as this widget's label." />
                       <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="72" /></Grid.ColumnDefinitions>
                         <StackPanel>
                           <TextBlock Text="Preview value" Foreground="{StaticResource MutedTextBrush}" />
-                          <Slider Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding SimulatedValue}" />
+                          <Slider Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding SimulatedValue}" ToolTip="Set the preview value used while Live data is disabled." />
                         </StackPanel>
-                        <TextBox Grid.Column="1" Text="{Binding SimulatedValue, UpdateSourceTrigger=LostFocus}" Margin="8,18,0,0" />
+                        <TextBox Grid.Column="1" Text="{Binding SimulatedValue, UpdateSourceTrigger=LostFocus}" Margin="8,18,0,0" ToolTip="Enter the exact preview value used while Live data is disabled." />
                       </Grid>
                       <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0" Margin="0,0,5,0"><TextBlock Text="Min" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding Minimum, UpdateSourceTrigger=LostFocus}" /></StackPanel>
-                        <StackPanel Grid.Column="1" Margin="5,0"><TextBlock Text="Max" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding Maximum, UpdateSourceTrigger=LostFocus}" /></StackPanel>
-                        <StackPanel Grid.Column="2" Margin="5,0,0,0"><TextBlock Text="Suffix" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding Suffix, UpdateSourceTrigger=PropertyChanged}" /></StackPanel>
+                        <StackPanel Grid.Column="0" Margin="0,0,5,0"><TextBlock Text="Min" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding Minimum, UpdateSourceTrigger=LostFocus}" ToolTip="Lowest value represented by this gauge or graph." /></StackPanel>
+                        <StackPanel Grid.Column="1" Margin="5,0"><TextBlock Text="Max" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding Maximum, UpdateSourceTrigger=LostFocus}" ToolTip="Highest value represented by this gauge or graph." /></StackPanel>
+                        <StackPanel Grid.Column="2" Margin="5,0,0,0"><TextBlock Text="Suffix" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding Suffix, UpdateSourceTrigger=PropertyChanged}" ToolTip="Unit or text displayed after the value, for example %, °C, or GB." /></StackPanel>
                       </Grid>
                       <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                        <CheckBox Content="Label" IsChecked="{Binding ShowLabel}" Margin="0,0,14,0" />
-                        <CheckBox Content="Value" IsChecked="{Binding ShowValue}" />
+                        <CheckBox Content="Label" IsChecked="{Binding ShowLabel}" Margin="0,0,14,0" ToolTip="Show or hide the widget label." />
+                        <CheckBox Content="Value" IsChecked="{Binding ShowValue}" ToolTip="Show or hide the sensor value." />
                       </StackPanel>
                       </StackPanel>
                     </Expander>
@@ -450,7 +461,8 @@
                                 ToolTip="Includes built-in Bungee, Fredoka, Monoton and Orbitron fonts. You can also type an installed Windows font name." />
                       <TextBlock Text="Embedded custom font" Foreground="{StaticResource MutedTextBrush}" />
                       <ComboBox ItemsSource="{Binding DataContext.FontAssets, RelativeSource={RelativeSource AncestorType=Window}}"
-                                DisplayMemberPath="DisplayName" SelectedValuePath="Id" SelectedValue="{Binding FontAssetId}" Margin="0,3,0,6" />
+                                DisplayMemberPath="DisplayName" SelectedValuePath="Id" SelectedValue="{Binding FontAssetId}" Margin="0,3,0,6"
+                                ToolTip="Choose a custom font embedded in this theme." />
                       <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                         <StackPanel>
@@ -458,8 +470,8 @@
                           <TextBox Text="{Binding FontSize, UpdateSourceTrigger=LostFocus}"
                                    ToolTip="Fixed text size in screen pixels. Resizing the widget does not change it." />
                         </StackPanel>
-                        <CheckBox Grid.Column="1" Content="Bold" IsChecked="{Binding FontBold}" Margin="12,18,5,0" />
-                        <CheckBox Grid.Column="2" Content="Italic" IsChecked="{Binding FontItalic}" Margin="5,18,0,0" />
+                        <CheckBox Grid.Column="1" Content="Bold" IsChecked="{Binding FontBold}" Margin="12,18,5,0" ToolTip="Use the bold font style." />
+                        <CheckBox Grid.Column="2" Content="Italic" IsChecked="{Binding FontItalic}" Margin="5,18,0,0" ToolTip="Use the italic font style." />
                       </Grid>
                       </StackPanel>
                     </Expander>
@@ -476,13 +488,13 @@
                       </Expander.Style>
                       <StackPanel Margin="0,5,0,0">
                       <TextBlock Text="Style" Foreground="{StaticResource MutedTextBrush}" />
-                      <ComboBox ItemsSource="{Binding DataContext.GraphStyles, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding GraphStyle}" Margin="0,3,0,6" />
+                      <ComboBox ItemsSource="{Binding DataContext.GraphStyles, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding GraphStyle}" Margin="0,3,0,6" ToolTip="Choose how graph history is drawn." />
                       <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                        <StackPanel Margin="0,0,5,0"><TextBlock Text="History (s)" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding HistorySeconds, UpdateSourceTrigger=LostFocus}" /></StackPanel>
-                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="Line width" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding LineThickness, UpdateSourceTrigger=LostFocus}" /></StackPanel>
+                        <StackPanel Margin="0,0,5,0"><TextBlock Text="History (s)" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding HistorySeconds, UpdateSourceTrigger=LostFocus}" ToolTip="Number of seconds of sensor history shown in the graph." /></StackPanel>
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="Line width" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding LineThickness, UpdateSourceTrigger=LostFocus}" ToolTip="Thickness of graph lines in screen pixels." /></StackPanel>
                       </Grid>
-                      <StackPanel Orientation="Horizontal"><CheckBox Content="Grid" IsChecked="{Binding ShowGrid}" Margin="0,4,15,0" /><CheckBox Content="Auto scale" IsChecked="{Binding AutoScale}" Margin="0,4,0,0" /></StackPanel>
+                      <StackPanel Orientation="Horizontal"><CheckBox Content="Grid" IsChecked="{Binding ShowGrid}" Margin="0,4,15,0" ToolTip="Draw reference grid lines behind the graph." /><CheckBox Content="Auto scale" IsChecked="{Binding AutoScale}" Margin="0,4,0,0" ToolTip="Adjust the graph range automatically to recent values." /></StackPanel>
                       </StackPanel>
                     </Expander>
 
@@ -502,8 +514,8 @@
                       <StackPanel Margin="0,5,0,0">
                       <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                        <StackPanel Margin="0,0,5,0"><TextBlock Text="Thickness" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding GaugeThickness, UpdateSourceTrigger=LostFocus}" /></StackPanel>
-                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="Segments" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding SegmentCount, UpdateSourceTrigger=LostFocus}" /></StackPanel>
+                        <StackPanel Margin="0,0,5,0"><TextBlock Text="Thickness" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding GaugeThickness, UpdateSourceTrigger=LostFocus}" ToolTip="Thickness of the gauge track and active indicator." /></StackPanel>
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="Segments" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding SegmentCount, UpdateSourceTrigger=LostFocus}" ToolTip="Number of blocks used by a segmented bar gauge." /></StackPanel>
                       </Grid>
                       </StackPanel>
                     </Expander>
@@ -524,13 +536,13 @@
                       </Expander.Style>
                       <StackPanel Margin="0,5,0,0">
                       <TextBlock Text="Fit" Foreground="{StaticResource MutedTextBrush}" />
-                      <ComboBox ItemsSource="{Binding DataContext.MediaFits, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding MediaFit}" Margin="0,3,0,5" />
-                      <CheckBox Content="Loop" IsChecked="{Binding Loop}" />
-                      <CheckBox Content="Automatic optimization" IsChecked="{Binding AutoOptimize}" />
+                      <ComboBox ItemsSource="{Binding DataContext.MediaFits, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding MediaFit}" Margin="0,3,0,5" ToolTip="Choose how media is fitted inside the widget bounds." />
+                      <CheckBox Content="Loop" IsChecked="{Binding Loop}" ToolTip="Restart animated media when it reaches the end." />
+                      <CheckBox Content="Automatic optimization" IsChecked="{Binding AutoOptimize}" ToolTip="Reduce media workload automatically for smoother display updates." />
                       <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                        <StackPanel Margin="0,0,5,0"><TextBlock Text="Speed" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding PlaybackSpeed, UpdateSourceTrigger=LostFocus}" /></StackPanel>
-                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="FPS (0=Auto)" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding TargetFps, UpdateSourceTrigger=LostFocus}" /></StackPanel>
+                        <StackPanel Margin="0,0,5,0"><TextBlock Text="Speed" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding PlaybackSpeed, UpdateSourceTrigger=LostFocus}" ToolTip="Playback speed multiplier, for example 0.5 for half speed or 2 for double speed." /></StackPanel>
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="FPS (0=Auto)" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding TargetFps, UpdateSourceTrigger=LostFocus}" ToolTip="Limit animation frames per second. Use 0 for automatic timing." /></StackPanel>
                       </Grid>
                       </StackPanel>
                     </Expander>
@@ -543,9 +555,9 @@
                         <Style TargetType="Expander"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.Shape}"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style>
                       </Expander.Style>
                       <StackPanel Margin="0,5,0,0">
-                      <ComboBox ItemsSource="{Binding DataContext.ShapeStyles, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding ShapeStyle}" />
+                      <ComboBox ItemsSource="{Binding DataContext.ShapeStyles, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding ShapeStyle}" ToolTip="Choose the shape geometry." />
                       <TextBlock Text="Corner radius" Foreground="{StaticResource MutedTextBrush}" Margin="0,6,0,0" />
-                      <TextBox Text="{Binding CornerRadius, UpdateSourceTrigger=LostFocus}" />
+                      <TextBox Text="{Binding CornerRadius, UpdateSourceTrigger=LostFocus}" ToolTip="Set how rounded the shape corners are, in pixels." />
                       </StackPanel>
                     </Expander>
 
