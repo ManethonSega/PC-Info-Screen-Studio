@@ -381,18 +381,9 @@
                       <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                         <StackPanel>
-                          <StackPanel.Style>
-                            <Style TargetType="StackPanel">
-                              <Setter Property="Visibility" Value="Visible" />
-                              <Style.Triggers>
-                                <DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.Text}"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
-                                <DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.Value}"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
-                                <DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.CircularGauge}"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
-                              </Style.Triggers>
-                            </Style>
-                          </StackPanel.Style>
                           <TextBlock Text="Size" Foreground="{StaticResource MutedTextBrush}" />
-                          <TextBox Text="{Binding FontSize, UpdateSourceTrigger=LostFocus}" />
+                          <TextBox Text="{Binding FontSize, UpdateSourceTrigger=LostFocus}"
+                                   ToolTip="Maximum text size in screen pixels. Text is reduced automatically only when needed to prevent clipping." />
                         </StackPanel>
                         <CheckBox Grid.Column="1" Content="Bold" IsChecked="{Binding FontBold}" Margin="12,18,5,0" />
                         <CheckBox Grid.Column="2" Content="Italic" IsChecked="{Binding FontItalic}" Margin="5,18,0,0" />
