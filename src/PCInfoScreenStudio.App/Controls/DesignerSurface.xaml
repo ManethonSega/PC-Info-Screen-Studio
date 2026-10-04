@@ -15,8 +15,7 @@
               BorderThickness="1"
               Background="#050608"
               Width="{Binding Document.CanvasWidth}"
-              Height="{Binding Document.CanvasHeight}"
-              LayoutTransformOrigin="0.5,0.5">
+              Height="{Binding Document.CanvasHeight}">
         <Border.LayoutTransform>
           <ScaleTransform ScaleX="{Binding CanvasZoom}" ScaleY="{Binding CanvasZoom}" />
         </Border.LayoutTransform>
