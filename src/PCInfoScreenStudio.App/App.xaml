@@ -75,6 +75,44 @@
       <Setter Property="Padding" Value="10,6" />
       <Setter Property="Margin" Value="2" />
       <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="ButtonBorder"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="2"
+                    SnapsToDevicePixels="True">
+              <ContentPresenter Margin="{TemplateBinding Padding}"
+                                HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                RecognizesAccessKey="True" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="ButtonBorder" Property="Background" Value="#2B3442" />
+                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="#5B8CFF" />
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="ButtonBorder" Property="Background" Value="#34445D" />
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.48" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style TargetType="ToolTip">
+      <Setter Property="Background" Value="#F7F8FA" />
+      <Setter Property="Foreground" Value="#161A20" />
+      <Setter Property="BorderBrush" Value="#707985" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Padding" Value="7,5" />
     </Style>
     <Style TargetType="TextBox">
       <Setter Property="Background" Value="#111419" />
@@ -130,12 +168,22 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="24" />
                   </Grid.ColumnDefinitions>
-                  <ContentPresenter Margin="{TemplateBinding Padding}"
+                  <ContentPresenter x:Name="SelectionPresenter"
+                                    Margin="{TemplateBinding Padding}"
                                     VerticalAlignment="Center"
                                     HorizontalAlignment="Left"
                                     Content="{TemplateBinding SelectionBoxItem}"
                                     ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
                                     ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}" />
+                  <TextBox x:Name="PART_EditableTextBox"
+                           Margin="{TemplateBinding Padding}"
+                           Padding="0"
+                           Background="Transparent"
+                           BorderThickness="0"
+                           Foreground="{TemplateBinding Foreground}"
+                           VerticalContentAlignment="Center"
+                           Visibility="Collapsed"
+                           Text="{Binding Text, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                   <TextBlock Grid.Column="1" Text="▾" Foreground="{StaticResource MutedTextBrush}"
                              HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Grid>
@@ -158,6 +206,15 @@
                 </Border>
               </Popup>
             </Grid>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsEditable" Value="True">
+                <Setter TargetName="SelectionPresenter" Property="Visibility" Value="Collapsed" />
+                <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible" />
+              </Trigger>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="DropDownToggle" Property="BorderBrush" Value="#5B8CFF" />
+              </Trigger>
+            </ControlTemplate.Triggers>
           </ControlTemplate>
         </Setter.Value>
       </Setter>
