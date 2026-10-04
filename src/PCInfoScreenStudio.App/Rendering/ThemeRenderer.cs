@@ -257,17 +257,25 @@ public sealed class ThemeRenderer
         active.StrokeCap = SKStrokeCap.Round;
         canvas.DrawArc(rect, -90, (float)(360 * fraction), false, active);
 
-        var innerWidth = (float)Math.Max(8, diameter * .72);
-        if (w.ShowValue)
+        var centerY = (float)(top + diameter / 2);
+        var valueSize = (float)Math.Max(6, w.FontSize);
+        var labelSize = (float)Math.Max(6, w.FontSize * .55);
+
+        if (w.ShowValue && w.ShowLabel)
         {
             var value = FormatValue(w);
-            var valueSize = (float)Math.Max(6, w.FontSize);
-            DrawCenteredText(canvas, workspace, w, value, valueSize, w.ForegroundColor, (float)(top + diameter * .53));
+            var gap = Math.Max(1f, diameter * .015f);
+            var groupHeight = valueSize + labelSize + gap;
+            DrawCenteredText(canvas, workspace, w, value, valueSize, w.ForegroundColor, centerY - groupHeight / 2 + valueSize / 2);
+            DrawCenteredText(canvas, workspace, w, w.Label, labelSize, w.ForegroundColor, centerY + groupHeight / 2 - labelSize / 2);
         }
-        if (w.ShowLabel)
+        else if (w.ShowValue)
         {
-            var labelSize = (float)Math.Max(6, w.FontSize * .55);
-            DrawCenteredText(canvas, workspace, w, w.Label, labelSize, w.ForegroundColor, (float)(top + diameter * .72));
+            DrawCenteredText(canvas, workspace, w, FormatValue(w), valueSize, w.ForegroundColor, centerY);
+        }
+        else if (w.ShowLabel)
+        {
+            DrawCenteredText(canvas, workspace, w, w.Label, labelSize, w.ForegroundColor, centerY);
         }
     }
 

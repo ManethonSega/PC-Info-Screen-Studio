@@ -46,6 +46,9 @@
                   <DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.PhotoFrame}">
                     <Setter Property="Visibility" Value="Collapsed" />
                   </DataTrigger>
+                  <DataTrigger Binding="{Binding IsLiveMode}" Value="True">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                  </DataTrigger>
                 </Style.Triggers>
               </Style>
             </ItemsControl.Style>

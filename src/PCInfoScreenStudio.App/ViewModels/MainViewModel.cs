@@ -76,6 +76,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private bool _firstRunUseStarterTheme = true;
     private string _firstRunStatus = "Connect your screen now, or finish setup and connect later.";
     private string _addSearchText = string.Empty;
+    private bool _isLiveMode;
 
     public event EventHandler? AlignmentGuidesChanged;
 
@@ -142,6 +143,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         FirstRunConnectCommand = new RelayCommand(() => _ = DetectAndConnectFirstRunAsync(), () => !IsDeviceBusy);
         CompleteFirstRunCommand = new RelayCommand(CompleteFirstRun);
         ShowSetupAssistantCommand = new RelayCommand(ShowSetupAssistant);
+        ToggleEditorModeCommand = new RelayCommand(ToggleEditorMode);
 
         _dataTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
@@ -259,7 +261,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             var query = AddSearchText.Trim();
             return string.IsNullOrWhiteSpace(query)
-                ? AddCatalog.Take(7)
+                ? Array.Empty<AddWidgetOption>()
                 : AddCatalog.Where(item => item.Matches(query));
         }
     }
@@ -401,7 +403,27 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public string ModeThemeSummary => Document.Mode == ScreenMode.Hybrid
         ? "Hybrid settings only (.pchybrid). Photos stay on this PC."
         : "Photo Frame settings only (.pcphoto). Photos stay on this PC.";
-    public GridLength PropertiesPanelWidth => Document.Mode == ScreenMode.PhotoFrame ? new GridLength(0) : new GridLength(330);
+    public GridLength LeftPanelWidth => IsLiveMode ? new GridLength(0) : new GridLength(320);
+    public GridLength PropertiesPanelWidth => IsLiveMode || Document.Mode == ScreenMode.PhotoFrame ? new GridLength(0) : new GridLength(330);
+    public GridLength EditorTopBarHeight => IsLiveMode ? new GridLength(0) : new GridLength(42);
+    public GridLength EditorBottomBarHeight => IsLiveMode ? new GridLength(0) : new GridLength(32);
+    public Visibility EditorChromeVisibility => IsLiveMode ? Visibility.Collapsed : Visibility.Visible;
+    public bool IsLiveMode
+    {
+        get => _isLiveMode;
+        private set
+        {
+            if (!SetProperty(ref _isLiveMode, value)) return;
+            RaisePropertyChanged(nameof(LeftPanelWidth));
+            RaisePropertyChanged(nameof(PropertiesPanelWidth));
+            RaisePropertyChanged(nameof(EditorChromeVisibility));
+            RaisePropertyChanged(nameof(EditorTopBarHeight));
+            RaisePropertyChanged(nameof(EditorBottomBarHeight));
+            RaisePropertyChanged(nameof(EditorModeLabel));
+            ThemeChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+    public string EditorModeLabel => IsLiveMode ? "Back to edit" : "Live view";
 
     public bool IsPhotoPlaying => _isPhotoPlaying;
     public string PhotoPlaybackLabel => _isPhotoPlaying ? "Pause" : "Play";
@@ -677,6 +699,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand FirstRunConnectCommand { get; }
     public RelayCommand CompleteFirstRunCommand { get; }
     public RelayCommand ShowSetupAssistantCommand { get; }
+    public RelayCommand ToggleEditorModeCommand { get; }
 
     public void SetEditorActive(bool active)
     {
@@ -700,6 +723,16 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
 
         EditorActivityChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void ToggleEditorMode()
+    {
+        IsLiveMode = !IsLiveMode;
+        if (IsLiveMode)
+        {
+            ClearAlignmentGuides();
+            UseLiveData = true;
+        }
     }
 
     public void SelectWidget(WidgetModel? widget, bool additive = false, bool toggle = false)
@@ -2185,6 +2218,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             RaisePropertyChanged(nameof(ModeThemeTitle));
             RaisePropertyChanged(nameof(ModeThemeSummary));
             RaisePropertyChanged(nameof(PropertiesPanelWidth));
+            RaisePropertyChanged(nameof(LeftPanelWidth));
             SaveModeThemeCommand.RaiseCanExecuteChanged();
         }
         MarkDirtyAndRefresh();

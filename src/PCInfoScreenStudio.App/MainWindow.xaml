@@ -35,7 +35,7 @@
         <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
           <Button Content="File  ▾" Click="OnFileMenuClick" Padding="14,6" ToolTip="Create, open, or save a theme.">
             <Button.ContextMenu>
-              <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+              <ContextMenu>
                 <MenuItem Header="New theme" Command="{Binding NewCommand}" InputGestureText="Ctrl+N" />
                 <MenuItem Header="Open…" Command="{Binding OpenCommand}" InputGestureText="Ctrl+O" />
                 <Separator />
@@ -46,6 +46,8 @@
           </Button>
           <Button Content="Undo" Command="{Binding UndoCommand}" ToolTip="Undo (Ctrl+Z)" />
           <Button Content="Redo" Command="{Binding RedoCommand}" ToolTip="Redo (Ctrl+Y)" />
+          <Button Content="Settings" Click="OnSettingsClick" Padding="14,6" ToolTip="Open screen, runtime, sensor, and editor settings." />
+          <Button Content="{Binding EditorModeLabel}" Command="{Binding ToggleEditorModeCommand}" Padding="14,6" ToolTip="Switch between the full editor and a clean live preview." />
         </StackPanel>
 
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
@@ -73,7 +75,7 @@
     <!-- Main three-column editor -->
     <Grid Grid.Row="1">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="320" />
+        <ColumnDefinition Width="{Binding LeftPanelWidth}" />
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="{Binding PropertiesPanelWidth}" />
       </Grid.ColumnDefinitions>
@@ -91,35 +93,6 @@
           </Grid.RowDefinitions>
 
           <StackPanel Grid.Row="0">
-            <TextBlock Text="DEVICE" Style="{StaticResource SectionTitleStyle}" Margin="4,2,0,7" />
-            <TextBlock Text="{Binding DeviceStatus}" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="4,0,4,5" />
-            <Expander Header="DEVICE SETTINGS" IsExpanded="{Binding AdvancedDisplayExpanded}" Margin="2,0,2,8">
-              <StackPanel Margin="0,7,0,0">
-                <ComboBox ItemsSource="{Binding Ports}" DisplayMemberPath="DisplayName" SelectedValuePath="PortName" SelectedValue="{Binding SelectedPort}" ToolTip="Detected USB serial devices." />
-                <UniformGrid Columns="2" Margin="0,3,0,6">
-                  <Button Content="Detect screen" Command="{Binding DetectScreenCommand}" ToolTip="Find the compatible screen automatically." />
-                  <Button Content="Refresh ports" Command="{Binding RefreshPortsCommand}" ToolTip="Scan Windows again for connected serial devices." />
-                </UniformGrid>
-                <Button Command="{Binding ToggleOrientationCommand}" ToolTip="Switch the theme canvas between landscape and portrait.">
-                  <StackPanel Orientation="Horizontal"><TextBlock Text="Layout orientation: " Foreground="{StaticResource MutedTextBrush}" /><TextBlock Text="{Binding Document.Orientation}" /></StackPanel>
-                </Button>
-                <TextBlock Text="Physical screen rotation" Foreground="{StaticResource MutedTextBrush}" Margin="2,6,0,2" />
-                <ComboBox ItemsSource="{Binding RotationOptions}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Document.DeviceRotation}" ToolTip="Match the way the physical screen is mounted." />
-                <CheckBox Content="Use live sensor data" IsChecked="{Binding UseLiveData}" Margin="3,7,0,2" ToolTip="Use current computer sensor values instead of preview values." />
-                <CheckBox Content="Send changes immediately" IsChecked="{Binding LivePreview}" Margin="3,2,0,2" ToolTip="Send editor changes to the connected screen immediately." />
-                <CheckBox Content="Start display automatically" IsChecked="{Binding AutoStartDisplay}" Margin="3,2,0,2" ToolTip="Connect and start updates when the app opens." />
-                <CheckBox Content="Keep running in system tray" IsChecked="{Binding CloseToTray}" Margin="3,2,0,7" ToolTip="Continue the lightweight display runtime after closing the editor window." />
-                <TextBlock Text="Protocol" Foreground="{StaticResource MutedTextBrush}" />
-                <ComboBox ItemsSource="{Binding DisplayProtocolOptions}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding DisplayProtocol}" Margin="0,2,0,5" ToolTip="Auto is recommended unless detection fails." />
-                <TextBlock Text="Colour compatibility" Foreground="{StaticResource MutedTextBrush}" />
-                <ComboBox ItemsSource="{Binding DisplayColorOptions}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding DisplayColorMode}" Margin="0,2,0,5" ToolTip="Auto is recommended for supported screens." />
-                <UniformGrid Columns="2">
-                  <Button Content="Colour test" Command="{Binding TestScreenCommand}" ToolTip="Send a six-colour diagnostic pattern." />
-                  <Button Content="Sensor access" Command="{Binding EnableFullSensorsCommand}" ToolTip="Install or inspect full hardware sensor access." />
-                </UniformGrid>
-                <Button Content="Run setup assistant again" Command="{Binding ShowSetupAssistantCommand}" Margin="2,7,2,2" ToolTip="Open the guided screen, mode, and starter-theme setup." />
-              </StackPanel>
-            </Expander>
             <StackPanel>
               <StackPanel.Style>
                 <Style TargetType="StackPanel">
@@ -159,17 +132,16 @@
               <Button Content="Delete" Command="{Binding DeleteThemeCommand}" ToolTip="Permanently delete the selected custom theme." />
             </UniformGrid>
 
-            <TextBlock Text="ADD TO SCREEN" Style="{StaticResource SectionTitleStyle}" Margin="4,14,0,7" />
-            <TextBox Text="{Binding AddSearchText, UpdateSourceTrigger=PropertyChanged}" ToolTip="Search by widget or data source, for example CPU temperature, GPU usage, or clock." Margin="2,0,2,5" />
-            <ItemsControl ItemsSource="{Binding FilteredAddCatalog}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <Button Command="{Binding DataContext.AddCatalogItemCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalContentAlignment="Left" Padding="9,6" ToolTip="{Binding Description}">
-                    <StackPanel><TextBlock Text="{Binding Label}" FontWeight="SemiBold" /><TextBlock Text="{Binding Description}" FontSize="10" Foreground="{StaticResource MutedTextBrush}" /></StackPanel>
-                  </Button>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
+            <TextBlock Text="ADD" Style="{StaticResource SectionTitleStyle}" Margin="4,14,0,7" />
+            <UniformGrid Columns="2">
+              <Button Content="Text" Command="{Binding AddWidgetCommand}" CommandParameter="Text" ToolTip="Add a fixed text label." />
+              <Button Content="Value" Command="{Binding AddWidgetCommand}" CommandParameter="Value" ToolTip="Add a label and live sensor value." />
+              <Button Content="Circle" Command="{Binding AddWidgetCommand}" CommandParameter="CircularGauge" ToolTip="Add a circular sensor gauge." />
+              <Button Content="Clock" Command="{Binding AddWidgetCommand}" CommandParameter="AnalogClock" ToolTip="Add a traditional analogue clock." />
+              <Button Content="Bar" Command="{Binding AddWidgetCommand}" CommandParameter="BarGauge" ToolTip="Add a segmented horizontal gauge." />
+              <Button Content="Graph" Command="{Binding AddWidgetCommand}" CommandParameter="Graph" ToolTip="Add a live history graph." />
+              <Button Content="Shape" Command="{Binding AddWidgetCommand}" CommandParameter="Shape" ToolTip="Add a rectangle or ellipse." />
+            </UniformGrid>
 
             <TextBlock Text="MEDIA" Style="{StaticResource SectionTitleStyle}" Margin="4,14,0,7" />
             <UniformGrid Columns="2">
@@ -331,16 +303,14 @@
                 </Expander.Style>
                 <StackPanel Margin="0,5,0,0">
                   <TextBlock Text="Add only the information you want over the photos." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="2,0,2,4" />
-                  <TextBox Text="{Binding AddSearchText, UpdateSourceTrigger=PropertyChanged}" ToolTip="Search overlays by data source, for example CPU temperature, GPU usage, or clock." Margin="2,0,2,5" />
-                  <ItemsControl ItemsSource="{Binding FilteredAddCatalog}">
-                    <ItemsControl.ItemTemplate>
-                      <DataTemplate>
-                        <Button Command="{Binding DataContext.AddCatalogItemCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalContentAlignment="Left" Padding="9,6" ToolTip="{Binding Description}">
-                          <StackPanel><TextBlock Text="{Binding Label}" FontWeight="SemiBold" /><TextBlock Text="{Binding Description}" FontSize="10" Foreground="{StaticResource MutedTextBrush}" /></StackPanel>
-                        </Button>
-                      </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                  </ItemsControl>
+                  <UniformGrid Columns="2">
+                    <Button Content="Text" Command="{Binding AddWidgetCommand}" CommandParameter="Text" ToolTip="Add a text overlay." />
+                    <Button Content="Value" Command="{Binding AddWidgetCommand}" CommandParameter="Value" ToolTip="Add a sensor value overlay." />
+                    <Button Content="Circle" Command="{Binding AddWidgetCommand}" CommandParameter="CircularGauge" ToolTip="Add a circular gauge overlay." />
+                    <Button Content="Clock" Command="{Binding AddWidgetCommand}" CommandParameter="AnalogClock" ToolTip="Add a clock overlay." />
+                    <Button Content="Bar" Command="{Binding AddWidgetCommand}" CommandParameter="BarGauge" ToolTip="Add a bar overlay." />
+                    <Button Content="Graph" Command="{Binding AddWidgetCommand}" CommandParameter="Graph" ToolTip="Add a history graph overlay." />
+                  </UniformGrid>
                 </StackPanel>
               </Expander>
 
@@ -426,9 +396,9 @@
       <!-- Center: real pixel canvas -->
       <Grid Grid.Column="1" Background="#0B0D10">
         <Grid.RowDefinitions>
-          <RowDefinition Height="42" />
+          <RowDefinition Height="{Binding EditorTopBarHeight}" />
           <RowDefinition Height="*" />
-          <RowDefinition Height="32" />
+          <RowDefinition Height="{Binding EditorBottomBarHeight}" />
         </Grid.RowDefinitions>
         <Grid Grid.Row="0" Margin="12,7">
           <Grid.ColumnDefinitions>
@@ -504,6 +474,26 @@
       <Border Grid.Column="2" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1,0,0,0">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="12">
+            <TextBlock Text="SEARCH &amp; ADD" Style="{StaticResource SectionTitleStyle}" Margin="2,2,0,7" />
+            <TextBox Text="{Binding AddSearchText, UpdateSourceTrigger=PropertyChanged}"
+                     ToolTip="Search by widget or source, for example CPU temperature, GPU usage, RAM, or clock."
+                     Margin="2,0,2,4" />
+            <TextBlock Text="Type a widget or data source, then click a result once to add it." FontSize="10" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="3,0,3,4" />
+            <ItemsControl ItemsSource="{Binding FilteredAddCatalog}" Margin="0,0,0,8">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Button Command="{Binding DataContext.AddCatalogItemCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                          CommandParameter="{Binding}" HorizontalContentAlignment="Left" Padding="9,5" ToolTip="{Binding Description}">
+                    <Grid>
+                      <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                      <StackPanel><TextBlock Text="{Binding Label}" FontWeight="SemiBold" /><TextBlock Text="{Binding Description}" FontSize="10" Foreground="{StaticResource MutedTextBrush}" /></StackPanel>
+                      <TextBlock Grid.Column="1" Text="+" FontSize="18" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" Margin="8,0,2,0" />
+                    </Grid>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Border Height="1" Background="{StaticResource BorderBrush}" Margin="0,2,0,10" />
             <TextBlock Text="PROPERTIES" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="2,2,0,10" />
 
             <TextBlock Text="Select an item on the canvas or in Layers." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="2,20">

@@ -70,8 +70,19 @@ public partial class MainWindow : Window
     {
         if (sender is not Button { ContextMenu: { } menu } button)
             return;
+        menu.DataContext = _viewModel;
         menu.PlacementTarget = button;
         menu.IsOpen = true;
+    }
+
+    private void OnSettingsClick(object sender, RoutedEventArgs e)
+    {
+        var window = new SettingsWindow
+        {
+            Owner = this,
+            DataContext = _viewModel
+        };
+        window.ShowDialog();
     }
 
     private void OnPhotoPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)

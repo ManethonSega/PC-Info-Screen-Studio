@@ -126,6 +126,7 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
         GridOverlay.Children.Clear();
 
         if (_viewModel is null ||
+            _viewModel.IsLiveMode ||
             _viewModel.Document.Mode == ScreenMode.PhotoFrame ||
             !_viewModel.Document.EditorGridVisible)
             return;
@@ -197,6 +198,7 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
     private void OnCanvasMouseDown(object sender, MouseButtonEventArgs e)
     {
         if (_viewModel is null ||
+            _viewModel.IsLiveMode ||
             _viewModel.Document.Mode == ScreenMode.PhotoFrame ||
             FindAncestor<DesignerItemControl>(e.OriginalSource as DependencyObject) is not null)
             return;

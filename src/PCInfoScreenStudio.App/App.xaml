@@ -124,6 +124,27 @@
         </Setter.Value>
       </Setter>
     </Style>
+    <Style TargetType="ContextMenu">
+      <Setter Property="Background" Value="#1B1F26" />
+      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+      <Setter Property="BorderBrush" Value="#4B5565" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Padding" Value="4" />
+    </Style>
+    <Style TargetType="MenuItem">
+      <Setter Property="Background" Value="#1B1F26" />
+      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+      <Setter Property="Padding" Value="10,6" />
+      <Style.Triggers>
+        <Trigger Property="IsHighlighted" Value="True">
+          <Setter Property="Background" Value="#2B3442" />
+          <Setter Property="Foreground" Value="#FFFFFF" />
+        </Trigger>
+        <Trigger Property="IsEnabled" Value="False">
+          <Setter Property="Foreground" Value="#737B87" />
+        </Trigger>
+      </Style.Triggers>
+    </Style>
     <Style TargetType="TextBox">
       <Setter Property="Background" Value="#111419" />
       <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
