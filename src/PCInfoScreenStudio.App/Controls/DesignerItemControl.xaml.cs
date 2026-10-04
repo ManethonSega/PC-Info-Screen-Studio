@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
@@ -10,8 +12,7 @@ public partial class DesignerItemControl : System.Windows.Controls.UserControl
 {
     private const double MinSize = 8;
 
-    private double _moveStartX;
-    private double _moveStartY;
+    private readonly Dictionary<WidgetModel, (double X, double Y)> _moveStarts = [];
     private double _moveTotalX;
     private double _moveTotalY;
 
@@ -30,7 +31,9 @@ public partial class DesignerItemControl : System.Windows.Controls.UserControl
     private void OnSelect(object sender, MouseButtonEventArgs e)
     {
         if (Widget is null) return;
-        ViewModel?.SelectWidget(Widget);
+        var modifiers = Keyboard.Modifiers;
+        var additive = modifiers.HasFlag(ModifierKeys.Control) || modifiers.HasFlag(ModifierKeys.Shift);
+        ViewModel?.SelectWidget(Widget, additive, modifiers.HasFlag(ModifierKeys.Control));
         Focus();
         e.Handled = false;
     }
@@ -41,7 +44,8 @@ public partial class DesignerItemControl : System.Windows.Controls.UserControl
         if (vm is null || Widget?.IsLocked != false)
             return;
 
-        var amount = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? 10 : 1;
+        var baseStep = vm.Document.SnapToGrid ? Math.Clamp(vm.Document.GridSize, 2, 100) : 1;
+        var amount = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? baseStep * 10 : baseStep;
         var direction = e.Key switch
         {
             Key.Left => "Left",
@@ -63,9 +67,13 @@ public partial class DesignerItemControl : System.Windows.Controls.UserControl
         var w = Widget;
         if (w is null) return;
 
-        ViewModel?.SelectWidget(w);
-        _moveStartX = w.X;
-        _moveStartY = w.Y;
+        var vm = ViewModel;
+        if (vm is null) return;
+        if (!w.IsSelected)
+            vm.SelectWidget(w);
+        _moveStarts.Clear();
+        foreach (var item in vm.GetMovementTargets(w))
+            _moveStarts[item] = (item.X, item.Y);
         _moveTotalX = 0;
         _moveTotalY = 0;
     }
@@ -79,8 +87,10 @@ public partial class DesignerItemControl : System.Windows.Controls.UserControl
         _moveTotalX += e.HorizontalChange;
         _moveTotalY += e.VerticalChange;
 
-        var x = _moveStartX + _moveTotalX;
-        var y = _moveStartY + _moveTotalY;
+        if (!_moveStarts.TryGetValue(w, out var anchorStart)) return;
+
+        var x = anchorStart.X + _moveTotalX;
+        var y = anchorStart.Y + _moveTotalY;
 
         if (vm.Document.SnapToGrid)
         {
@@ -88,9 +98,28 @@ public partial class DesignerItemControl : System.Windows.Controls.UserControl
             y = Snap(y, vm.Document.GridSize);
         }
 
-        w.X = Math.Clamp(x, 0, Math.Max(0, vm.Document.CanvasWidth - w.Width));
-        w.Y = Math.Clamp(y, 0, Math.Max(0, vm.Document.CanvasHeight - w.Height));
+        (x, y) = vm.ApplySmartAlignment(w, x, y, _moveStarts.Keys.ToArray());
+        var dx = x - anchorStart.X;
+        var dy = y - anchorStart.Y;
+        var minX = _moveStarts.Min(pair => pair.Value.X);
+        var minY = _moveStarts.Min(pair => pair.Value.Y);
+        var maxX = _moveStarts.Max(pair => pair.Value.X + pair.Key.Width);
+        var maxY = _moveStarts.Max(pair => pair.Value.Y + pair.Key.Height);
+        dx = Math.Clamp(dx, -minX, vm.Document.CanvasWidth - maxX);
+        dy = Math.Clamp(dy, -minY, vm.Document.CanvasHeight - maxY);
+
+        foreach (var (item, start) in _moveStarts)
+        {
+            item.X = start.X + dx;
+            item.Y = start.Y + dy;
+        }
         vm.NotifyDesignerChange();
+    }
+
+    private void OnDragCompleted(object sender, DragCompletedEventArgs e)
+    {
+        ViewModel?.ClearAlignmentGuides();
+        _moveStarts.Clear();
     }
 
     private void OnResizeStarted(object sender, DragStartedEventArgs e)
