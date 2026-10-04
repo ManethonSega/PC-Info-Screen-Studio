@@ -64,8 +64,9 @@ internal static class RenderResourceCache
             sourceRect = CropForAspect(sourceRect, destination.Width / destination.Height, .5, .5);
 
         using var paint = new SKPaint { IsAntialias = true };
+        using var image = SKImage.FromBitmap(source);
         var sampling = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
-        canvas.DrawBitmap(source, sourceRect, destination, sampling, paint);
+        canvas.DrawImage(image, sourceRect, destination, sampling, paint);
         return result;
     }
 

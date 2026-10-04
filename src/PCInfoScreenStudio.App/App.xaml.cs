@@ -58,12 +58,12 @@ public partial class App : Application
                     data.SaveTo(stream);
                 }
 
+                workspace.Document.PhotoFrame.CaptionMode = PhotoCaptionMode.Custom;
+                workspace.Document.PhotoFrame.CustomCaption = "Photo frame smoke test";
                 workspace.Document.PhotoFrame.Photos.Add(new PhotoFrameItem
                 {
                     DisplayName = "Smoke photo",
-                    SourcePath = photoPath,
-                    CaptionMode = PhotoCaptionMode.Custom,
-                    CustomCaption = "Photo frame smoke test"
+                    SourcePath = photoPath
                 });
                 workspace.Document.RuntimeMode = RuntimeScreenMode.PhotoFrame;
                 using var photoFrame = renderer.Render(workspace);

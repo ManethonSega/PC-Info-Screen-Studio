@@ -147,8 +147,9 @@ public sealed class ThemeRenderer
     private static void DrawBitmapAlpha(SKCanvas canvas, SKBitmap bitmap, SKRect destination, byte alpha)
     {
         using var paint = new SKPaint { Color = new SKColor(255, 255, 255, alpha), IsAntialias = true };
+        using var image = SKImage.FromBitmap(bitmap);
         var sampling = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
-        canvas.DrawBitmap(bitmap, destination, sampling, paint);
+        canvas.DrawImage(image, destination, sampling, paint);
     }
 
     private static void DrawWidget(SKCanvas canvas, ThemeWorkspace workspace, WidgetModel w)
