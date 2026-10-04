@@ -47,4 +47,8 @@ public sealed class AppSettings
     public DisplayProtocolProfile DisplayProtocol { get; set; } = DisplayProtocolProfile.Auto;
     public DisplayColorMode DisplayColorMode { get; set; } = DisplayColorMode.Auto;
     public bool CloseToTray { get; set; } = true;
+    public bool AutoStartDisplay { get; set; }
+    public bool ShowAdvancedSensors { get; set; }
+    public bool AdvancedDisplayExpanded { get; set; }
+    public double CanvasZoom { get; set; } = 1.0;
 }
