@@ -2,6 +2,9 @@ using System.ComponentModel;
 using DrawingIcon = System.Drawing.Icon;
 using DrawingSystemIcons = System.Drawing.SystemIcons;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
 using PCInfoScreenStudio.Models;
 using PCInfoScreenStudio.ViewModels;
 using WinForms = System.Windows.Forms;
@@ -14,6 +17,8 @@ public partial class MainWindow : Window
     private readonly WinForms.NotifyIcon _trayIcon;
     private bool _exitRequested;
     private bool _disposed;
+    private Point _photoDragStart;
+    private PhotoFrameItem? _draggedPhoto;
 
     public MainWindow()
     {
@@ -22,6 +27,16 @@ public partial class MainWindow : Window
 
         var trayMenu = new WinForms.ContextMenuStrip();
         trayMenu.Items.Add("Show PC Info Screen Studio", null, (_, _) => RestoreFromTray());
+        var modeMenu = new WinForms.ToolStripMenuItem("Mode");
+        modeMenu.DropDownItems.Add("Info Screen", null, (_, _) => SetModeFromTray(ScreenMode.InfoScreen));
+        modeMenu.DropDownItems.Add("Photo Frame", null, (_, _) => SetModeFromTray(ScreenMode.PhotoFrame));
+        modeMenu.DropDownItems.Add("Hybrid", null, (_, _) => SetModeFromTray(ScreenMode.Hybrid));
+        trayMenu.Items.Add(modeMenu);
+        var photoMenu = new WinForms.ToolStripMenuItem("Photo frame");
+        photoMenu.DropDownItems.Add("Previous photo", null, (_, _) => Dispatcher.Invoke(_viewModel.PreviousPhoto));
+        photoMenu.DropDownItems.Add("Play / Pause", null, (_, _) => Dispatcher.Invoke(_viewModel.TogglePhotoPlayback));
+        photoMenu.DropDownItems.Add("Next photo", null, (_, _) => Dispatcher.Invoke(_viewModel.NextPhoto));
+        trayMenu.Items.Add(photoMenu);
         trayMenu.Items.Add(new WinForms.ToolStripSeparator());
         trayMenu.Items.Add("Exit", null, (_, _) => ExitFromTray());
 
@@ -46,6 +61,49 @@ public partial class MainWindow : Window
             Visible = true
         };
         _trayIcon.DoubleClick += (_, _) => RestoreFromTray();
+    }
+
+    private void SetModeFromTray(ScreenMode mode)
+        => Dispatcher.Invoke(() => _viewModel.Document.Mode = mode);
+
+    private void OnPhotoPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _photoDragStart = e.GetPosition(null);
+        _draggedPhoto = FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject)?.DataContext as PhotoFrameItem;
+    }
+
+    private void OnPhotoPreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (e.LeftButton != MouseButtonState.Pressed || _draggedPhoto is null) return;
+        var position = e.GetPosition(null);
+        if (Math.Abs(position.X - _photoDragStart.X) < SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(position.Y - _photoDragStart.Y) < SystemParameters.MinimumVerticalDragDistance) return;
+        DragDrop.DoDragDrop((DependencyObject)sender, _draggedPhoto, DragDropEffects.Move);
+    }
+
+    private void OnPhotoPlaylistDragOver(object sender, System.Windows.DragEventArgs e)
+    {
+        e.Effects = e.Data.GetDataPresent(typeof(PhotoFrameItem)) ? DragDropEffects.Move : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private void OnPhotoPlaylistDrop(object sender, System.Windows.DragEventArgs e)
+    {
+        if (e.Data.GetData(typeof(PhotoFrameItem)) is not PhotoFrameItem source) return;
+        var target = FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject)?.DataContext as PhotoFrameItem;
+        if (target is not null) _viewModel.MovePhoto(source, target);
+        _draggedPhoto = null;
+        e.Handled = true;
+    }
+
+    private static T? FindAncestor<T>(DependencyObject? source) where T : DependencyObject
+    {
+        while (source is not null)
+        {
+            if (source is T match) return match;
+            source = VisualTreeHelper.GetParent(source);
+        }
+        return null;
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
