@@ -141,6 +141,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         AddCatalogItemCommand = new RelayCommand(AddCatalogItem);
         FirstRunConnectCommand = new RelayCommand(() => _ = DetectAndConnectFirstRunAsync(), () => !IsDeviceBusy);
         CompleteFirstRunCommand = new RelayCommand(CompleteFirstRun);
+        ShowSetupAssistantCommand = new RelayCommand(ShowSetupAssistant);
 
         _dataTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
@@ -675,6 +676,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand AddCatalogItemCommand { get; }
     public RelayCommand FirstRunConnectCommand { get; }
     public RelayCommand CompleteFirstRunCommand { get; }
+    public RelayCommand ShowSetupAssistantCommand { get; }
 
     public void SetEditorActive(bool active)
     {
@@ -1637,6 +1639,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _appSettings.FirstRunCompleted = true;
         _settingsService.Save(_appSettings);
         IsFirstRunVisible = false;
+    }
+
+    private void ShowSetupAssistant()
+    {
+        FirstRunStatus = _deviceService.IsConnected
+            ? "Screen is connected. Review the mode and starting layout."
+            : "Connect your screen now, or finish setup and connect later.";
+        IsFirstRunVisible = true;
     }
 
     private async Task ConnectOrDisconnectAsync()
