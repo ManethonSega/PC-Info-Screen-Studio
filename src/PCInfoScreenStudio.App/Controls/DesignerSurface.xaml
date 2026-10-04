@@ -6,9 +6,21 @@
   <UserControl.Resources>
     <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
   </UserControl.Resources>
-  <Grid>
-    <Viewbox Stretch="Uniform" StretchDirection="Both" HorizontalAlignment="Center" VerticalAlignment="Center">
-      <Border BorderBrush="#444B58" BorderThickness="1" Background="#050608">
+
+  <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                VerticalScrollBarVisibility="Auto"
+                CanContentScroll="False">
+    <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16">
+      <Border BorderBrush="#444B58"
+              BorderThickness="1"
+              Background="#050608"
+              Width="{Binding Document.CanvasWidth}"
+              Height="{Binding Document.CanvasHeight}"
+              LayoutTransformOrigin="0.5,0.5">
+        <Border.LayoutTransform>
+          <ScaleTransform ScaleX="{Binding CanvasZoom}" ScaleY="{Binding CanvasZoom}" />
+        </Border.LayoutTransform>
+
         <Grid Width="{Binding Document.CanvasWidth}" Height="{Binding Document.CanvasHeight}">
           <Image x:Name="RenderSurface"
                  Stretch="Fill"
@@ -43,6 +55,6 @@
           </ItemsControl>
         </Grid>
       </Border>
-    </Viewbox>
-  </Grid>
+    </Grid>
+  </ScrollViewer>
 </UserControl>
