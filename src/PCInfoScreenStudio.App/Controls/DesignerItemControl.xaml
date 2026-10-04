@@ -70,7 +70,8 @@
     <Thumb x:Name="MoveThumb"
            Style="{StaticResource TransparentMoveThumb}"
            DragDelta="OnMove"
-           DragStarted="OnDragStarted" />
+           DragStarted="OnDragStarted"
+           DragCompleted="OnDragCompleted" />
 
     <Thumb Style="{StaticResource ResizeThumb}" Tag="NW" Cursor="SizeNWSE" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-4,-4,0,0" />
     <Thumb Style="{StaticResource ResizeThumb}" Tag="N" Cursor="SizeNS" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,-4,0,0" />
