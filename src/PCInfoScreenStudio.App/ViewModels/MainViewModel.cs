@@ -3,10 +3,13 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using PCInfoScreenStudio.Models;
 using PCInfoScreenStudio.Services;
 using PCInfoScreenStudio.Rendering;
+using PCInfoScreenStudio.Controls;
 
 namespace PCInfoScreenStudio.ViewModels;
 
@@ -92,6 +95,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         BenchmarkCommand = new RelayCommand(() => _ = RunBenchmarkAsync(), () => _deviceService.IsConnected && !IsDeviceBusy);
         RefreshThemesCommand = new RelayCommand(RefreshThemes);
         LoadThemeCommand = new RelayCommand(() => _ = LoadSelectedThemeAsync(), () => SelectedTheme is not null);
+        DuplicateThemeCommand = new RelayCommand(DuplicateSelectedTheme, () => SelectedTheme is { IsBuiltIn: false });
+        RenameThemeCommand = new RelayCommand(RenameSelectedTheme, () => SelectedTheme is { IsBuiltIn: false });
+        DeleteThemeCommand = new RelayCommand(DeleteSelectedTheme, () => SelectedTheme is { IsBuiltIn: false });
         UpdateWeatherCommand = new RelayCommand(() => _ = UpdateWeatherAsync());
         RestartElevatedCommand = new RelayCommand(() => RestartElevated());
         EnableFullSensorsCommand = new RelayCommand(() => _ = EnableFullSensorsAsync());
@@ -251,6 +257,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             if (!SetProperty(ref _selectedTheme, value)) return;
             LoadThemeCommand.RaiseCanExecuteChanged();
+            DuplicateThemeCommand.RaiseCanExecuteChanged();
+            RenameThemeCommand.RaiseCanExecuteChanged();
+            DeleteThemeCommand.RaiseCanExecuteChanged();
         }
     }
 
@@ -462,6 +471,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand BenchmarkCommand { get; }
     public RelayCommand RefreshThemesCommand { get; }
     public RelayCommand LoadThemeCommand { get; }
+    public RelayCommand DuplicateThemeCommand { get; }
+    public RelayCommand RenameThemeCommand { get; }
+    public RelayCommand DeleteThemeCommand { get; }
     public RelayCommand UpdateWeatherCommand { get; }
     public RelayCommand RestartElevatedCommand { get; }
     public RelayCommand EnableFullSensorsCommand { get; }
@@ -1053,6 +1065,108 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                             !string.IsNullOrWhiteSpace(previousBuiltIn) &&
                             string.Equals(t.BuiltInId, previousBuiltIn, StringComparison.OrdinalIgnoreCase))
                         ?? Themes.FirstOrDefault();
+
+        _ = LoadThemeThumbnailsAsync();
+    }
+
+    private async Task LoadThemeThumbnailsAsync()
+    {
+        foreach (var item in Themes.Where(t => !t.IsBuiltIn && !string.IsNullOrWhiteSpace(t.FilePath)).ToArray())
+        {
+            try
+            {
+                using var workspace = await _packageService.LoadAsync(item.FilePath!);
+                var renderer = new ThemeRenderer();
+                using var bitmap = renderer.Render(workspace);
+                var source = BitmapSource.Create(
+                    bitmap.Width,
+                    bitmap.Height,
+                    96,
+                    96,
+                    PixelFormats.Bgra32,
+                    null,
+                    bitmap.GetPixels(),
+                    bitmap.RowBytes * bitmap.Height,
+                    bitmap.RowBytes);
+                source.Freeze();
+                item.Thumbnail = source;
+            }
+            catch
+            {
+                // A damaged theme remains listed and can still be deleted or replaced.
+            }
+        }
+    }
+
+    private void DuplicateSelectedTheme()
+    {
+        if (SelectedTheme?.FilePath is not string path)
+            return;
+
+        try
+        {
+            var duplicate = _themeLibrary.Duplicate(path);
+            RefreshThemes();
+            SelectedTheme = Themes.FirstOrDefault(t => string.Equals(t.FilePath, duplicate, StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Could not duplicate theme", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void RenameSelectedTheme()
+    {
+        if (SelectedTheme?.FilePath is not string path)
+            return;
+
+        var name = TextPromptDialog.Show(
+            Application.Current.MainWindow,
+            "Rename theme",
+            "New theme name",
+            Path.GetFileNameWithoutExtension(path));
+        if (string.IsNullOrWhiteSpace(name))
+            return;
+
+        try
+        {
+            var renamed = _themeLibrary.Rename(path, name);
+            if (string.Equals(Workspace.FilePath, path, StringComparison.OrdinalIgnoreCase))
+                Workspace.FilePath = renamed;
+
+            RefreshThemes();
+            SelectedTheme = Themes.FirstOrDefault(t => string.Equals(t.FilePath, renamed, StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Could not rename theme", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void DeleteSelectedTheme()
+    {
+        if (SelectedTheme?.FilePath is not string path)
+            return;
+
+        var answer = MessageBox.Show(
+            $"Delete '{SelectedTheme.DisplayName}' from the theme library?",
+            "Delete theme",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        if (answer != MessageBoxResult.Yes)
+            return;
+
+        try
+        {
+            _themeLibrary.Delete(path);
+            if (string.Equals(Workspace.FilePath, path, StringComparison.OrdinalIgnoreCase))
+                Workspace.FilePath = null;
+            RefreshThemes();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Could not delete theme", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     private async Task LoadSelectedThemeAsync()
