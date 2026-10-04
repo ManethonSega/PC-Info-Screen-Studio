@@ -19,6 +19,7 @@ public sealed class ThemeDocument : ObservableObject
     private double _gridSize = 10;
     private ScreenMode _mode = ScreenMode.InfoScreen;
     private PhotoFrameSettings _photoFrame = new();
+    private readonly ObservableCollection<WidgetModel> _photoFrameEditorWidgets = [];
 
     public int FormatVersion { get; set; } = CurrentFormatVersion;
     public string MinimumAppVersion { get; set; } = "0.10.0";
@@ -53,12 +54,29 @@ public sealed class ThemeDocument : ObservableObject
     public bool EditorGridVisible { get => _editorGridVisible; set => SetProperty(ref _editorGridVisible, value); }
     public bool SnapToGrid { get => _snapToGrid; set => SetProperty(ref _snapToGrid, value); }
     public double GridSize { get => _gridSize; set => SetProperty(ref _gridSize, Math.Clamp(value, 2, 100)); }
-    public ScreenMode Mode { get => _mode; set => SetProperty(ref _mode, value); }
+    public ScreenMode Mode
+    {
+        get => _mode;
+        set
+        {
+            if (!SetProperty(ref _mode, value)) return;
+            RaisePropertyChanged(nameof(EditorWidgets));
+        }
+    }
     public PhotoFrameSettings PhotoFrame { get => _photoFrame; set => SetProperty(ref _photoFrame, value ?? new PhotoFrameSettings()); }
 
     [System.Text.Json.Serialization.JsonIgnore]
     public RuntimeScreenMode RuntimeMode { get; set; } = RuntimeScreenMode.InfoScreen;
 
     public ObservableCollection<WidgetModel> Widgets { get; set; } = [];
+    public ObservableCollection<WidgetModel> HybridWidgets { get; set; } = [];
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public ObservableCollection<WidgetModel> EditorWidgets => Mode switch
+    {
+        ScreenMode.Hybrid => HybridWidgets,
+        ScreenMode.PhotoFrame => _photoFrameEditorWidgets,
+        _ => Widgets
+    };
     public ObservableCollection<ThemeAsset> Assets { get; set; } = [];
 }

@@ -26,6 +26,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly WeatherMetricsService _weatherMetrics = new();
     private readonly AppSettingsService _settingsService = new();
     private readonly PhotoAlbumPresetService _photoAlbumPresetService = new();
+    private readonly ModeThemeService _modeThemeService = new();
     private readonly AppSettings _appSettings;
     private readonly DispatcherTimer _dataTimer;
     private readonly DispatcherTimer _animationTimer;
@@ -62,6 +63,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private bool _frameSenderRunning;
     private FileSystemWatcher? _photoFolderWatcher;
     private PhotoFrameItem? _selectedPhoto;
+    private ModeThemeLibraryItem? _selectedModeTheme;
     private bool _isPhotoPlaying;
     private DateTimeOffset _photoStartedAt = DateTimeOffset.UtcNow;
     private DateTimeOffset _photoTransitionStartedAt = DateTimeOffset.UtcNow;
@@ -82,6 +84,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _workspace = _packageService.CreateNewWorkspace();
         Ports = [];
         Themes = [];
+        ModeThemes = [];
         FontAssets = [];
 
         NewCommand = new RelayCommand(NewTheme);
@@ -127,6 +130,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         SaveAlbumPresetCommand = new RelayCommand(SaveAlbumPreset, () => Document.PhotoFrame.Photos.Count > 0);
         LoadAlbumPresetCommand = new RelayCommand(LoadAlbumPreset);
         ChooseWatchedFolderCommand = new RelayCommand(ChooseWatchedFolder);
+        SaveModeThemeCommand = new RelayCommand(SaveModeTheme, () => Document.Mode != ScreenMode.InfoScreen);
+        LoadModeThemeCommand = new RelayCommand(LoadModeTheme, () => SelectedModeTheme is not null);
+        DeleteModeThemeCommand = new RelayCommand(DeleteModeTheme, () => SelectedModeTheme is not null);
 
         _dataTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
@@ -136,7 +142,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             if (UseLiveData)
                 await RefreshRuntimeDataAsync();
-            else if (Document.Widgets.Any(w => w.Type == WidgetType.AnalogClock))
+            else if (RuntimeWidgets.Any(w => w.Type == WidgetType.AnalogClock))
             {
                 ThemeChanged?.Invoke(this, EventArgs.Empty);
                 if (LivePreview)
@@ -152,7 +158,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _animationTimer.Tick += (_, _) =>
         {
             var modeChanged = UpdateEffectiveScreenMode();
-            var animations = Document.Widgets
+            var animations = RuntimeWidgets
                 .Where(w => w.IsVisible && w.Type == WidgetType.AnimatedImage)
                 .ToArray();
             var photoActive = Document.RuntimeMode is RuntimeScreenMode.PhotoFrame or RuntimeScreenMode.Hybrid
@@ -199,6 +205,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         InitializeHistory();
         RefreshPorts();
         RefreshThemes();
+        RefreshModeThemes();
     }
 
     public event EventHandler? ThemeChanged;
@@ -206,8 +213,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public ThemeWorkspace Workspace => _workspace;
     public ThemeDocument Document => _workspace.Document;
+    private IEnumerable<WidgetModel> RuntimeWidgets => Document.RuntimeMode == RuntimeScreenMode.Hybrid ? Document.HybridWidgets : Document.Widgets;
+    private IEnumerable<WidgetModel> AllWidgets => Document.Widgets.Concat(Document.HybridWidgets);
     public ObservableCollection<SerialPortOption> Ports { get; }
     public ObservableCollection<ThemeLibraryItem> Themes { get; }
+    public ObservableCollection<ModeThemeLibraryItem> ModeThemes { get; }
     public ObservableCollection<ThemeAsset> FontAssets { get; }
 
     public ObservableCollection<string> DataSources { get; } =
@@ -242,8 +252,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public Array GraphStyles => Enum.GetValues(typeof(GraphStyle));
     public Array MediaFits => Enum.GetValues(typeof(MediaFit));
     public Array ShapeStyles => Enum.GetValues(typeof(ShapeStyle));
-    public Array PhotoTransitions => Enum.GetValues(typeof(PhotoTransition));
-    public Array PhotoBackgroundModes => Enum.GetValues(typeof(PhotoBackgroundMode));
+    public IReadOnlyList<PhotoTransition> PhotoTransitions { get; } =
+        Enum.GetValues<PhotoTransition>().Where(value => value != PhotoTransition.KenBurns).ToArray();
     public Array PhotoCaptionModes => Enum.GetValues(typeof(PhotoCaptionMode));
     public IReadOnlyList<ScreenModeOption> ScreenModes { get; } =
     [
@@ -255,16 +265,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     [
         new("Photo Frame", ScreenMode.PhotoFrame),
         new("Hybrid", ScreenMode.Hybrid)
-    ];
-    public IReadOnlyList<OptionalTransitionOption> OptionalPhotoTransitions { get; } =
-    [
-        new("Use album default", null),
-        .. Enum.GetValues<PhotoTransition>().Select(v => new OptionalTransitionOption(v.ToString(), v))
-    ];
-    public IReadOnlyList<OptionalFitOption> OptionalPhotoFits { get; } =
-    [
-        new("Use album default", null),
-        .. Enum.GetValues<MediaFit>().Select(v => new OptionalFitOption(v.ToString(), v))
     ];
     public IReadOnlyList<RotationOption> RotationOptions { get; } =
     [
@@ -297,7 +297,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         set => SelectWidget(value);
     }
 
-    public IReadOnlyList<WidgetModel> SelectedWidgets => Document.Widgets.Where(w => w.IsSelected).ToArray();
+    public IReadOnlyList<WidgetModel> SelectedWidgets => Document.EditorWidgets.Where(w => w.IsSelected).ToArray();
     public int SelectedWidgetCount => SelectedWidgets.Count;
     public bool HasMultipleSelection => SelectedWidgetCount > 1;
     public double? AlignmentGuideX => _alignmentGuideX;
@@ -312,6 +312,20 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             RemovePhotoCommand.RaiseCanExecuteChanged();
         }
     }
+
+    public ModeThemeLibraryItem? SelectedModeTheme
+    {
+        get => _selectedModeTheme;
+        set
+        {
+            if (!SetProperty(ref _selectedModeTheme, value)) return;
+            LoadModeThemeCommand.RaiseCanExecuteChanged();
+            DeleteModeThemeCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    public string ModeThemeTitle => Document.Mode == ScreenMode.Hybrid ? "HYBRID THEMES" : "PHOTO FRAME THEMES";
+    public GridLength PropertiesPanelWidth => Document.Mode == ScreenMode.PhotoFrame ? new GridLength(0) : new GridLength(330);
 
     public bool IsPhotoPlaying => _isPhotoPlaying;
     public string PhotoPlaybackLabel => _isPhotoPlaying ? "Pause" : "Play";
@@ -587,18 +601,21 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand SaveAlbumPresetCommand { get; }
     public RelayCommand LoadAlbumPresetCommand { get; }
     public RelayCommand ChooseWatchedFolderCommand { get; }
+    public RelayCommand SaveModeThemeCommand { get; }
+    public RelayCommand LoadModeThemeCommand { get; }
+    public RelayCommand DeleteModeThemeCommand { get; }
 
     public void SelectWidget(WidgetModel? widget, bool additive = false, bool toggle = false)
     {
         var targets = widget is null
             ? Array.Empty<WidgetModel>()
             : widget.GroupId is Guid groupId
-                ? Document.Widgets.Where(w => w.GroupId == groupId).ToArray()
+                ? Document.EditorWidgets.Where(w => w.GroupId == groupId).ToArray()
                 : [widget];
 
         if (!additive)
         {
-            foreach (var item in Document.Widgets)
+            foreach (var item in Document.EditorWidgets)
                 item.IsSelected = false;
         }
 
@@ -611,7 +628,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         var primary = widget is not null && widget.IsSelected
             ? widget
-            : Document.Widgets.LastOrDefault(w => w.IsSelected);
+            : Document.EditorWidgets.LastOrDefault(w => w.IsSelected);
         var primaryChanged = _selectedWidget != primary;
         _selectedWidget = primary;
 
@@ -628,25 +645,25 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (!anchor.IsSelected)
             SelectWidget(anchor);
 
-        return Document.Widgets.Where(w => w.IsSelected && !w.IsLocked).ToArray();
+        return Document.EditorWidgets.Where(w => w.IsSelected && !w.IsLocked).ToArray();
     }
 
     public void SelectWidgets(IEnumerable<WidgetModel> widgets, bool additive)
     {
         var selected = widgets.ToArray();
         var groupIds = selected.Where(w => w.GroupId is not null).Select(w => w.GroupId).ToHashSet();
-        var expanded = Document.Widgets
+        var expanded = Document.EditorWidgets
             .Where(w => selected.Contains(w) || (w.GroupId is not null && groupIds.Contains(w.GroupId)))
             .ToArray();
 
         if (!additive)
-            foreach (var item in Document.Widgets)
+            foreach (var item in Document.EditorWidgets)
                 item.IsSelected = false;
 
         foreach (var item in expanded)
             item.IsSelected = true;
 
-        _selectedWidget = expanded.LastOrDefault() ?? (additive ? Document.Widgets.LastOrDefault(w => w.IsSelected) : null);
+        _selectedWidget = expanded.LastOrDefault() ?? (additive ? Document.EditorWidgets.LastOrDefault(w => w.IsSelected) : null);
         RaisePropertyChanged(nameof(SelectedWidget));
         RaisePropertyChanged(nameof(SelectedWidgets));
         RaisePropertyChanged(nameof(SelectedWidgetCount));
@@ -665,7 +682,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         var xTargets = new List<double> { 0, Document.CanvasWidth / 2d, Document.CanvasWidth };
         var yTargets = new List<double> { 0, Document.CanvasHeight / 2d, Document.CanvasHeight };
 
-        foreach (var other in Document.Widgets.Where(w => w.IsVisible && !excluded.Contains(w.Id)))
+        foreach (var other in Document.EditorWidgets.Where(w => w.IsVisible && !excluded.Contains(w.Id)))
         {
             xTargets.Add(other.X);
             xTargets.Add(other.X + other.Width / 2d);
@@ -827,7 +844,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         if (parameter is null || !Enum.TryParse<WidgetType>(parameter.ToString(), out var type)) return;
         var widget = NewWidget(type);
-        Document.Widgets.Insert(0, widget);
+        Document.EditorWidgets.Insert(0, widget);
         NormalizeZIndices();
         SelectedWidget = widget;
         MarkDirtyAndRefresh();
@@ -881,7 +898,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             widget.Y = 0;
             widget.Width = Document.CanvasWidth;
             widget.Height = Document.CanvasHeight;
-            Document.Widgets.Insert(0, widget);
+            Document.EditorWidgets.Insert(0, widget);
             NormalizeZIndices();
             SelectedWidget = widget;
             MarkDirtyAndRefresh();
@@ -896,17 +913,17 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         var files = _dialogs.OpenImages();
         if (files.Length > 0)
-            AddPhotoFiles(files, Document.PhotoFrame.EmbedImportedPhotos);
+            AddPhotoFiles(files);
     }
 
     private void AddPhotoFolder()
     {
         var folder = _dialogs.OpenFolder();
         if (string.IsNullOrWhiteSpace(folder)) return;
-        AddPhotoFiles(GetPhotoFiles(folder), Document.PhotoFrame.EmbedImportedPhotos);
+        AddPhotoFiles(GetPhotoFiles(folder));
     }
 
-    public void AddPhotoFiles(IEnumerable<string> files, bool embed)
+    public void AddPhotoFiles(IEnumerable<string> files)
     {
         var added = new List<PhotoFrameItem>();
         foreach (var path in files.Where(IsSupportedPhoto).Distinct(StringComparer.OrdinalIgnoreCase))
@@ -915,13 +932,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             {
                 var fullPath = Path.GetFullPath(path);
                 if (!File.Exists(fullPath)) continue;
-                if (!embed && Document.PhotoFrame.Photos.Any(p => p.AssetId is null && string.Equals(Path.GetFullPath(p.SourcePath), fullPath, StringComparison.OrdinalIgnoreCase)))
+                if (Document.PhotoFrame.Photos.Any(p => p.AssetId is null && string.Equals(Path.GetFullPath(p.SourcePath), fullPath, StringComparison.OrdinalIgnoreCase)))
                     continue;
 
-                var item = new PhotoFrameItem { SourcePath = embed ? string.Empty : fullPath };
+                var item = new PhotoFrameItem { SourcePath = fullPath };
                 PhotoMetadataService.Populate(item, fullPath);
-                if (embed)
-                    item.AssetId = _assetService.Import(Workspace, fullPath, ThemeAssetKind.Image).Id;
                 Document.PhotoFrame.Photos.Add(item);
                 added.Add(item);
             }
@@ -946,7 +961,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         var current = Document.PhotoFrame.Photos.ElementAtOrDefault(Document.PhotoFrame.RuntimeCurrentIndex);
         var index = Document.PhotoFrame.Photos.IndexOf(photo);
         Document.PhotoFrame.Photos.Remove(photo);
-        if (photo.AssetId is Guid assetId && !Document.PhotoFrame.Photos.Any(p => p.AssetId == assetId) && !Document.Widgets.Any(w => w.AssetId == assetId))
+        if (photo.AssetId is Guid assetId && !Document.PhotoFrame.Photos.Any(p => p.AssetId == assetId) && !AllWidgets.Any(w => w.AssetId == assetId))
         {
             var asset = Document.Assets.FirstOrDefault(a => a.Id == assetId);
             if (asset is not null) Document.Assets.Remove(asset);
@@ -1036,7 +1051,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (folder is null) return;
         Document.PhotoFrame.WatchedFolder = folder;
         Document.PhotoFrame.WatchFolderEnabled = true;
-        AddPhotoFiles(GetPhotoFiles(folder), embed: false);
+        AddPhotoFiles(GetPhotoFiles(folder));
         ConfigurePhotoFolderWatcher();
     }
 
@@ -1051,11 +1066,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private void InitializePhotoFrameRuntime()
     {
         var settings = Document.PhotoFrame;
+        settings.EmbedImportedPhotos = false;
+        settings.BackgroundMode = PhotoBackgroundMode.SolidColor;
+        if (settings.Transition == PhotoTransition.KenBurns)
+            settings.Transition = PhotoTransition.Crossfade;
         settings.RuntimeCurrentIndex = Math.Clamp(_appSettings.LastPhotoIndex, 0, Math.Max(0, settings.Photos.Count - 1));
         settings.RuntimePreviousIndex = -1;
         settings.RuntimeTransitionProgress = 1;
         settings.RuntimePhotoProgress = 0;
-        settings.RuntimeTransition = ResolveTransition(settings.Photos.ElementAtOrDefault(settings.RuntimeCurrentIndex));
+        settings.RuntimeTransition = ResolveTransition();
         _photoStartedAt = DateTimeOffset.UtcNow;
         _photoTransitionStartedAt = _photoStartedAt;
         SelectedPhoto = settings.Photos.ElementAtOrDefault(settings.RuntimeCurrentIndex);
@@ -1070,8 +1089,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         var settings = Document.PhotoFrame;
         if (settings.Photos.Count == 0) return false;
         var now = DateTimeOffset.UtcNow;
-        var current = settings.Photos[Math.Clamp(settings.RuntimeCurrentIndex, 0, settings.Photos.Count - 1)];
-        var duration = TimeSpan.FromSeconds(current.DurationSeconds > 0 ? current.DurationSeconds : settings.DefaultDurationSeconds);
+        var duration = TimeSpan.FromSeconds(settings.DefaultDurationSeconds);
         var elapsed = now - _photoStartedAt;
 
         if (_isPhotoPlaying && elapsed >= duration)
@@ -1099,7 +1117,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         settings.RuntimePhotoProgress = duration.TotalSeconds <= 0
             ? 1
             : Math.Clamp(elapsed.TotalSeconds / duration.TotalSeconds, 0, 1);
-        return settings.RuntimeTransitionProgress < 1 || settings.RuntimeTransition == PhotoTransition.KenBurns;
+        return settings.RuntimeTransitionProgress < 1;
     }
 
     private void SetCurrentPhoto(int index, bool manual)
@@ -1109,7 +1127,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         index = Math.Clamp(index, 0, settings.Photos.Count - 1);
         settings.RuntimePreviousIndex = settings.RuntimeCurrentIndex;
         settings.RuntimeCurrentIndex = index;
-        settings.RuntimeTransition = ResolveTransition(settings.Photos[index]);
+        settings.RuntimeTransition = ResolveTransition();
         settings.RuntimeTransitionProgress = settings.RuntimeTransition == PhotoTransition.Instant ? 1 : 0;
         settings.RuntimePhotoProgress = 0;
         _photoStartedAt = DateTimeOffset.UtcNow;
@@ -1123,11 +1141,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         PreloadUpcomingPhoto();
     }
 
-    private PhotoTransition ResolveTransition(PhotoFrameItem? item)
+    private PhotoTransition ResolveTransition()
     {
-        var transition = item?.TransitionOverride ?? Document.PhotoFrame.Transition;
+        var transition = Document.PhotoFrame.Transition;
+        if (transition == PhotoTransition.KenBurns) transition = PhotoTransition.Crossfade;
         if (transition != PhotoTransition.Random) return transition;
-        var choices = new[] { PhotoTransition.Crossfade, PhotoTransition.Slide, PhotoTransition.Zoom, PhotoTransition.KenBurns, PhotoTransition.Instant };
+        var choices = new[] { PhotoTransition.Crossfade, PhotoTransition.Slide, PhotoTransition.Zoom, PhotoTransition.Instant };
         return choices[_photoRandom.Next(choices.Length)];
     }
 
@@ -1210,7 +1229,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private void OnWatchedPhotoChanged(object sender, FileSystemEventArgs e)
     {
         if (!IsSupportedPhoto(e.FullPath)) return;
-        Application.Current.Dispatcher.BeginInvoke(() => AddPhotoFiles([e.FullPath], embed: false));
+        Application.Current.Dispatcher.BeginInvoke(() => AddPhotoFiles([e.FullPath]));
     }
 
     private void ReplacePhotoFrameSettings(PhotoFrameSettings settings)
@@ -1266,13 +1285,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (selected.Length == 0) return;
         SelectWidget(null);
         foreach (var widget in selected)
-            Document.Widgets.Remove(widget);
+            Document.EditorWidgets.Remove(widget);
         MarkDirty();
     }
 
     private void DuplicateSelected()
     {
-        var selected = SelectedWidgets.OrderBy(w => Document.Widgets.IndexOf(w)).ToArray();
+        var selected = SelectedWidgets.OrderBy(w => Document.EditorWidgets.IndexOf(w)).ToArray();
         if (selected.Length == 0) return;
 
         var newGroupId = selected.Length > 1 ? Guid.NewGuid() : (Guid?)null;
@@ -1280,7 +1299,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         foreach (var clone in clones)
         {
             clone.GroupId = newGroupId;
-            Document.Widgets.Insert(0, clone);
+            Document.EditorWidgets.Insert(0, clone);
         }
         NormalizeZIndices();
         SelectWidget(null);
@@ -1402,21 +1421,21 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         if (SelectedWidget is null) return;
 
-        var current = Document.Widgets.IndexOf(SelectedWidget);
+        var current = Document.EditorWidgets.IndexOf(SelectedWidget);
         if (current < 0) return;
 
-        var target = Math.Clamp(current - delta, 0, Document.Widgets.Count - 1);
+        var target = Math.Clamp(current - delta, 0, Document.EditorWidgets.Count - 1);
         if (target == current) return;
 
-        Document.Widgets.Move(current, target);
+        Document.EditorWidgets.Move(current, target);
         NormalizeZIndices();
         MarkDirtyAndRefresh();
     }
 
     private void NormalizeZIndices()
     {
-        for (var i = 0; i < Document.Widgets.Count; i++)
-            Document.Widgets[i].ZIndex = Document.Widgets.Count - 1 - i;
+        for (var i = 0; i < Document.EditorWidgets.Count; i++)
+            Document.EditorWidgets[i].ZIndex = Document.EditorWidgets.Count - 1 - i;
     }
 
     private void ToggleOrientation()
@@ -1426,7 +1445,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Document.Orientation = Document.Orientation == ThemeOrientation.Landscape ? ThemeOrientation.Portrait : ThemeOrientation.Landscape;
         var scaleX = Document.CanvasWidth / (double)oldW;
         var scaleY = Document.CanvasHeight / (double)oldH;
-        foreach (var w in Document.Widgets)
+        foreach (var w in AllWidgets)
         {
             w.X *= scaleX; w.Y *= scaleY;
             w.Width = Math.Min(Document.CanvasWidth - w.X, w.Width * scaleX);
@@ -1718,6 +1737,104 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _ = LoadThemeThumbnailsAsync();
     }
 
+    private void RefreshModeThemes()
+    {
+        var previousPath = SelectedModeTheme?.FilePath;
+        ModeThemes.Clear();
+        foreach (var theme in _modeThemeService.GetThemes(Document.Mode))
+            ModeThemes.Add(theme);
+        SelectedModeTheme = ModeThemes.FirstOrDefault(theme =>
+                                string.Equals(theme.FilePath, previousPath, StringComparison.OrdinalIgnoreCase))
+                            ?? ModeThemes.FirstOrDefault();
+    }
+
+    private void SaveModeTheme()
+    {
+        if (Document.Mode == ScreenMode.InfoScreen) return;
+        var label = Document.Mode == ScreenMode.Hybrid ? "Hybrid theme name" : "Photo Frame theme name";
+        var name = TextPromptDialog.Show(
+            Application.Current.MainWindow,
+            "Save settings theme",
+            label,
+            SelectedModeTheme?.DisplayName ?? "My settings");
+        if (string.IsNullOrWhiteSpace(name)) return;
+
+        try
+        {
+            var path = _modeThemeService.Save(Document, Document.Mode, name);
+            RefreshModeThemes();
+            SelectedModeTheme = ModeThemes.FirstOrDefault(theme =>
+                string.Equals(theme.FilePath, path, StringComparison.OrdinalIgnoreCase));
+            DeviceStatus = $"{Document.Mode} settings theme saved";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Could not save settings theme", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void LoadModeTheme()
+    {
+        if (SelectedModeTheme is null) return;
+        try
+        {
+            var preset = _modeThemeService.Load(SelectedModeTheme.FilePath);
+            ApplyGlobalPhotoSettings(preset.PhotoFrame);
+            if (Document.Mode == ScreenMode.Hybrid)
+            {
+                Document.HybridWidgets.Clear();
+                foreach (var widget in preset.HybridWidgets)
+                    Document.HybridWidgets.Add(widget.Clone());
+                SelectedWidget = Document.HybridWidgets.OrderBy(widget => widget.ZIndex).FirstOrDefault();
+            }
+            MarkDirtyAndRefresh();
+            DeviceStatus = $"{SelectedModeTheme.DisplayName} loaded";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Could not load settings theme", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void DeleteModeTheme()
+    {
+        if (SelectedModeTheme is null) return;
+        var answer = MessageBox.Show(
+            $"Delete '{SelectedModeTheme.DisplayName}'?",
+            "Delete settings theme",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        if (answer != MessageBoxResult.Yes) return;
+        _modeThemeService.Delete(SelectedModeTheme.FilePath);
+        RefreshModeThemes();
+    }
+
+    private void ApplyGlobalPhotoSettings(PhotoFrameSettings source)
+    {
+        var target = Document.PhotoFrame;
+        target.DefaultDurationSeconds = source.DefaultDurationSeconds;
+        target.TransitionDurationSeconds = source.TransitionDurationSeconds;
+        target.Transition = source.Transition == PhotoTransition.KenBurns ? PhotoTransition.Crossfade : source.Transition;
+        target.Fit = source.Fit;
+        target.Loop = source.Loop;
+        target.Shuffle = source.Shuffle;
+        target.EmbedImportedPhotos = false;
+        target.BackgroundMode = PhotoBackgroundMode.SolidColor;
+        target.BackgroundColor = source.BackgroundColor;
+        target.ShowCaptions = source.ShowCaptions;
+        target.CaptionFontSize = source.CaptionFontSize;
+        target.CaptionColor = source.CaptionColor;
+        target.CaptionMode = source.CaptionMode;
+        target.CustomCaption = source.CustomCaption;
+        target.WatchFolderEnabled = source.WatchFolderEnabled;
+        target.WatchedFolder = source.WatchedFolder;
+        target.ScheduleEnabled = source.ScheduleEnabled;
+        target.InfoScreenStart = source.InfoScreenStart;
+        target.PhotoFrameStart = source.PhotoFrameStart;
+        target.ScreenOffStart = source.ScreenOffStart;
+        target.EveningMode = source.EveningMode;
+    }
+
     private async Task LoadThemeThumbnailsAsync()
     {
         foreach (var item in Themes.Where(t => !t.IsBuiltIn && !string.IsNullOrWhiteSpace(t.FilePath)).ToArray())
@@ -1891,7 +2008,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         AttachWorkspace(_workspace);
         FontAssets.Clear();
         foreach (var font in Document.Assets.Where(a => a.Kind == ThemeAssetKind.Font)) FontAssets.Add(font);
-        SelectedWidget = Document.Widgets.OrderBy(w => w.ZIndex).FirstOrDefault();
+        SelectedWidget = Document.EditorWidgets.OrderBy(w => w.ZIndex).FirstOrDefault();
         InitializePhotoFrameRuntime();
         RaisePropertyChanged(nameof(Workspace));
         RaisePropertyChanged(nameof(Document));
@@ -1905,8 +2022,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         workspace.Document.PropertyChanged += OnDocumentPropertyChanged;
         workspace.Document.Widgets.CollectionChanged += OnWidgetsChanged;
+        workspace.Document.HybridWidgets.CollectionChanged += OnWidgetsChanged;
         workspace.Document.Assets.CollectionChanged += OnAssetsChanged;
         foreach (var w in workspace.Document.Widgets) w.PropertyChanged += OnWidgetPropertyChanged;
+        foreach (var w in workspace.Document.HybridWidgets) w.PropertyChanged += OnWidgetPropertyChanged;
         AttachPhotoFrame(workspace.Document.PhotoFrame);
     }
 
@@ -1914,15 +2033,24 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         workspace.Document.PropertyChanged -= OnDocumentPropertyChanged;
         workspace.Document.Widgets.CollectionChanged -= OnWidgetsChanged;
+        workspace.Document.HybridWidgets.CollectionChanged -= OnWidgetsChanged;
         workspace.Document.Assets.CollectionChanged -= OnAssetsChanged;
         foreach (var w in workspace.Document.Widgets) w.PropertyChanged -= OnWidgetPropertyChanged;
+        foreach (var w in workspace.Document.HybridWidgets) w.PropertyChanged -= OnWidgetPropertyChanged;
         DetachPhotoFrame(workspace.Document.PhotoFrame);
     }
 
     private void OnDocumentPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(ThemeDocument.Mode))
+        {
             UpdateEffectiveScreenMode(force: true);
+            SelectWidget(Document.EditorWidgets.OrderBy(widget => widget.ZIndex).FirstOrDefault());
+            RefreshModeThemes();
+            RaisePropertyChanged(nameof(ModeThemeTitle));
+            RaisePropertyChanged(nameof(PropertiesPanelWidth));
+            SaveModeThemeCommand.RaiseCanExecuteChanged();
+        }
         MarkDirtyAndRefresh();
 
         if (_deviceService.IsConnected &&
@@ -2211,7 +2339,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             RaisePropertyChanged(nameof(NeedsFullSensorAccess));
             WeatherStatus = _weatherMetrics.Status;
 
-            foreach (var widget in Document.Widgets)
+            foreach (var widget in AllWidgets)
             {
                 if (sample.TryGetValue(widget.DataSource, out var rawValue))
                 {
@@ -2466,7 +2594,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private void ClearRuntimeData()
     {
-        foreach (var widget in Document.Widgets)
+        foreach (var widget in AllWidgets)
         {
             widget.RuntimeValue = null;
             widget.RuntimeText = null;
@@ -2575,10 +2703,16 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             Document.EditorGridVisible = restored.EditorGridVisible;
             Document.SnapToGrid = restored.SnapToGrid;
             Document.GridSize = restored.GridSize;
+            Document.Mode = restored.Mode;
+            Document.PhotoFrame = restored.PhotoFrame;
 
             Document.Widgets.Clear();
             foreach (var widget in restored.Widgets)
                 Document.Widgets.Add(widget);
+
+            Document.HybridWidgets.Clear();
+            foreach (var widget in restored.HybridWidgets)
+                Document.HybridWidgets.Add(widget);
 
             Document.Assets.Clear();
             foreach (var asset in restored.Assets)
@@ -2593,8 +2727,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             foreach (var font in Document.Assets.Where(a => a.Kind == ThemeAssetKind.Font))
                 FontAssets.Add(font);
 
-            SelectedWidget = Document.Widgets.FirstOrDefault(w => w.Id == selectedId)
-                             ?? Document.Widgets.FirstOrDefault();
+            InitializePhotoFrameRuntime();
+            SelectedWidget = Document.EditorWidgets.FirstOrDefault(w => w.Id == selectedId)
+                             ?? Document.EditorWidgets.FirstOrDefault();
             Workspace.IsDirty = true;
         }
         finally
@@ -2708,8 +2843,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public sealed record RotationOption(string Label, DeviceRotation Value);
     public sealed record ScreenModeOption(string Label, ScreenMode Value);
-    public sealed record OptionalTransitionOption(string Label, PhotoTransition? Value);
-    public sealed record OptionalFitOption(string Label, MediaFit? Value);
 
     public void Dispose()
     {

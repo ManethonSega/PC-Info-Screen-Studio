@@ -38,7 +38,7 @@
                   Height="{Binding Document.CanvasHeight}"
                   IsHitTestVisible="False" />
 
-          <ItemsControl ItemsSource="{Binding Document.Widgets}">
+          <ItemsControl ItemsSource="{Binding Document.EditorWidgets}">
             <ItemsControl.Style>
               <Style TargetType="ItemsControl">
                 <Setter Property="Visibility" Value="Visible" />

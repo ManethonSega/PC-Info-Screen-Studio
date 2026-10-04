@@ -102,7 +102,9 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
     {
         GridOverlay.Children.Clear();
 
-        if (_viewModel is null || !_viewModel.Document.EditorGridVisible)
+        if (_viewModel is null ||
+            _viewModel.Document.Mode == ScreenMode.PhotoFrame ||
+            !_viewModel.Document.EditorGridVisible)
             return;
 
         var spacing = Math.Clamp(_viewModel.Document.GridSize, 2, 100);
@@ -209,7 +211,7 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
         var selection = new Rect(start, end);
         var matches = selection.Width < 3 && selection.Height < 3
             ? Array.Empty<WidgetModel>()
-            : _viewModel.Document.Widgets
+            : _viewModel.Document.EditorWidgets
                 .Where(w => w.IsVisible && selection.IntersectsWith(new Rect(w.X, w.Y, w.Width, w.Height)))
                 .ToArray();
 

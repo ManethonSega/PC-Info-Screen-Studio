@@ -36,17 +36,13 @@ internal static class RenderResourceCache
         int width,
         int height,
         MediaFit fit,
-        double cropZoom,
-        double focalX,
-        double focalY,
-        PhotoBackgroundMode backgroundMode,
         string backgroundColor)
     {
         var stamp = File.Exists(path) ? File.GetLastWriteTimeUtc(path).Ticks : 0;
-        var key = string.Join('|', path, stamp, width, height, fit, cropZoom.ToString("0.###"), focalX.ToString("0.###"), focalY.ToString("0.###"), backgroundMode, backgroundColor);
+        var key = string.Join('|', path, stamp, width, height, fit, backgroundColor);
         try
         {
-            return PreparedPhotos.GetOrAdd(key, _ => PreparePhoto(path, width, height, fit, cropZoom, focalX, focalY, backgroundMode, backgroundColor));
+            return PreparedPhotos.GetOrAdd(key, _ => PreparePhoto(path, width, height, fit, backgroundColor));
         }
         catch { return null; }
     }
@@ -56,46 +52,21 @@ internal static class RenderResourceCache
         int width,
         int height,
         MediaFit fit,
-        double cropZoom,
-        double focalX,
-        double focalY,
-        PhotoBackgroundMode backgroundMode,
         string backgroundColor)
     {
         var source = GetImage(path) ?? throw new InvalidDataException($"Could not decode image '{path}'.");
         var result = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
         using var canvas = new SKCanvas(result);
         canvas.Clear(ParseColor(backgroundColor));
-        var fullDestination = new SKRect(0, 0, width, height);
-
-        if (backgroundMode == PhotoBackgroundMode.BlurredImage)
-        {
-            var blurSource = CropForAspect(new SKRect(0, 0, source.Width, source.Height), width / (float)height, .5, .5);
-            using var blur = SKImageFilter.CreateBlur(18, 18);
-            using var blurPaint = new SKPaint { IsAntialias = true, ImageFilter = blur, Color = new SKColor(255, 255, 255, 190) };
-            canvas.DrawBitmap(source, blurSource, fullDestination, blurPaint);
-        }
-
-        var sourceRect = ZoomedSource(source.Width, source.Height, cropZoom, focalX, focalY);
+        var sourceRect = new SKRect(0, 0, source.Width, source.Height);
         var destination = DestinationForFit(sourceRect.Width, sourceRect.Height, width, height, fit);
         if (fit == MediaFit.Fill)
-            sourceRect = CropForAspect(sourceRect, destination.Width / destination.Height, focalX, focalY);
+            sourceRect = CropForAspect(sourceRect, destination.Width / destination.Height, .5, .5);
 
-        using var paint = new SKPaint { IsAntialias = true, FilterQuality = SKFilterQuality.High };
-        canvas.DrawBitmap(source, sourceRect, destination, paint);
+        using var paint = new SKPaint { IsAntialias = true };
+        var sampling = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
+        canvas.DrawBitmap(source, sourceRect, destination, sampling, paint);
         return result;
-    }
-
-    private static SKRect ZoomedSource(int width, int height, double zoom, double focalX, double focalY)
-    {
-        zoom = Math.Clamp(zoom, 1, 8);
-        var cropWidth = (float)(width / zoom);
-        var cropHeight = (float)(height / zoom);
-        var centerX = (float)(Math.Clamp(focalX, 0, 1) * width);
-        var centerY = (float)(Math.Clamp(focalY, 0, 1) * height);
-        var left = Math.Clamp(centerX - cropWidth / 2, 0, width - cropWidth);
-        var top = Math.Clamp(centerY - cropHeight / 2, 0, height - cropHeight);
-        return new SKRect(left, top, left + cropWidth, top + cropHeight);
     }
 
     private static SKRect CropForAspect(SKRect source, float aspect, double focalX, double focalY)

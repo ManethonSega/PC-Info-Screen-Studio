@@ -67,6 +67,15 @@ public partial class App : Application
                 });
                 workspace.Document.RuntimeMode = RuntimeScreenMode.PhotoFrame;
                 using var photoFrame = renderer.Render(workspace);
+                workspace.Document.HybridWidgets.Add(new WidgetModel
+                {
+                    Type = WidgetType.Text,
+                    Label = "Hybrid overlay",
+                    Width = 150,
+                    Height = 40,
+                    X = 10,
+                    Y = 10
+                });
                 workspace.Document.RuntimeMode = RuntimeScreenMode.Hybrid;
                 using var hybridFrame = renderer.Render(workspace);
                 if (photoFrame.Width != workspace.Document.CanvasWidth || hybridFrame.Height != workspace.Document.CanvasHeight)

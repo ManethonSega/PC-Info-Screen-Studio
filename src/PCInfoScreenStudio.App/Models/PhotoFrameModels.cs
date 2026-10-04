@@ -11,12 +11,14 @@ public sealed class PhotoFrameSettings : ObservableObject
     private MediaFit _fit = MediaFit.Fit;
     private bool _loop = true;
     private bool _shuffle;
-    private bool _embedImportedPhotos = true;
-    private PhotoBackgroundMode _backgroundMode = PhotoBackgroundMode.BlurredImage;
+    private bool _embedImportedPhotos;
+    private PhotoBackgroundMode _backgroundMode = PhotoBackgroundMode.SolidColor;
     private string _backgroundColor = "#FF090B0F";
     private bool _showCaptions = true;
     private double _captionFontSize = 18;
     private string _captionColor = "#FFF7F8FA";
+    private PhotoCaptionMode _captionMode = PhotoCaptionMode.FileName;
+    private string _customCaption = string.Empty;
     private bool _watchFolderEnabled;
     private string _watchedFolder = string.Empty;
     private bool _scheduleEnabled;
@@ -38,6 +40,8 @@ public sealed class PhotoFrameSettings : ObservableObject
     public bool ShowCaptions { get => _showCaptions; set => SetProperty(ref _showCaptions, value); }
     public double CaptionFontSize { get => _captionFontSize; set => SetProperty(ref _captionFontSize, Math.Clamp(value, 6, 100)); }
     public string CaptionColor { get => _captionColor; set => SetProperty(ref _captionColor, value); }
+    public PhotoCaptionMode CaptionMode { get => _captionMode; set => SetProperty(ref _captionMode, value); }
+    public string CustomCaption { get => _customCaption; set => SetProperty(ref _customCaption, value); }
     public bool WatchFolderEnabled { get => _watchFolderEnabled; set => SetProperty(ref _watchFolderEnabled, value); }
     public string WatchedFolder { get => _watchedFolder; set => SetProperty(ref _watchedFolder, value); }
     public bool ScheduleEnabled { get => _scheduleEnabled; set => SetProperty(ref _scheduleEnabled, value); }
@@ -58,14 +62,6 @@ public sealed class PhotoFrameItem : ObservableObject
     private string _displayName = string.Empty;
     private string _sourcePath = string.Empty;
     private Guid? _assetId;
-    private double _durationSeconds;
-    private PhotoTransition? _transitionOverride;
-    private MediaFit? _fitOverride;
-    private double _cropZoom = 1;
-    private double _focalX = .5;
-    private double _focalY = .5;
-    private PhotoCaptionMode _captionMode = PhotoCaptionMode.FileName;
-    private string _customCaption = string.Empty;
     private string _dateTaken = string.Empty;
     private string _location = string.Empty;
 
@@ -81,27 +77,19 @@ public sealed class PhotoFrameItem : ObservableObject
             RaisePropertyChanged(nameof(IsEmbedded));
         }
     }
-    public double DurationSeconds { get => _durationSeconds; set => SetProperty(ref _durationSeconds, Math.Clamp(value, 0, 3600)); }
-    public PhotoTransition? TransitionOverride { get => _transitionOverride; set => SetProperty(ref _transitionOverride, value); }
-    public MediaFit? FitOverride { get => _fitOverride; set => SetProperty(ref _fitOverride, value); }
-    public double CropZoom { get => _cropZoom; set => SetProperty(ref _cropZoom, Math.Clamp(value, 1, 8)); }
-    public double FocalX { get => _focalX; set => SetProperty(ref _focalX, Math.Clamp(value, 0, 1)); }
-    public double FocalY { get => _focalY; set => SetProperty(ref _focalY, Math.Clamp(value, 0, 1)); }
-    public PhotoCaptionMode CaptionMode { get => _captionMode; set => SetProperty(ref _captionMode, value); }
-    public string CustomCaption { get => _customCaption; set => SetProperty(ref _customCaption, value); }
     public string DateTaken { get => _dateTaken; set => SetProperty(ref _dateTaken, value); }
     public string Location { get => _location; set => SetProperty(ref _location, value); }
 
     [JsonIgnore] public bool IsEmbedded => AssetId is not null;
 
-    public string GetCaption()
-        => CaptionMode switch
+    public string GetCaption(PhotoCaptionMode captionMode, string customCaption)
+        => captionMode switch
         {
             PhotoCaptionMode.None => string.Empty,
             PhotoCaptionMode.FileName => DisplayName,
             PhotoCaptionMode.DateTaken => string.IsNullOrWhiteSpace(DateTaken) ? DisplayName : DateTaken,
             PhotoCaptionMode.Location => string.IsNullOrWhiteSpace(Location) ? DisplayName : Location,
-            PhotoCaptionMode.Custom => CustomCaption,
+            PhotoCaptionMode.Custom => customCaption,
             _ => DisplayName
         };
 }

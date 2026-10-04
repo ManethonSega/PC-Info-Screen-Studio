@@ -15,23 +15,13 @@ public sealed class PhotoAlbumPresetService
 
     public void Save(ThemeWorkspace workspace, string presetPath)
     {
-        var filesDirectory = Path.Combine(
-            Path.GetDirectoryName(presetPath)!,
-            Path.GetFileNameWithoutExtension(presetPath) + "_photos");
-        Directory.CreateDirectory(filesDirectory);
-
         var settings = CloneSettings(workspace.Document.PhotoFrame);
         settings.Photos.Clear();
         foreach (var sourceItem in workspace.Document.PhotoFrame.Photos)
         {
             var source = ResolvePath(workspace, sourceItem);
             if (source is null || !File.Exists(source)) continue;
-            var fileName = $"{sourceItem.Id:N}{Path.GetExtension(source).ToLowerInvariant()}";
-            var destination = Path.Combine(filesDirectory, fileName);
-            File.Copy(source, destination, true);
-            settings.Photos.Add(CloneItem(
-                sourceItem,
-                Path.GetRelativePath(Path.GetDirectoryName(presetPath)!, destination)));
+            settings.Photos.Add(CloneItem(sourceItem, Path.GetFullPath(source)));
         }
 
         var preset = new PhotoAlbumPreset
@@ -74,14 +64,6 @@ public sealed class PhotoAlbumPresetService
             Id = source.Id,
             DisplayName = source.DisplayName,
             SourcePath = path,
-            DurationSeconds = source.DurationSeconds,
-            TransitionOverride = source.TransitionOverride,
-            FitOverride = source.FitOverride,
-            CropZoom = source.CropZoom,
-            FocalX = source.FocalX,
-            FocalY = source.FocalY,
-            CaptionMode = source.CaptionMode,
-            CustomCaption = source.CustomCaption,
             DateTaken = source.DateTaken,
             Location = source.Location
         };

@@ -29,7 +29,8 @@ public static class PhotoMetadataService
     {
         try
         {
-            return System.Text.Encoding.ASCII.GetString(image.GetPropertyItem(id).Value).Trim('\0', ' ');
+            var value = image.GetPropertyItem(id)?.Value;
+            return value is null ? null : System.Text.Encoding.ASCII.GetString(value).Trim('\0', ' ');
         }
         catch { return null; }
     }
@@ -38,8 +39,8 @@ public static class PhotoMetadataService
     {
         try
         {
-            var coordinate = image.GetPropertyItem(coordinateId).Value;
-            if (coordinate.Length < 24) return null;
+            var coordinate = image.GetPropertyItem(coordinateId)?.Value;
+            if (coordinate is null || coordinate.Length < 24) return null;
             static double Rational(byte[] data, int offset)
             {
                 var numerator = BitConverter.ToUInt32(data, offset);

@@ -27,7 +27,7 @@ public sealed class ThemeRenderer
             canvas.Clear(ParseColor(doc.BackgroundColor));
 
         if (doc.RuntimeMode is RuntimeScreenMode.InfoScreen or RuntimeScreenMode.Hybrid)
-            foreach (var widget in doc.Widgets.Where(w => w.IsVisible).OrderBy(w => w.ZIndex))
+            foreach (var widget in (doc.RuntimeMode == RuntimeScreenMode.Hybrid ? doc.HybridWidgets : doc.Widgets).Where(w => w.IsVisible).OrderBy(w => w.ZIndex))
                 DrawWidget(canvas, workspace, widget);
 
         return bitmap;
@@ -62,7 +62,7 @@ public sealed class ThemeRenderer
 
         if (previous is null || progress >= 1 || transition == PhotoTransition.Instant)
         {
-            DrawKenBurns(canvas, current, destination, settings.RuntimePhotoProgress, transition == PhotoTransition.KenBurns, 255);
+            DrawBitmapAlpha(canvas, current, destination, 255);
         }
         else
         {
@@ -81,10 +81,6 @@ public sealed class ThemeRenderer
                     var scale = .82f + .18f * progress;
                     var zoomRect = ScaleAroundCenter(destination, scale);
                     DrawBitmapAlpha(canvas, current, zoomRect, (byte)(255 * progress));
-                    break;
-                case PhotoTransition.KenBurns:
-                    DrawBitmapAlpha(canvas, previous, destination, (byte)(255 * (1 - progress)));
-                    DrawKenBurns(canvas, current, destination, settings.RuntimePhotoProgress, true, (byte)(255 * progress));
                     break;
                 default:
                     DrawBitmapAlpha(canvas, previous, destination, (byte)(255 * (1 - progress)));
@@ -106,11 +102,7 @@ public sealed class ThemeRenderer
             path,
             workspace.Document.CanvasWidth,
             workspace.Document.CanvasHeight,
-            item.FitOverride ?? settings.Fit,
-            item.CropZoom,
-            item.FocalX,
-            item.FocalY,
-            settings.BackgroundMode,
+            settings.Fit,
             settings.BackgroundColor);
     }
 
@@ -129,7 +121,7 @@ public sealed class ThemeRenderer
 
     private static void DrawPhotoCaption(SKCanvas canvas, PhotoFrameSettings settings, PhotoFrameItem item, int width, int height)
     {
-        var caption = item.GetCaption();
+        var caption = item.GetCaption(settings.CaptionMode, settings.CustomCaption);
         if (string.IsNullOrWhiteSpace(caption)) return;
         var size = (float)settings.CaptionFontSize;
         using var typeface = SKTypeface.FromFamilyName("Segoe UI") ?? SKTypeface.Default;
@@ -145,20 +137,6 @@ public sealed class ThemeRenderer
         canvas.Restore();
     }
 
-    private static void DrawKenBurns(SKCanvas canvas, SKBitmap bitmap, SKRect destination, double photoProgress, bool enabled, byte alpha)
-    {
-        if (!enabled)
-        {
-            DrawBitmapAlpha(canvas, bitmap, destination, alpha);
-            return;
-        }
-        var progress = (float)Math.Clamp(photoProgress, 0, 1);
-        var scale = 1.02f + progress * .10f;
-        var target = ScaleAroundCenter(destination, scale);
-        target.Offset(-destination.Width * .025f * progress, -destination.Height * .018f * progress);
-        DrawBitmapAlpha(canvas, bitmap, target, alpha);
-    }
-
     private static SKRect ScaleAroundCenter(SKRect rect, float scale)
     {
         var halfWidth = rect.Width * scale / 2;
@@ -168,8 +146,9 @@ public sealed class ThemeRenderer
 
     private static void DrawBitmapAlpha(SKCanvas canvas, SKBitmap bitmap, SKRect destination, byte alpha)
     {
-        using var paint = new SKPaint { Color = new SKColor(255, 255, 255, alpha), IsAntialias = true, FilterQuality = SKFilterQuality.High };
-        canvas.DrawBitmap(bitmap, destination, paint);
+        using var paint = new SKPaint { Color = new SKColor(255, 255, 255, alpha), IsAntialias = true };
+        var sampling = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
+        canvas.DrawBitmap(bitmap, destination, sampling, paint);
     }
 
     private static void DrawWidget(SKCanvas canvas, ThemeWorkspace workspace, WidgetModel w)
