@@ -1,10 +1,14 @@
+using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using System.Windows.Input;
 using SkiaSharp;
 using PCInfoScreenStudio.Rendering;
 using PCInfoScreenStudio.ViewModels;
+using PCInfoScreenStudio.Models;
 
 namespace PCInfoScreenStudio.Controls;
 
@@ -15,6 +19,8 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
     private bool _renderQueued;
     private bool _sendLivePending;
     private bool _forceSendPending;
+    private Point? _marqueeStart;
+    private bool _marqueeAdditive;
 
     public DesignerSurface()
     {
@@ -29,6 +35,7 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
         {
             _viewModel.ThemeChanged -= OnThemeChanged;
             _viewModel.RequestLiveFrame -= OnRequestLiveFrame;
+            _viewModel.AlignmentGuidesChanged -= OnAlignmentGuidesChanged;
         }
 
         _viewModel = e.NewValue as MainViewModel;
@@ -36,10 +43,12 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
         {
             _viewModel.ThemeChanged += OnThemeChanged;
             _viewModel.RequestLiveFrame += OnRequestLiveFrame;
+            _viewModel.AlignmentGuidesChanged += OnAlignmentGuidesChanged;
         }
 
         RenderPreview(sendLive: false);
         UpdateGridOverlay();
+        UpdateAlignmentGuides();
     }
 
     private void OnThemeChanged(object? sender, EventArgs e)
@@ -47,6 +56,9 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
 
     private void OnRequestLiveFrame(object? sender, EventArgs e)
         => QueueRender(sendLive: true, forceSend: true);
+
+    private void OnAlignmentGuidesChanged(object? sender, EventArgs e)
+        => UpdateAlignmentGuides();
 
     private void QueueRender(bool sendLive, bool forceSend)
     {
@@ -126,6 +138,94 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
                 SnapsToDevicePixels = true
             });
         }
+    }
+
+    private void UpdateAlignmentGuides()
+    {
+        if (_viewModel?.AlignmentGuideX is double x)
+        {
+            VerticalGuide.X1 = x;
+            VerticalGuide.X2 = x;
+            VerticalGuide.Y1 = 0;
+            VerticalGuide.Y2 = _viewModel.Document.CanvasHeight;
+            VerticalGuide.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            VerticalGuide.Visibility = Visibility.Collapsed;
+        }
+
+        if (_viewModel?.AlignmentGuideY is double y)
+        {
+            HorizontalGuide.X1 = 0;
+            HorizontalGuide.X2 = _viewModel.Document.CanvasWidth;
+            HorizontalGuide.Y1 = y;
+            HorizontalGuide.Y2 = y;
+            HorizontalGuide.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            HorizontalGuide.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private void OnCanvasMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (_viewModel is null || FindAncestor<DesignerItemControl>(e.OriginalSource as DependencyObject) is not null)
+            return;
+
+        _marqueeStart = e.GetPosition(EditorCanvas);
+        _marqueeAdditive = Keyboard.Modifiers.HasFlag(ModifierKeys.Control) || Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
+        Canvas.SetLeft(SelectionMarquee, _marqueeStart.Value.X);
+        Canvas.SetTop(SelectionMarquee, _marqueeStart.Value.Y);
+        SelectionMarquee.Width = 0;
+        SelectionMarquee.Height = 0;
+        SelectionMarquee.Visibility = Visibility.Visible;
+        EditorCanvas.CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void OnCanvasMouseMove(object sender, MouseEventArgs e)
+    {
+        if (_marqueeStart is not Point start || e.LeftButton != MouseButtonState.Pressed)
+            return;
+
+        var current = e.GetPosition(EditorCanvas);
+        Canvas.SetLeft(SelectionMarquee, Math.Min(start.X, current.X));
+        Canvas.SetTop(SelectionMarquee, Math.Min(start.Y, current.Y));
+        SelectionMarquee.Width = Math.Abs(current.X - start.X);
+        SelectionMarquee.Height = Math.Abs(current.Y - start.Y);
+        e.Handled = true;
+    }
+
+    private void OnCanvasMouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_marqueeStart is not Point start || _viewModel is null)
+            return;
+
+        var end = e.GetPosition(EditorCanvas);
+        var selection = new Rect(start, end);
+        var matches = selection.Width < 3 && selection.Height < 3
+            ? Array.Empty<WidgetModel>()
+            : _viewModel.Document.Widgets
+                .Where(w => w.IsVisible && selection.IntersectsWith(new Rect(w.X, w.Y, w.Width, w.Height)))
+                .ToArray();
+
+        _viewModel.SelectWidgets(matches, _marqueeAdditive);
+        SelectionMarquee.Visibility = Visibility.Collapsed;
+        _marqueeStart = null;
+        EditorCanvas.ReleaseMouseCapture();
+        e.Handled = true;
+    }
+
+    private static T? FindAncestor<T>(DependencyObject? source) where T : DependencyObject
+    {
+        while (source is not null)
+        {
+            if (source is T match) return match;
+            source = VisualTreeHelper.GetParent(source);
+        }
+        return null;
     }
 
     private static BitmapSource ToBitmapSource(SKBitmap bitmap)
