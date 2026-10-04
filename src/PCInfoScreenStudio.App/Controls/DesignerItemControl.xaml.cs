@@ -31,7 +31,31 @@ public partial class DesignerItemControl : System.Windows.Controls.UserControl
     {
         if (Widget is null) return;
         ViewModel?.SelectWidget(Widget);
+        Focus();
         e.Handled = false;
+    }
+
+    private void OnKeyDown(object sender, KeyEventArgs e)
+    {
+        var vm = ViewModel;
+        if (vm is null || Widget?.IsLocked != false)
+            return;
+
+        var amount = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? 10 : 1;
+        var direction = e.Key switch
+        {
+            Key.Left => "Left",
+            Key.Right => "Right",
+            Key.Up => "Up",
+            Key.Down => "Down",
+            _ => null
+        };
+
+        if (direction is null)
+            return;
+
+        vm.NudgeWidgetCommand.Execute($"{direction}:{amount}");
+        e.Handled = true;
     }
 
     private void OnDragStarted(object sender, DragStartedEventArgs e)
