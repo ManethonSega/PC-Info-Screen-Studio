@@ -4,8 +4,8 @@ using SkiaSharp;
 namespace PCInfoScreenStudio.Rendering;
 
 /// <summary>
-/// Small GIF playback cache. A GIF is decoded with SkiaSharp's animated codec
-/// and only one composited frame bitmap is retained per asset.
+/// GIF playback cache. Each asset keeps one decoder and composited bitmap while
+/// its workspace is active, then releases both when the workspace changes.
 /// </summary>
 public static class AnimatedGifFrameProvider
 {
@@ -29,7 +29,14 @@ public static class AnimatedGifFrameProvider
         }
     }
 
-    private sealed class GifState
+    public static void Clear()
+    {
+        foreach (var state in Cache.Values)
+            state.Dispose();
+        Cache.Clear();
+    }
+
+    private sealed class GifState : IDisposable
     {
         private readonly object _sync = new();
         private readonly SKCodec _codec;
@@ -40,6 +47,7 @@ public static class AnimatedGifFrameProvider
         private readonly long _startedAtMs = Environment.TickCount64;
         private readonly int _totalDurationMs;
         private int _decodedFrame = -1;
+        private bool _disposed;
 
         public GifState(string path)
         {
@@ -67,9 +75,7 @@ public static class AnimatedGifFrameProvider
                 if (duration <= 0)
                     duration = 100;
 
-                // Avoid pathological zero/tiny delays that would saturate the
-                // editor and the USB display with redundant frames.
-                duration = Math.Max(20, duration);
+                duration = Math.Max(16, duration);
                 _durations[i] = duration;
                 total += duration;
             }
@@ -81,6 +87,8 @@ public static class AnimatedGifFrameProvider
         {
             lock (_sync)
             {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+
                 var speed = Math.Clamp(playbackSpeed, 0.1, 4.0);
                 var elapsed = Math.Max(0d, (Environment.TickCount64 - _startedAtMs) * speed);
 
@@ -119,7 +127,6 @@ public static class AnimatedGifFrameProvider
             if (_decodedFrame == target)
                 return;
 
-            // A loop back to frame zero starts a new composition sequence.
             if (_decodedFrame < 0 || target < _decodedFrame)
             {
                 _bitmap.Erase(SKColors.Transparent);
@@ -138,6 +145,19 @@ public static class AnimatedGifFrameProvider
 
                 _bitmap.NotifyPixelsChanged();
                 _decodedFrame = frame;
+            }
+        }
+
+        public void Dispose()
+        {
+            lock (_sync)
+            {
+                if (_disposed)
+                    return;
+
+                _disposed = true;
+                _bitmap.Dispose();
+                _codec.Dispose();
             }
         }
     }
