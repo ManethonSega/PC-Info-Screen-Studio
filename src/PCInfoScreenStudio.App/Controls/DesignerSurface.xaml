@@ -20,7 +20,13 @@
           <ScaleTransform ScaleX="{Binding CanvasZoom}" ScaleY="{Binding CanvasZoom}" />
         </Border.LayoutTransform>
 
-        <Grid Width="{Binding Document.CanvasWidth}" Height="{Binding Document.CanvasHeight}">
+        <Grid x:Name="EditorCanvas"
+              Width="{Binding Document.CanvasWidth}"
+              Height="{Binding Document.CanvasHeight}"
+              Background="Transparent"
+              PreviewMouseLeftButtonDown="OnCanvasMouseDown"
+              PreviewMouseMove="OnCanvasMouseMove"
+              PreviewMouseLeftButtonUp="OnCanvasMouseUp">
           <Image x:Name="RenderSurface"
                  Stretch="Fill"
                  IsHitTestVisible="False"
@@ -52,6 +58,24 @@
               </DataTemplate>
             </ItemsControl.ItemTemplate>
           </ItemsControl>
+
+          <Canvas Panel.ZIndex="9999" IsHitTestVisible="False">
+            <Rectangle x:Name="SelectionMarquee"
+                       Fill="#285B8CFF"
+                       Stroke="#FF5B8CFF"
+                       StrokeThickness="1"
+                       StrokeDashArray="3,2"
+                       Visibility="Collapsed" />
+          </Canvas>
+
+          <Canvas x:Name="AlignmentGuideOverlay"
+                  Width="{Binding Document.CanvasWidth}"
+                  Height="{Binding Document.CanvasHeight}"
+                  Panel.ZIndex="10000"
+                  IsHitTestVisible="False">
+            <Line x:Name="VerticalGuide" Stroke="#FFFF4F79" StrokeThickness="1" Visibility="Collapsed" />
+            <Line x:Name="HorizontalGuide" Stroke="#FFFF4F79" StrokeThickness="1" Visibility="Collapsed" />
+          </Canvas>
         </Grid>
       </Border>
     </Grid>
