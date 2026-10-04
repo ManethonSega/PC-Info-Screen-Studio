@@ -263,31 +263,32 @@
                     <TextBlock Text="Name" Foreground="{StaticResource MutedTextBrush}" />
                     <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,8" />
 
-                    <TextBlock Text="POSITION &amp; SIZE" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="0,10,0,6" />
-                    <Grid>
-                      <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
-                      </Grid.ColumnDefinitions>
-                      <Grid.RowDefinitions><RowDefinition /><RowDefinition /><RowDefinition /></Grid.RowDefinitions>
-                      <TextBlock Grid.Row="0" Grid.Column="0" Text="X" VerticalAlignment="Center" Margin="0,0,5,0" />
-                      <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding X, UpdateSourceTrigger=LostFocus}" Margin="0,2,8,2" />
-                      <TextBlock Grid.Row="0" Grid.Column="2" Text="Y" VerticalAlignment="Center" Margin="0,0,5,0" />
-                      <TextBox Grid.Row="0" Grid.Column="3" Text="{Binding Y, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,2" />
-                      <TextBlock Grid.Row="1" Grid.Column="0" Text="W" VerticalAlignment="Center" Margin="0,0,5,0" />
-                      <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Width, UpdateSourceTrigger=LostFocus}" Margin="0,2,8,2" />
-                      <TextBlock Grid.Row="1" Grid.Column="2" Text="H" VerticalAlignment="Center" Margin="0,0,5,0" />
-                      <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding Height, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,2" />
-                      <TextBlock Grid.Row="2" Grid.Column="0" Text="Rot" VerticalAlignment="Center" Margin="0,0,5,0" />
-                      <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Rotation, UpdateSourceTrigger=LostFocus}" Margin="0,2,8,2" />
-                      <TextBlock Grid.Row="2" Grid.Column="2" Text="Opacity" VerticalAlignment="Center" Margin="0,0,5,0" />
-                      <TextBox Grid.Row="2" Grid.Column="3" Text="{Binding Opacity, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,2" />
-                    </Grid>
+                    <Expander Header="POSITION &amp; SIZE" IsExpanded="True" Margin="0,10,0,2">
+                      <Grid Margin="0,5,0,0">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
+                          <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions><RowDefinition /><RowDefinition /><RowDefinition /></Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="X" VerticalAlignment="Center" Margin="0,0,5,0" />
+                        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding X, UpdateSourceTrigger=LostFocus}" Margin="0,2,8,2" />
+                        <TextBlock Grid.Row="0" Grid.Column="2" Text="Y" VerticalAlignment="Center" Margin="0,0,5,0" />
+                        <TextBox Grid.Row="0" Grid.Column="3" Text="{Binding Y, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,2" />
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="W" VerticalAlignment="Center" Margin="0,0,5,0" />
+                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Width, UpdateSourceTrigger=LostFocus}" Margin="0,2,8,2" />
+                        <TextBlock Grid.Row="1" Grid.Column="2" Text="H" VerticalAlignment="Center" Margin="0,0,5,0" />
+                        <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding Height, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,2" />
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Rot" VerticalAlignment="Center" Margin="0,0,5,0" />
+                        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Rotation, UpdateSourceTrigger=LostFocus}" Margin="0,2,8,2" />
+                        <TextBlock Grid.Row="2" Grid.Column="2" Text="Opacity" VerticalAlignment="Center" Margin="0,0,5,0" />
+                        <TextBox Grid.Row="2" Grid.Column="3" Text="{Binding Opacity, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,2" />
+                      </Grid>
+                    </Expander>
 
                     <!-- Data controls -->
-                    <StackPanel Margin="0,8,0,0">
-                      <StackPanel.Style>
-                        <Style TargetType="StackPanel">
+                    <Expander Header="DATA" Margin="0,8,0,0">
+                      <Expander.Style>
+                        <Style TargetType="Expander">
                           <Setter Property="Visibility" Value="Collapsed" />
                           <Style.Triggers>
                             <DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.Text}"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
@@ -297,10 +298,19 @@
                             <DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.Graph}"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
                           </Style.Triggers>
                         </Style>
-                      </StackPanel.Style>
-                      <TextBlock Text="DATA" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="0,8,0,6" />
+                      </Expander.Style>
+                      <StackPanel Margin="0,5,0,0">
                       <TextBlock Text="Source" Foreground="{StaticResource MutedTextBrush}" />
-                      <ComboBox ItemsSource="{Binding DataContext.DataSources, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding DataSource}" Margin="0,3,0,7" />
+                      <ComboBox ItemsSource="{Binding DataContext.DataSources, RelativeSource={RelativeSource AncestorType=Window}}"
+                                IsEditable="True"
+                                IsTextSearchEnabled="True"
+                                StaysOpenOnEdit="True"
+                                Text="{Binding DataSource, UpdateSourceTrigger=LostFocus}"
+                                Margin="0,3,0,3"
+                                ToolTip="Type a CPU, GPU, disk, network, cooling, weather or clock source to search" />
+                      <CheckBox Content="Show advanced hardware sensors"
+                                IsChecked="{Binding DataContext.ShowAdvancedSensors, RelativeSource={RelativeSource AncestorType=Window}}"
+                                Margin="0,0,0,7" />
 
                       <StackPanel Margin="0,2,0,8">
                         <StackPanel.Style>
@@ -368,12 +378,13 @@
                         <CheckBox Content="Label" IsChecked="{Binding ShowLabel}" Margin="0,0,14,0" />
                         <CheckBox Content="Value" IsChecked="{Binding ShowValue}" />
                       </StackPanel>
-                    </StackPanel>
+                      </StackPanel>
+                    </Expander>
 
                     <!-- Typography -->
-                    <StackPanel Margin="0,8,0,0">
-                      <StackPanel.Style>
-                        <Style TargetType="StackPanel">
+                    <Expander Header="TYPOGRAPHY" Margin="0,8,0,0">
+                      <Expander.Style>
+                        <Style TargetType="Expander">
                           <Setter Property="Visibility" Value="Visible" />
                           <Style.Triggers>
                             <DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.Image}"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
@@ -383,8 +394,8 @@
                             <DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.AnalogClock}"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
                           </Style.Triggers>
                         </Style>
-                      </StackPanel.Style>
-                      <TextBlock Text="TYPOGRAPHY" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="0,8,0,6" />
+                      </Expander.Style>
+                      <StackPanel Margin="0,5,0,0">
                       <TextBlock Text="Font" Foreground="{StaticResource MutedTextBrush}" />
                       <ComboBox ItemsSource="{Binding DataContext.FontChoices, RelativeSource={RelativeSource AncestorType=Window}}"
                                 IsEditable="True"
@@ -405,17 +416,18 @@
                         <CheckBox Grid.Column="1" Content="Bold" IsChecked="{Binding FontBold}" Margin="12,18,5,0" />
                         <CheckBox Grid.Column="2" Content="Italic" IsChecked="{Binding FontItalic}" Margin="5,18,0,0" />
                       </Grid>
-                    </StackPanel>
+                      </StackPanel>
+                    </Expander>
 
                     <!-- Graph -->
-                    <StackPanel Margin="0,8,0,0">
-                      <StackPanel.Style>
-                        <Style TargetType="StackPanel">
+                    <Expander Header="GRAPH" Margin="0,8,0,0">
+                      <Expander.Style>
+                        <Style TargetType="Expander">
                           <Setter Property="Visibility" Value="Collapsed" />
                           <Style.Triggers><DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.Graph}"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers>
                         </Style>
-                      </StackPanel.Style>
-                      <TextBlock Text="GRAPH" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="0,8,0,6" />
+                      </Expander.Style>
+                      <StackPanel Margin="0,5,0,0">
                       <TextBlock Text="Style" Foreground="{StaticResource MutedTextBrush}" />
                       <ComboBox ItemsSource="{Binding DataContext.GraphStyles, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding GraphStyle}" Margin="0,3,0,6" />
                       <Grid>
@@ -424,31 +436,33 @@
                         <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="Line width" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding LineThickness, UpdateSourceTrigger=LostFocus}" /></StackPanel>
                       </Grid>
                       <StackPanel Orientation="Horizontal"><CheckBox Content="Grid" IsChecked="{Binding ShowGrid}" Margin="0,4,15,0" /><CheckBox Content="Auto scale" IsChecked="{Binding AutoScale}" Margin="0,4,0,0" /></StackPanel>
-                    </StackPanel>
+                      </StackPanel>
+                    </Expander>
 
                     <!-- Gauge -->
-                    <StackPanel Margin="0,8,0,0">
-                      <StackPanel.Style>
-                        <Style TargetType="StackPanel">
+                    <Expander Header="GAUGE" Margin="0,8,0,0">
+                      <Expander.Style>
+                        <Style TargetType="Expander">
                           <Setter Property="Visibility" Value="Collapsed" />
                           <Style.Triggers>
                             <DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.CircularGauge}"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
                             <DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.BarGauge}"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
                           </Style.Triggers>
                         </Style>
-                      </StackPanel.Style>
-                      <TextBlock Text="GAUGE" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="0,8,0,6" />
+                      </Expander.Style>
+                      <StackPanel Margin="0,5,0,0">
                       <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                         <StackPanel Margin="0,0,5,0"><TextBlock Text="Thickness" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding GaugeThickness, UpdateSourceTrigger=LostFocus}" /></StackPanel>
                         <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="Segments" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding SegmentCount, UpdateSourceTrigger=LostFocus}" /></StackPanel>
                       </Grid>
-                    </StackPanel>
+                      </StackPanel>
+                    </Expander>
 
                     <!-- Media -->
-                    <StackPanel Margin="0,8,0,0">
-                      <StackPanel.Style>
-                        <Style TargetType="StackPanel">
+                    <Expander Header="MEDIA" Margin="0,8,0,0">
+                      <Expander.Style>
+                        <Style TargetType="Expander">
                           <Setter Property="Visibility" Value="Collapsed" />
                           <Style.Triggers>
                             <DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.Image}"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
@@ -456,8 +470,8 @@
                             <DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.Video}"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
                           </Style.Triggers>
                         </Style>
-                      </StackPanel.Style>
-                      <TextBlock Text="MEDIA" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="0,8,0,6" />
+                      </Expander.Style>
+                      <StackPanel Margin="0,5,0,0">
                       <TextBlock Text="Fit" Foreground="{StaticResource MutedTextBrush}" />
                       <ComboBox ItemsSource="{Binding DataContext.MediaFits, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding MediaFit}" Margin="0,3,0,5" />
                       <CheckBox Content="Loop" IsChecked="{Binding Loop}" />
@@ -467,18 +481,20 @@
                         <StackPanel Margin="0,0,5,0"><TextBlock Text="Speed" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding PlaybackSpeed, UpdateSourceTrigger=LostFocus}" /></StackPanel>
                         <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="FPS (0=Auto)" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding TargetFps, UpdateSourceTrigger=LostFocus}" /></StackPanel>
                       </Grid>
-                    </StackPanel>
+                      </StackPanel>
+                    </Expander>
 
                     <!-- Shape -->
-                    <StackPanel Margin="0,8,0,0">
-                      <StackPanel.Style>
-                        <Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.Shape}"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style>
-                      </StackPanel.Style>
-                      <TextBlock Text="SHAPE" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="0,8,0,6" />
+                    <Expander Header="SHAPE" Margin="0,8,0,0">
+                      <Expander.Style>
+                        <Style TargetType="Expander"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.Shape}"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style>
+                      </Expander.Style>
+                      <StackPanel Margin="0,5,0,0">
                       <ComboBox ItemsSource="{Binding DataContext.ShapeStyles, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding ShapeStyle}" />
                       <TextBlock Text="Corner radius" Foreground="{StaticResource MutedTextBrush}" Margin="0,6,0,0" />
                       <TextBox Text="{Binding CornerRadius, UpdateSourceTrigger=LostFocus}" />
-                    </StackPanel>
+                      </StackPanel>
+                    </Expander>
 
                     <TextBlock Text="COLORS" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="0,16,0,6" />
                     <Grid>
