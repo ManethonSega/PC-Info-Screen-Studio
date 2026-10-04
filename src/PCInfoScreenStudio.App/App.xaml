@@ -108,9 +108,9 @@
       </Setter>
     </Style>
     <Style TargetType="ToolTip">
-      <Setter Property="Background" Value="#F7F8FA" />
-      <Setter Property="Foreground" Value="#161A20" />
-      <Setter Property="BorderBrush" Value="#707985" />
+      <Setter Property="Background" Value="#252A32" />
+      <Setter Property="Foreground" Value="#F7F8FA" />
+      <Setter Property="BorderBrush" Value="#5B8CFF" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="Padding" Value="7,5" />
       <Setter Property="MaxWidth" Value="420" />
@@ -124,11 +124,13 @@
                     Padding="{TemplateBinding Padding}">
               <Border.Resources>
                 <Style TargetType="TextBlock">
-                  <Setter Property="Foreground" Value="#161A20" />
+                  <Setter Property="Foreground" Value="#F7F8FA" />
                   <Setter Property="TextWrapping" Value="Wrap" />
                 </Style>
               </Border.Resources>
-              <ContentPresenter TextElement.Foreground="#161A20" />
+              <TextBlock Text="{Binding Content, RelativeSource={RelativeSource TemplatedParent}}"
+                         Foreground="#F7F8FA"
+                         TextWrapping="Wrap" />
             </Border>
           </ControlTemplate>
         </Setter.Value>
