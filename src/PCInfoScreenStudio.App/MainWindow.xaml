@@ -7,6 +7,7 @@
         Icon="{StaticResource AppIconImage}"
         Width="1480" Height="880" MinWidth="1080" MinHeight="680"
         WindowStartupLocation="CenterScreen"
+        Loaded="OnLoaded"
         Closing="OnClosing" AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop">
   <Window.InputBindings>
     <KeyBinding Key="N" Modifiers="Control" Command="{Binding NewCommand}" />
@@ -47,22 +48,14 @@
                   Command="{Binding EnableFullSensorsCommand}"
                   Margin="8,0,0,0"
                   Padding="9,5"
-                  ToolTip="Install/enable the optional low-level sensor driver when needed and restart with elevated access" />
-          <CheckBox Content="Live display" IsChecked="{Binding LivePreview}" VerticalAlignment="Center" Margin="12,0,0,0" />
+                  ToolTip="Install or inspect full hardware sensor access" />
         </StackPanel>
 
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
-          <ComboBox Width="245"
-                    ItemsSource="{Binding Ports}"
-                    DisplayMemberPath="DisplayName"
-                    SelectedValuePath="PortName"
-                    SelectedValue="{Binding SelectedPort}"
-                    VerticalContentAlignment="Center"
-                    ToolTip="Detected serial devices" />
-          <Button Content="Refresh ports" Command="{Binding RefreshPortsCommand}" />
-          <Button Content="Detect screen" Command="{Binding DetectScreenCommand}" ToolTip="Find the most likely USB serial screen automatically" />
-          <Button Content="Color test" Command="{Binding TestScreenCommand}" ToolTip="Send a full-screen RGB/C/M/Y color diagnostic pattern using the selected protocol and color mode" />
-          <Button Content="Connect / Disconnect" Command="{Binding ConnectCommand}" />
+          <Button Content="{Binding DisplayActionLabel}"
+                  Command="{Binding ConnectCommand}"
+                  Padding="18,6"
+                  ToolTip="Automatically detect, connect, send the theme and start live updates" />
         </StackPanel>
       </DockPanel>
     </Border>
@@ -86,25 +79,49 @@
 
           <StackPanel Grid.Row="0">
             <TextBlock Text="DISPLAY" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="4,2,0,7" />
-            <TextBlock Text="Protocol" Foreground="{StaticResource MutedTextBrush}" FontSize="10" Margin="2,0,0,2" />
-            <ComboBox ItemsSource="{Binding DisplayProtocolOptions}"
-                      DisplayMemberPath="Label"
-                      SelectedValuePath="Value"
-                      SelectedValue="{Binding DisplayProtocol}"
-                      Margin="2,0,2,5"
-                      ToolTip="Auto detects known USB35INCHIPSV2 Rev-A screens. Change only for firmware compatibility." />
-
-            <TextBlock Text="Color mode" Foreground="{StaticResource MutedTextBrush}" FontSize="10" Margin="2,0,0,2" />
-            <ComboBox ItemsSource="{Binding DisplayColorOptions}"
-                      DisplayMemberPath="Label"
-                      SelectedValuePath="Value"
-                      SelectedValue="{Binding DisplayColorMode}"
-                      Margin="2,0,2,5"
-                      ToolTip="RGB565 little-endian is standard for Rev-A. Use Color test to diagnose red/blue swaps or byte order." />
+            <Button Content="{Binding DisplayActionLabel}"
+                    Command="{Binding ConnectCommand}"
+                    Padding="12,7"
+                    ToolTip="Automatically detect, connect, send the theme and start live updates" />
+            <CheckBox Content="Start automatically"
+                      IsChecked="{Binding AutoStartDisplay}"
+                      Margin="3,4,0,0" />
             <CheckBox Content="Close window to system tray"
                       IsChecked="{Binding CloseToTray}"
-                      Margin="3,4,0,0"
-                      ToolTip="When enabled, the X button hides the editor but keeps sensor updates and the LCD running. Use the tray icon's Exit command to stop the app." />
+                      Margin="3,2,0,0" />
+
+            <Expander Header="Advanced display"
+                      IsExpanded="{Binding AdvancedDisplayExpanded}"
+                      Margin="2,6,2,0">
+              <StackPanel Margin="0,5,0,0">
+                <ComboBox ItemsSource="{Binding Ports}"
+                          DisplayMemberPath="DisplayName"
+                          SelectedValuePath="PortName"
+                          SelectedValue="{Binding SelectedPort}"
+                          ToolTip="Detected serial devices" />
+                <UniformGrid Columns="2" Margin="0,3,0,5">
+                  <Button Content="Detect" Command="{Binding DetectScreenCommand}" />
+                  <Button Content="Refresh" Command="{Binding RefreshPortsCommand}" />
+                </UniformGrid>
+                <TextBlock Text="Protocol" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
+                <ComboBox ItemsSource="{Binding DisplayProtocolOptions}"
+                          DisplayMemberPath="Label"
+                          SelectedValuePath="Value"
+                          SelectedValue="{Binding DisplayProtocol}"
+                          Margin="0,2,0,5" />
+                <TextBlock Text="Colour mode" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
+                <ComboBox ItemsSource="{Binding DisplayColorOptions}"
+                          DisplayMemberPath="Label"
+                          SelectedValuePath="Value"
+                          SelectedValue="{Binding DisplayColorMode}"
+                          Margin="0,2,0,5" />
+                <CheckBox Content="Keep sending live changes"
+                          IsChecked="{Binding LivePreview}" />
+                <Button Content="Colour test"
+                        Command="{Binding TestScreenCommand}"
+                        ToolTip="Send the six-colour diagnostic pattern" />
+              </StackPanel>
+            </Expander>
 
             <TextBlock Text="THEMES" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="4,12,0,7" />
             <ComboBox ItemsSource="{Binding Themes}"
