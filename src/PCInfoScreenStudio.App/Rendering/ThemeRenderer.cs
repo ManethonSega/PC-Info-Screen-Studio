@@ -264,10 +264,10 @@ public sealed class ThemeRenderer
         if (w.ShowValue && w.ShowLabel)
         {
             var value = FormatValue(w);
-            var gap = Math.Max(1f, diameter * .015f);
+            var gap = Math.Max(1f, (float)diameter * .015f);
             var groupHeight = valueSize + labelSize + gap;
-            DrawCenteredText(canvas, workspace, w, value, valueSize, w.ForegroundColor, centerY - groupHeight / 2 + valueSize / 2);
-            DrawCenteredText(canvas, workspace, w, w.Label, labelSize, w.ForegroundColor, centerY + groupHeight / 2 - labelSize / 2);
+            DrawCenteredText(canvas, workspace, w, value, valueSize, w.ForegroundColor, centerY - groupHeight / 2f + valueSize / 2f);
+            DrawCenteredText(canvas, workspace, w, w.Label, labelSize, w.ForegroundColor, centerY + groupHeight / 2f - labelSize / 2f);
         }
         else if (w.ShowValue)
         {
