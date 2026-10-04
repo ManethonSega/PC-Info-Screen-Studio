@@ -58,6 +58,13 @@
         </StackPanel>
 
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+          <TextBlock Text="Mode" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" Margin="0,0,4,0" />
+          <ComboBox Width="126"
+                    ItemsSource="{Binding ScreenModes}"
+                    DisplayMemberPath="Label"
+                    SelectedValuePath="Value"
+                    SelectedValue="{Binding Document.Mode}"
+                    ToolTip="Choose Info Screen, Photo Frame, or Hybrid photo-and-widget mode." />
           <Button Content="{Binding DisplayActionLabel}"
                   Command="{Binding ConnectCommand}"
                   Padding="18,6"
@@ -183,6 +190,156 @@
               <Button Content="Video" Command="{Binding ImportVideoCommand}" ToolTip="Import a video asset for supported display workflows." />
               <Button Content="Font" Command="{Binding ImportFontCommand}" ToolTip="Embed a redistributable font inside the theme file." />
             </UniformGrid>
+
+            <StackPanel Margin="0,12,0,0">
+              <StackPanel.Style>
+                <Style TargetType="StackPanel">
+                  <Setter Property="Visibility" Value="Collapsed" />
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.PhotoFrame}"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                    <DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.Hybrid}"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </StackPanel.Style>
+
+              <TextBlock Text="PHOTO FRAME" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="4,2,0,7" />
+              <UniformGrid Columns="2">
+                <Button Content="Add photos" Command="{Binding AddPhotosCommand}" ToolTip="Select and add several photos to the playlist." />
+                <Button Content="Add folder" Command="{Binding AddPhotoFolderCommand}" ToolTip="Add every supported photo in a folder." />
+              </UniformGrid>
+              <CheckBox Content="Embed imported photos"
+                        IsChecked="{Binding Document.PhotoFrame.EmbedImportedPhotos}"
+                        ToolTip="Store new photos inside the portable theme. Disable this to link to their existing files and keep the theme small." />
+
+              <ListBox x:Name="PhotoPlaylist"
+                       Height="220"
+                       Margin="2,5"
+                       ItemsSource="{Binding Document.PhotoFrame.Photos}"
+                       SelectedItem="{Binding SelectedPhoto}"
+                       AllowDrop="True"
+                       PreviewMouseLeftButtonDown="OnPhotoPreviewMouseLeftButtonDown"
+                       PreviewMouseMove="OnPhotoPreviewMouseMove"
+                       DragOver="OnPhotoPlaylistDragOver"
+                       Drop="OnPhotoPlaylistDrop"
+                       ToolTip="Photo playlist. Drag items to change their order.">
+                <ListBox.ItemTemplate>
+                  <DataTemplate>
+                    <Grid Margin="3">
+                      <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                      <StackPanel>
+                        <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock FontSize="10" Foreground="{StaticResource MutedTextBrush}">
+                          <Run Text="Duration: " /><Run Text="{Binding DurationSeconds}" /><Run Text=" s" />
+                        </TextBlock>
+                      </StackPanel>
+                      <TextBlock Grid.Column="1" Text="Portable" FontSize="9" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center">
+                        <TextBlock.Style>
+                          <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers><DataTrigger Binding="{Binding IsEmbedded}" Value="True"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers>
+                          </Style>
+                        </TextBlock.Style>
+                      </TextBlock>
+                    </Grid>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+
+              <UniformGrid Columns="4">
+                <Button Content="Prev" Command="{Binding PreviousPhotoCommand}" ToolTip="Show the previous photo." />
+                <Button Content="{Binding PhotoPlaybackLabel}" Command="{Binding TogglePhotoPlaybackCommand}" ToolTip="Pause or resume automatic playback." />
+                <Button Content="Next" Command="{Binding NextPhotoCommand}" ToolTip="Show the next photo." />
+                <Button Content="Remove" Command="{Binding RemovePhotoCommand}" ToolTip="Remove the selected photo from this playlist." />
+              </UniformGrid>
+              <TextBlock Text="{Binding PhotoPositionLabel}" HorizontalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
+
+              <Expander Header="ALBUM SETTINGS" IsExpanded="True" Margin="0,6,0,0">
+                <StackPanel Margin="0,5,0,0">
+                  <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <StackPanel Margin="0,0,4,0"><TextBlock Text="Default duration (s)" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding Document.PhotoFrame.DefaultDurationSeconds, UpdateSourceTrigger=LostFocus}" ToolTip="How long each photo remains visible unless it has an individual duration." /></StackPanel>
+                    <StackPanel Grid.Column="1" Margin="4,0,0,0"><TextBlock Text="Transition (s)" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding Document.PhotoFrame.TransitionDurationSeconds, UpdateSourceTrigger=LostFocus}" ToolTip="Duration of the transition between photos." /></StackPanel>
+                  </Grid>
+                  <TextBlock Text="Transition" Foreground="{StaticResource MutedTextBrush}" Margin="0,5,0,0" />
+                  <ComboBox ItemsSource="{Binding PhotoTransitions}" SelectedItem="{Binding Document.PhotoFrame.Transition}" ToolTip="Choose crossfade, slide, zoom, Ken Burns, instant cut, or a random effect." />
+                  <TextBlock Text="Photo fit" Foreground="{StaticResource MutedTextBrush}" Margin="0,5,0,0" />
+                  <ComboBox ItemsSource="{Binding MediaFits}" SelectedItem="{Binding Document.PhotoFrame.Fit}" ToolTip="Choose how photos fit the 480 × 320 canvas." />
+                  <Grid Margin="0,5,0,0">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <StackPanel Margin="0,0,4,0"><TextBlock Text="Background" Foreground="{StaticResource MutedTextBrush}" /><ComboBox ItemsSource="{Binding PhotoBackgroundModes}" SelectedItem="{Binding Document.PhotoFrame.BackgroundMode}" ToolTip="Use a solid background or a blurred copy of the current photo." /></StackPanel>
+                    <StackPanel Grid.Column="1" Margin="4,0,0,0"><TextBlock Text="Colour" Foreground="{StaticResource MutedTextBrush}" /><controls:ColorPickerButton HexColor="{Binding Document.PhotoFrame.BackgroundColor}" ToolTip="Choose the solid background colour and fallback colour." /></StackPanel>
+                  </Grid>
+                  <StackPanel Orientation="Horizontal">
+                    <CheckBox Content="Loop" IsChecked="{Binding Document.PhotoFrame.Loop}" Margin="0,3,15,3" ToolTip="Restart at the beginning after the last photo." />
+                    <CheckBox Content="Shuffle" IsChecked="{Binding Document.PhotoFrame.Shuffle}" ToolTip="Choose the next photo randomly." />
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal">
+                    <CheckBox Content="Captions" IsChecked="{Binding Document.PhotoFrame.ShowCaptions}" Margin="0,3,15,3" ToolTip="Show each photo's selected caption at the bottom." />
+                    <TextBlock Text="Size" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
+                    <TextBox Width="46" Text="{Binding Document.PhotoFrame.CaptionFontSize, UpdateSourceTrigger=LostFocus}" ToolTip="Caption text size in screen pixels." />
+                    <controls:ColorPickerButton Width="82" HexColor="{Binding Document.PhotoFrame.CaptionColor}" ToolTip="Caption text colour." />
+                  </StackPanel>
+                </StackPanel>
+              </Expander>
+
+              <Expander Header="SELECTED PHOTO" IsExpanded="True" Margin="0,6,0,0">
+                <ContentControl Content="{Binding SelectedPhoto}">
+                  <ContentControl.ContentTemplate>
+                    <DataTemplate DataType="{x:Type models:PhotoFrameItem}">
+                      <StackPanel Margin="0,5,0,0">
+                        <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                        <Grid Margin="0,4,0,0">
+                          <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                          <StackPanel Margin="0,0,4,0"><TextBlock Text="Duration (0=default)" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding DurationSeconds, UpdateSourceTrigger=LostFocus}" ToolTip="Set an individual duration, or use 0 for the album default." /></StackPanel>
+                          <StackPanel Grid.Column="1" Margin="4,0,0,0"><TextBlock Text="Transition" Foreground="{StaticResource MutedTextBrush}" /><ComboBox ItemsSource="{Binding DataContext.OptionalPhotoTransitions, RelativeSource={RelativeSource AncestorType=Window}}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding TransitionOverride}" ToolTip="Override the transition for this photo or use the album default." /></StackPanel>
+                        </Grid>
+                        <TextBlock Text="Fit override" Foreground="{StaticResource MutedTextBrush}" Margin="0,4,0,0" />
+                        <ComboBox ItemsSource="{Binding DataContext.OptionalPhotoFits, RelativeSource={RelativeSource AncestorType=Window}}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding FitOverride}" ToolTip="Override the fit mode for this photo." />
+                        <TextBlock Text="Crop zoom" Foreground="{StaticResource MutedTextBrush}" Margin="0,4,0,0" />
+                        <Slider Minimum="1" Maximum="8" Value="{Binding CropZoom}" ToolTip="Zoom into this photo before fitting it to the canvas." />
+                        <Grid>
+                          <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                          <StackPanel Margin="0,0,4,0"><TextBlock Text="Focal X" Foreground="{StaticResource MutedTextBrush}" /><Slider Minimum="0" Maximum="1" Value="{Binding FocalX}" ToolTip="Choose the horizontal focus point retained while cropping." /></StackPanel>
+                          <StackPanel Grid.Column="1" Margin="4,0,0,0"><TextBlock Text="Focal Y" Foreground="{StaticResource MutedTextBrush}" /><Slider Minimum="0" Maximum="1" Value="{Binding FocalY}" ToolTip="Choose the vertical focus point retained while cropping." /></StackPanel>
+                        </Grid>
+                        <TextBlock Text="Caption" Foreground="{StaticResource MutedTextBrush}" Margin="0,4,0,0" />
+                        <ComboBox ItemsSource="{Binding DataContext.PhotoCaptionModes, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding CaptionMode}" ToolTip="Show no caption, filename, EXIF date, GPS location, or custom text." />
+                        <TextBox Text="{Binding CustomCaption, UpdateSourceTrigger=PropertyChanged}" ToolTip="Custom caption used when Caption is set to Custom." />
+                      </StackPanel>
+                    </DataTemplate>
+                  </ContentControl.ContentTemplate>
+                </ContentControl>
+              </Expander>
+
+              <Expander Header="FOLDER &amp; PRESETS" IsExpanded="True" Margin="0,6,0,0">
+                <StackPanel Margin="0,5,0,0">
+                  <CheckBox Content="Watch folder for new photos" IsChecked="{Binding Document.PhotoFrame.WatchFolderEnabled}" ToolTip="Automatically add new images created in the selected folder." />
+                  <TextBlock Text="{Binding Document.PhotoFrame.WatchedFolder}" TextTrimming="CharacterEllipsis" Foreground="{StaticResource MutedTextBrush}" ToolTip="{Binding Document.PhotoFrame.WatchedFolder}" />
+                  <Button Content="Choose watched folder" Command="{Binding ChooseWatchedFolderCommand}" ToolTip="Select the folder monitored for new photos." />
+                  <UniformGrid Columns="2">
+                    <Button Content="Save preset" Command="{Binding SaveAlbumPresetCommand}" ToolTip="Save this album and portable copies of its photos as a reusable preset." />
+                    <Button Content="Load preset" Command="{Binding LoadAlbumPresetCommand}" ToolTip="Replace the current album with a saved preset." />
+                  </UniformGrid>
+                </StackPanel>
+              </Expander>
+
+              <Expander Header="SCHEDULE" IsExpanded="True" Margin="0,6,0,0">
+                <StackPanel Margin="0,5,0,0">
+                  <CheckBox Content="Enable daily schedule" IsChecked="{Binding Document.PhotoFrame.ScheduleEnabled}" ToolTip="Automatically use Info Screen, Photo Frame or Hybrid, and screen-off periods each day." />
+                  <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <StackPanel Margin="0,0,4,0"><TextBlock Text="Info starts" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding Document.PhotoFrame.InfoScreenStart, UpdateSourceTrigger=LostFocus}" ToolTip="Daily start time for Info Screen, in HH:mm format." /></StackPanel>
+                    <StackPanel Grid.Column="1" Margin="4,0,0,0"><TextBlock Text="Photos start" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding Document.PhotoFrame.PhotoFrameStart, UpdateSourceTrigger=LostFocus}" ToolTip="Daily start time for the evening Photo Frame or Hybrid period." /></StackPanel>
+                  </Grid>
+                  <Grid Margin="0,4,0,0">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <StackPanel Margin="0,0,4,0"><TextBlock Text="Screen off" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding Document.PhotoFrame.ScreenOffStart, UpdateSourceTrigger=LostFocus}" ToolTip="Daily time to send a black screen until the Info start time." /></StackPanel>
+                    <StackPanel Grid.Column="1" Margin="4,0,0,0"><TextBlock Text="Evening mode" Foreground="{StaticResource MutedTextBrush}" /><ComboBox ItemsSource="{Binding DataContext.EveningModes, RelativeSource={RelativeSource AncestorType=Window}}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding EveningMode}" ToolTip="Choose Photo Frame or Hybrid for the scheduled evening period." /></StackPanel>
+                  </Grid>
+                  <TextBlock Text="{Binding DataContext.EffectiveScreenModeLabel, RelativeSource={RelativeSource AncestorType=Window}, StringFormat=Active now: {0}}" Foreground="{StaticResource AccentBrush}" Margin="0,5,0,0" />
+                </StackPanel>
+              </Expander>
+            </StackPanel>
           </StackPanel>
 
           <Border Grid.Row="1" Height="1" Background="{StaticResource BorderBrush}" Margin="0,12" />
