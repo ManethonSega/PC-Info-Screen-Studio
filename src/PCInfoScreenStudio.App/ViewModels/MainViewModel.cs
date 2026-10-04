@@ -39,6 +39,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         "recovery.t3theme");
     private ThemeWorkspace _workspace;
     private WidgetModel? _selectedWidget;
+    private double? _alignmentGuideX;
+    private double? _alignmentGuideY;
     private string? _selectedPort;
     private ThemeLibraryItem? _selectedTheme;
     private string _deviceStatus = "Not connected";
@@ -61,6 +63,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private int _dataSampleBusy;
     private DateTimeOffset _suspendLiveDisplayUntil = DateTimeOffset.MinValue;
 
+    public event EventHandler? AlignmentGuidesChanged;
+
     public MainViewModel()
     {
         _appSettings = _settingsService.Load();
@@ -78,8 +82,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         SaveAsCommand = new RelayCommand(async () => await SaveAsync(true));
         UndoCommand = new RelayCommand(Undo, () => _historyIndex > 0);
         RedoCommand = new RelayCommand(Redo, () => _historyIndex >= 0 && _historyIndex < _history.Count - 1);
-        NudgeWidgetCommand = new RelayCommand(NudgeSelected, _ => SelectedWidget is not null && SelectedWidget.IsLocked == false);
-        AlignWidgetCommand = new RelayCommand(AlignSelected, _ => SelectedWidget is not null && SelectedWidget.IsLocked == false);
+        NudgeWidgetCommand = new RelayCommand(NudgeSelected, _ => SelectedWidgets.Any(w => !w.IsLocked));
+        AlignWidgetCommand = new RelayCommand(AlignSelected, _ => SelectedWidgets.Any(w => !w.IsLocked));
+        GroupSelectedCommand = new RelayCommand(GroupSelected, () => SelectedWidgets.Count >= 2);
+        UngroupSelectedCommand = new RelayCommand(UngroupSelected, () => SelectedWidgets.Any(w => w.GroupId is not null));
         AddWidgetCommand = new RelayCommand(AddWidget);
         DeleteWidgetCommand = new RelayCommand(DeleteSelected, () => SelectedWidget is not null);
         DuplicateWidgetCommand = new RelayCommand(DuplicateSelected, () => SelectedWidget is not null);
@@ -236,16 +242,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public WidgetModel? SelectedWidget
     {
         get => _selectedWidget;
-        set
-        {
-            if (_selectedWidget == value) return;
-            if (_selectedWidget is not null) _selectedWidget.IsSelected = false;
-            _selectedWidget = value;
-            if (_selectedWidget is not null) _selectedWidget.IsSelected = true;
-            RaisePropertyChanged();
-            RaiseCommandStates();
-        }
+        set => SelectWidget(value);
     }
+
+    public IReadOnlyList<WidgetModel> SelectedWidgets => Document.Widgets.Where(w => w.IsSelected).ToArray();
+    public int SelectedWidgetCount => SelectedWidgets.Count;
+    public bool HasMultipleSelection => SelectedWidgetCount > 1;
+    public double? AlignmentGuideX => _alignmentGuideX;
+    public double? AlignmentGuideY => _alignmentGuideY;
 
     public string? SelectedPort
     {
@@ -428,6 +432,23 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    public bool PositionPanelExpanded { get => _appSettings.PositionPanelExpanded; set => SavePanelState(nameof(PositionPanelExpanded), _appSettings.PositionPanelExpanded, value, v => _appSettings.PositionPanelExpanded = v); }
+    public bool DataPanelExpanded { get => _appSettings.DataPanelExpanded; set => SavePanelState(nameof(DataPanelExpanded), _appSettings.DataPanelExpanded, value, v => _appSettings.DataPanelExpanded = v); }
+    public bool TypographyPanelExpanded { get => _appSettings.TypographyPanelExpanded; set => SavePanelState(nameof(TypographyPanelExpanded), _appSettings.TypographyPanelExpanded, value, v => _appSettings.TypographyPanelExpanded = v); }
+    public bool GraphPanelExpanded { get => _appSettings.GraphPanelExpanded; set => SavePanelState(nameof(GraphPanelExpanded), _appSettings.GraphPanelExpanded, value, v => _appSettings.GraphPanelExpanded = v); }
+    public bool GaugePanelExpanded { get => _appSettings.GaugePanelExpanded; set => SavePanelState(nameof(GaugePanelExpanded), _appSettings.GaugePanelExpanded, value, v => _appSettings.GaugePanelExpanded = v); }
+    public bool MediaPanelExpanded { get => _appSettings.MediaPanelExpanded; set => SavePanelState(nameof(MediaPanelExpanded), _appSettings.MediaPanelExpanded, value, v => _appSettings.MediaPanelExpanded = v); }
+    public bool ShapePanelExpanded { get => _appSettings.ShapePanelExpanded; set => SavePanelState(nameof(ShapePanelExpanded), _appSettings.ShapePanelExpanded, value, v => _appSettings.ShapePanelExpanded = v); }
+    public bool ColoursPanelExpanded { get => _appSettings.ColoursPanelExpanded; set => SavePanelState(nameof(ColoursPanelExpanded), _appSettings.ColoursPanelExpanded, value, v => _appSettings.ColoursPanelExpanded = v); }
+
+    private void SavePanelState(string propertyName, bool current, bool value, Action<bool> assign)
+    {
+        if (current == value) return;
+        assign(value);
+        _settingsService.Save(_appSettings);
+        RaisePropertyChanged(propertyName);
+    }
+
     public string DisplayActionLabel => _deviceService.IsConnected ? "Stop display" : "Start display";
 
     public double CanvasZoom
@@ -456,6 +477,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand RedoCommand { get; }
     public RelayCommand NudgeWidgetCommand { get; }
     public RelayCommand AlignWidgetCommand { get; }
+    public RelayCommand GroupSelectedCommand { get; }
+    public RelayCommand UngroupSelectedCommand { get; }
     public RelayCommand AddWidgetCommand { get; }
     public RelayCommand DeleteWidgetCommand { get; }
     public RelayCommand DuplicateWidgetCommand { get; }
@@ -481,7 +504,128 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand RestartElevatedCommand { get; }
     public RelayCommand EnableFullSensorsCommand { get; }
 
-    public void SelectWidget(WidgetModel? widget) => SelectedWidget = widget;
+    public void SelectWidget(WidgetModel? widget, bool additive = false, bool toggle = false)
+    {
+        var targets = widget is null
+            ? Array.Empty<WidgetModel>()
+            : widget.GroupId is Guid groupId
+                ? Document.Widgets.Where(w => w.GroupId == groupId).ToArray()
+                : [widget];
+
+        if (!additive)
+        {
+            foreach (var item in Document.Widgets)
+                item.IsSelected = false;
+        }
+
+        if (targets.Length > 0)
+        {
+            var shouldSelect = !toggle || !targets.All(w => w.IsSelected);
+            foreach (var item in targets)
+                item.IsSelected = shouldSelect;
+        }
+
+        var primary = widget is not null && widget.IsSelected
+            ? widget
+            : Document.Widgets.LastOrDefault(w => w.IsSelected);
+        var primaryChanged = _selectedWidget != primary;
+        _selectedWidget = primary;
+
+        if (primaryChanged)
+            RaisePropertyChanged(nameof(SelectedWidget));
+        RaisePropertyChanged(nameof(SelectedWidgets));
+        RaisePropertyChanged(nameof(SelectedWidgetCount));
+        RaisePropertyChanged(nameof(HasMultipleSelection));
+        RaiseCommandStates();
+    }
+
+    public IReadOnlyList<WidgetModel> GetMovementTargets(WidgetModel anchor)
+    {
+        if (!anchor.IsSelected)
+            SelectWidget(anchor);
+
+        return Document.Widgets.Where(w => w.IsSelected && !w.IsLocked).ToArray();
+    }
+
+    public void SelectWidgets(IEnumerable<WidgetModel> widgets, bool additive)
+    {
+        var selected = widgets.ToArray();
+        var groupIds = selected.Where(w => w.GroupId is not null).Select(w => w.GroupId).ToHashSet();
+        var expanded = Document.Widgets
+            .Where(w => selected.Contains(w) || (w.GroupId is not null && groupIds.Contains(w.GroupId)))
+            .ToArray();
+
+        if (!additive)
+            foreach (var item in Document.Widgets)
+                item.IsSelected = false;
+
+        foreach (var item in expanded)
+            item.IsSelected = true;
+
+        _selectedWidget = expanded.LastOrDefault() ?? (additive ? Document.Widgets.LastOrDefault(w => w.IsSelected) : null);
+        RaisePropertyChanged(nameof(SelectedWidget));
+        RaisePropertyChanged(nameof(SelectedWidgets));
+        RaisePropertyChanged(nameof(SelectedWidgetCount));
+        RaisePropertyChanged(nameof(HasMultipleSelection));
+        RaiseCommandStates();
+    }
+
+    public (double X, double Y) ApplySmartAlignment(
+        WidgetModel anchor,
+        double x,
+        double y,
+        IReadOnlyCollection<WidgetModel> movingWidgets)
+    {
+        const double threshold = 4;
+        var excluded = movingWidgets.Select(w => w.Id).ToHashSet();
+        var xTargets = new List<double> { 0, Document.CanvasWidth / 2d, Document.CanvasWidth };
+        var yTargets = new List<double> { 0, Document.CanvasHeight / 2d, Document.CanvasHeight };
+
+        foreach (var other in Document.Widgets.Where(w => w.IsVisible && !excluded.Contains(w.Id)))
+        {
+            xTargets.Add(other.X);
+            xTargets.Add(other.X + other.Width / 2d);
+            xTargets.Add(other.X + other.Width);
+            yTargets.Add(other.Y);
+            yTargets.Add(other.Y + other.Height / 2d);
+            yTargets.Add(other.Y + other.Height);
+        }
+
+        var snappedX = FindGuide(x, anchor.Width, xTargets, threshold);
+        var snappedY = FindGuide(y, anchor.Height, yTargets, threshold);
+        _alignmentGuideX = snappedX.Guide;
+        _alignmentGuideY = snappedY.Guide;
+        AlignmentGuidesChanged?.Invoke(this, EventArgs.Empty);
+        return (snappedX.Position, snappedY.Position);
+    }
+
+    public void ClearAlignmentGuides()
+    {
+        if (_alignmentGuideX is null && _alignmentGuideY is null) return;
+        _alignmentGuideX = null;
+        _alignmentGuideY = null;
+        AlignmentGuidesChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private static (double Position, double? Guide) FindGuide(double position, double size, IEnumerable<double> targets, double threshold)
+    {
+        var points = new[] { position, position + size / 2d, position + size };
+        var bestDistance = double.MaxValue;
+        var bestOffset = 0d;
+        double? guide = null;
+
+        foreach (var target in targets)
+        foreach (var point in points)
+        {
+            var distance = Math.Abs(target - point);
+            if (distance > threshold || distance >= bestDistance) continue;
+            bestDistance = distance;
+            bestOffset = target - point;
+            guide = target;
+        }
+
+        return (position + bestOffset, guide);
+    }
 
     public void NotifyDesignerChange()
     {
@@ -694,40 +838,71 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private void DeleteSelected()
     {
-        if (SelectedWidget is null) return;
-        var widget = SelectedWidget;
-        SelectedWidget = null;
-        Document.Widgets.Remove(widget);
+        var selected = SelectedWidgets.ToArray();
+        if (selected.Length == 0) return;
+        SelectWidget(null);
+        foreach (var widget in selected)
+            Document.Widgets.Remove(widget);
         MarkDirty();
     }
 
     private void DuplicateSelected()
     {
-        if (SelectedWidget is null) return;
-        var clone = SelectedWidget.Clone();
-        var selectedIndex = Document.Widgets.IndexOf(SelectedWidget);
-        Document.Widgets.Insert(Math.Max(0, selectedIndex), clone);
+        var selected = SelectedWidgets.OrderBy(w => Document.Widgets.IndexOf(w)).ToArray();
+        if (selected.Length == 0) return;
+
+        var newGroupId = selected.Length > 1 ? Guid.NewGuid() : (Guid?)null;
+        var clones = selected.Select(w => w.Clone()).ToArray();
+        foreach (var clone in clones)
+        {
+            clone.GroupId = newGroupId;
+            Document.Widgets.Insert(0, clone);
+        }
         NormalizeZIndices();
-        SelectedWidget = clone;
+        SelectWidget(null);
+        foreach (var clone in clones)
+            clone.IsSelected = true;
+        _selectedWidget = clones.LastOrDefault();
+        RaisePropertyChanged(nameof(SelectedWidget));
+        RaisePropertyChanged(nameof(SelectedWidgets));
+        RaisePropertyChanged(nameof(SelectedWidgetCount));
+        RaisePropertyChanged(nameof(HasMultipleSelection));
+        RaiseCommandStates();
         MarkDirtyAndRefresh();
     }
 
     private void NudgeSelected(object? parameter)
     {
-        var widget = SelectedWidget;
-        if (widget is null || widget.IsLocked || parameter is not string instruction)
+        var anchor = SelectedWidget;
+        var widgets = SelectedWidgets.Where(w => !w.IsLocked).ToArray();
+        if (anchor is null || widgets.Length == 0 || parameter is not string instruction)
             return;
 
         var parts = instruction.Split(':');
         var direction = parts[0];
         var amount = parts.Length > 1 && double.TryParse(parts[1], out var parsed) ? parsed : 1d;
 
-        switch (direction)
+        var dx = direction == "Left" ? -amount : direction == "Right" ? amount : 0;
+        var dy = direction == "Up" ? -amount : direction == "Down" ? amount : 0;
+        if (Document.SnapToGrid)
         {
-            case "Left": widget.X = Math.Max(0, widget.X - amount); break;
-            case "Right": widget.X = Math.Min(Document.CanvasWidth - widget.Width, widget.X + amount); break;
-            case "Up": widget.Y = Math.Max(0, widget.Y - amount); break;
-            case "Down": widget.Y = Math.Min(Document.CanvasHeight - widget.Height, widget.Y + amount); break;
+            var spacing = Math.Clamp(Document.GridSize, 2, 100);
+            if (dx != 0)
+                dx = SnapCoordinate(anchor.X + dx, spacing) - anchor.X;
+            if (dy != 0)
+                dy = SnapCoordinate(anchor.Y + dy, spacing) - anchor.Y;
+        }
+
+        var minX = widgets.Min(w => w.X);
+        var maxX = widgets.Max(w => w.X + w.Width);
+        var minY = widgets.Min(w => w.Y);
+        var maxY = widgets.Max(w => w.Y + w.Height);
+        dx = Math.Clamp(dx, -minX, Document.CanvasWidth - maxX);
+        dy = Math.Clamp(dy, -minY, Document.CanvasHeight - maxY);
+        foreach (var widget in widgets)
+        {
+            widget.X += dx;
+            widget.Y += dy;
         }
 
         MarkDirtyAndRefresh();
@@ -735,22 +910,69 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private void AlignSelected(object? parameter)
     {
-        var widget = SelectedWidget;
-        if (widget is null || widget.IsLocked || parameter is not string alignment)
+        var widgets = SelectedWidgets.Where(w => !w.IsLocked).ToArray();
+        if (widgets.Length == 0 || parameter is not string alignment)
             return;
 
-        switch (alignment)
+        if (widgets.Length == 1)
         {
-            case "Left": widget.X = 0; break;
-            case "Center": widget.X = Math.Max(0, (Document.CanvasWidth - widget.Width) / 2); break;
-            case "Right": widget.X = Math.Max(0, Document.CanvasWidth - widget.Width); break;
-            case "Top": widget.Y = 0; break;
-            case "Middle": widget.Y = Math.Max(0, (Document.CanvasHeight - widget.Height) / 2); break;
-            case "Bottom": widget.Y = Math.Max(0, Document.CanvasHeight - widget.Height); break;
+            var widget = widgets[0];
+            switch (alignment)
+            {
+                case "Left": widget.X = 0; break;
+                case "Center": widget.X = Math.Max(0, (Document.CanvasWidth - widget.Width) / 2); break;
+                case "Right": widget.X = Math.Max(0, Document.CanvasWidth - widget.Width); break;
+                case "Top": widget.Y = 0; break;
+                case "Middle": widget.Y = Math.Max(0, (Document.CanvasHeight - widget.Height) / 2); break;
+                case "Bottom": widget.Y = Math.Max(0, Document.CanvasHeight - widget.Height); break;
+            }
+        }
+        else
+        {
+            var left = widgets.Min(w => w.X);
+            var right = widgets.Max(w => w.X + w.Width);
+            var top = widgets.Min(w => w.Y);
+            var bottom = widgets.Max(w => w.Y + w.Height);
+            foreach (var widget in widgets)
+            {
+                switch (alignment)
+                {
+                    case "Left": widget.X = left; break;
+                    case "Center": widget.X = (left + right - widget.Width) / 2; break;
+                    case "Right": widget.X = right - widget.Width; break;
+                    case "Top": widget.Y = top; break;
+                    case "Middle": widget.Y = (top + bottom - widget.Height) / 2; break;
+                    case "Bottom": widget.Y = bottom - widget.Height; break;
+                }
+            }
         }
 
         MarkDirtyAndRefresh();
     }
+
+    private void GroupSelected()
+    {
+        var selected = SelectedWidgets.ToArray();
+        if (selected.Length < 2) return;
+        var groupId = Guid.NewGuid();
+        foreach (var widget in selected)
+            widget.GroupId = groupId;
+        MarkDirtyAndRefresh();
+        RaiseCommandStates();
+    }
+
+    private void UngroupSelected()
+    {
+        var selected = SelectedWidgets.ToArray();
+        if (selected.Length == 0) return;
+        foreach (var widget in selected)
+            widget.GroupId = null;
+        MarkDirtyAndRefresh();
+        RaiseCommandStates();
+    }
+
+    private static double SnapCoordinate(double value, double spacing)
+        => Math.Round(value / spacing, MidpointRounding.AwayFromZero) * spacing;
 
     private void MoveLayer(int delta)
     {
@@ -2002,6 +2224,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         MoveLayerDownCommand.RaiseCanExecuteChanged();
         NudgeWidgetCommand.RaiseCanExecuteChanged();
         AlignWidgetCommand.RaiseCanExecuteChanged();
+        GroupSelectedCommand.RaiseCanExecuteChanged();
+        UngroupSelectedCommand.RaiseCanExecuteChanged();
     }
 
     private bool ConfirmDiscardIfNeeded()
