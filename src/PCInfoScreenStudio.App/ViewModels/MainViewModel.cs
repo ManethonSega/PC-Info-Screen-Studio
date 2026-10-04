@@ -25,6 +25,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly HardwareMetricsService _hardwareMetrics = new();
     private readonly WeatherMetricsService _weatherMetrics = new();
     private readonly AppSettingsService _settingsService = new();
+    private readonly PhotoAlbumPresetService _photoAlbumPresetService = new();
     private readonly AppSettings _appSettings;
     private readonly DispatcherTimer _dataTimer;
     private readonly DispatcherTimer _animationTimer;
@@ -59,6 +60,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly object _frameQueueSync = new();
     private PendingDisplayFrame? _pendingFrame;
     private bool _frameSenderRunning;
+    private FileSystemWatcher? _photoFolderWatcher;
+    private PhotoFrameItem? _selectedPhoto;
+    private bool _isPhotoPlaying;
+    private DateTimeOffset _photoStartedAt = DateTimeOffset.UtcNow;
+    private DateTimeOffset _photoTransitionStartedAt = DateTimeOffset.UtcNow;
+    private readonly Random _photoRandom = new();
     private readonly HashSet<string> _advancedSensorSources = new(StringComparer.OrdinalIgnoreCase);
     private int _dataSampleBusy;
     private DateTimeOffset _suspendLiveDisplayUntil = DateTimeOffset.MinValue;
@@ -71,6 +78,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _weatherCity = _appSettings.WeatherCity;
         _displayProtocol = _appSettings.DisplayProtocol;
         _displayColorMode = _appSettings.DisplayColorMode;
+        _isPhotoPlaying = _appSettings.PhotoFramePlaying;
         _workspace = _packageService.CreateNewWorkspace();
         Ports = [];
         Themes = [];
@@ -110,6 +118,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         UpdateWeatherCommand = new RelayCommand(() => _ = UpdateWeatherAsync());
         RestartElevatedCommand = new RelayCommand(() => RestartElevated());
         EnableFullSensorsCommand = new RelayCommand(() => _ = EnableFullSensorsAsync());
+        AddPhotosCommand = new RelayCommand(AddPhotos);
+        AddPhotoFolderCommand = new RelayCommand(AddPhotoFolder);
+        RemovePhotoCommand = new RelayCommand(RemoveSelectedPhoto, () => SelectedPhoto is not null);
+        PreviousPhotoCommand = new RelayCommand(PreviousPhoto, () => Document.PhotoFrame.Photos.Count > 0);
+        TogglePhotoPlaybackCommand = new RelayCommand(TogglePhotoPlayback, () => Document.PhotoFrame.Photos.Count > 0);
+        NextPhotoCommand = new RelayCommand(NextPhoto, () => Document.PhotoFrame.Photos.Count > 0);
+        SaveAlbumPresetCommand = new RelayCommand(SaveAlbumPreset, () => Document.PhotoFrame.Photos.Count > 0);
+        LoadAlbumPresetCommand = new RelayCommand(LoadAlbumPreset);
+        ChooseWatchedFolderCommand = new RelayCommand(ChooseWatchedFolder);
 
         _dataTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
@@ -130,22 +147,32 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         _animationTimer = new DispatcherTimer(DispatcherPriority.Render)
         {
-            Interval = TimeSpan.FromMilliseconds(33)
+            Interval = TimeSpan.FromMilliseconds(100)
         };
         _animationTimer.Tick += (_, _) =>
         {
+            var modeChanged = UpdateEffectiveScreenMode();
             var animations = Document.Widgets
                 .Where(w => w.IsVisible && w.Type == WidgetType.AnimatedImage)
                 .ToArray();
+            var photoActive = Document.RuntimeMode is RuntimeScreenMode.PhotoFrame or RuntimeScreenMode.Hybrid
+                && Document.PhotoFrame.Photos.Count > 0;
+            var photoNeedsRender = photoActive && UpdatePhotoPlayback();
 
-            if (animations.Length == 0)
+            if (animations.Length == 0 && !photoNeedsRender && !modeChanged)
                 return;
 
-            var requestedFps = animations.Max(w => w.TargetFps > 0
-                ? Math.Clamp(w.TargetFps, 1, 60)
-                : 30);
+            var requestedFps = animations.Length == 0
+                ? 10
+                : animations.Max(w => w.TargetFps > 0
+                    ? Math.Clamp(w.TargetFps, 1, 60)
+                    : 30);
+            if (photoActive && Document.PhotoFrame.RuntimeTransitionProgress < 1)
+                requestedFps = Math.Max(requestedFps, 20);
             _animationTimer.Interval = TimeSpan.FromMilliseconds(1000d / requestedFps);
             ThemeChanged?.Invoke(this, EventArgs.Empty);
+            if (LivePreview)
+                RequestLiveFrame?.Invoke(this, EventArgs.Empty);
         };
         _animationTimer.Start();
 
@@ -168,6 +195,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         AttachWorkspace(_workspace);
         CreateStarterLayout();
+        InitializePhotoFrameRuntime();
         InitializeHistory();
         RefreshPorts();
         RefreshThemes();
@@ -214,6 +242,30 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public Array GraphStyles => Enum.GetValues(typeof(GraphStyle));
     public Array MediaFits => Enum.GetValues(typeof(MediaFit));
     public Array ShapeStyles => Enum.GetValues(typeof(ShapeStyle));
+    public Array PhotoTransitions => Enum.GetValues(typeof(PhotoTransition));
+    public Array PhotoBackgroundModes => Enum.GetValues(typeof(PhotoBackgroundMode));
+    public Array PhotoCaptionModes => Enum.GetValues(typeof(PhotoCaptionMode));
+    public IReadOnlyList<ScreenModeOption> ScreenModes { get; } =
+    [
+        new("Info Screen", ScreenMode.InfoScreen),
+        new("Photo Frame", ScreenMode.PhotoFrame),
+        new("Hybrid", ScreenMode.Hybrid)
+    ];
+    public IReadOnlyList<ScreenModeOption> EveningModes { get; } =
+    [
+        new("Photo Frame", ScreenMode.PhotoFrame),
+        new("Hybrid", ScreenMode.Hybrid)
+    ];
+    public IReadOnlyList<OptionalTransitionOption> OptionalPhotoTransitions { get; } =
+    [
+        new("Use album default", null),
+        .. Enum.GetValues<PhotoTransition>().Select(v => new OptionalTransitionOption(v.ToString(), v))
+    ];
+    public IReadOnlyList<OptionalFitOption> OptionalPhotoFits { get; } =
+    [
+        new("Use album default", null),
+        .. Enum.GetValues<MediaFit>().Select(v => new OptionalFitOption(v.ToString(), v))
+    ];
     public IReadOnlyList<RotationOption> RotationOptions { get; } =
     [
         new("0°", DeviceRotation.Degrees0),
@@ -250,6 +302,29 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public bool HasMultipleSelection => SelectedWidgetCount > 1;
     public double? AlignmentGuideX => _alignmentGuideX;
     public double? AlignmentGuideY => _alignmentGuideY;
+
+    public PhotoFrameItem? SelectedPhoto
+    {
+        get => _selectedPhoto;
+        set
+        {
+            if (!SetProperty(ref _selectedPhoto, value)) return;
+            RemovePhotoCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    public bool IsPhotoPlaying => _isPhotoPlaying;
+    public string PhotoPlaybackLabel => _isPhotoPlaying ? "Pause" : "Play";
+    public string PhotoPositionLabel => Document.PhotoFrame.Photos.Count == 0
+        ? "No photos"
+        : $"{Document.PhotoFrame.RuntimeCurrentIndex + 1} / {Document.PhotoFrame.Photos.Count}";
+    public string EffectiveScreenModeLabel => Document.RuntimeMode switch
+    {
+        RuntimeScreenMode.InfoScreen => "Info Screen",
+        RuntimeScreenMode.PhotoFrame => "Photo Frame",
+        RuntimeScreenMode.Hybrid => "Hybrid",
+        _ => "Screen off"
+    };
 
     public string? SelectedPort
     {
@@ -503,6 +578,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand UpdateWeatherCommand { get; }
     public RelayCommand RestartElevatedCommand { get; }
     public RelayCommand EnableFullSensorsCommand { get; }
+    public RelayCommand AddPhotosCommand { get; }
+    public RelayCommand AddPhotoFolderCommand { get; }
+    public RelayCommand RemovePhotoCommand { get; }
+    public RelayCommand PreviousPhotoCommand { get; }
+    public RelayCommand TogglePhotoPlaybackCommand { get; }
+    public RelayCommand NextPhotoCommand { get; }
+    public RelayCommand SaveAlbumPresetCommand { get; }
+    public RelayCommand LoadAlbumPresetCommand { get; }
+    public RelayCommand ChooseWatchedFolderCommand { get; }
 
     public void SelectWidget(WidgetModel? widget, bool additive = false, bool toggle = false)
     {
@@ -806,6 +890,346 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             MessageBox.Show(ex.Message, "Could not import media", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    private void AddPhotos()
+    {
+        var files = _dialogs.OpenImages();
+        if (files.Length > 0)
+            AddPhotoFiles(files, Document.PhotoFrame.EmbedImportedPhotos);
+    }
+
+    private void AddPhotoFolder()
+    {
+        var folder = _dialogs.OpenFolder();
+        if (string.IsNullOrWhiteSpace(folder)) return;
+        AddPhotoFiles(GetPhotoFiles(folder), Document.PhotoFrame.EmbedImportedPhotos);
+    }
+
+    public void AddPhotoFiles(IEnumerable<string> files, bool embed)
+    {
+        var added = new List<PhotoFrameItem>();
+        foreach (var path in files.Where(IsSupportedPhoto).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var fullPath = Path.GetFullPath(path);
+                if (!File.Exists(fullPath)) continue;
+                if (!embed && Document.PhotoFrame.Photos.Any(p => p.AssetId is null && string.Equals(Path.GetFullPath(p.SourcePath), fullPath, StringComparison.OrdinalIgnoreCase)))
+                    continue;
+
+                var item = new PhotoFrameItem { SourcePath = embed ? string.Empty : fullPath };
+                PhotoMetadataService.Populate(item, fullPath);
+                if (embed)
+                    item.AssetId = _assetService.Import(Workspace, fullPath, ThemeAssetKind.Image).Id;
+                Document.PhotoFrame.Photos.Add(item);
+                added.Add(item);
+            }
+            catch (Exception ex)
+            {
+                DeviceStatus = $"Skipped photo: {Path.GetFileName(path)} ({ex.Message})";
+            }
+        }
+
+        if (added.Count == 0) return;
+        SelectedPhoto = added[0];
+        if (Document.PhotoFrame.Photos.Count == added.Count)
+            SetCurrentPhoto(0, manual: true);
+        MarkDirtyAndRefresh();
+        RaisePhotoCommandStates();
+    }
+
+    private void RemoveSelectedPhoto()
+    {
+        var photo = SelectedPhoto;
+        if (photo is null) return;
+        var current = Document.PhotoFrame.Photos.ElementAtOrDefault(Document.PhotoFrame.RuntimeCurrentIndex);
+        var index = Document.PhotoFrame.Photos.IndexOf(photo);
+        Document.PhotoFrame.Photos.Remove(photo);
+        if (photo.AssetId is Guid assetId && !Document.PhotoFrame.Photos.Any(p => p.AssetId == assetId) && !Document.Widgets.Any(w => w.AssetId == assetId))
+        {
+            var asset = Document.Assets.FirstOrDefault(a => a.Id == assetId);
+            if (asset is not null) Document.Assets.Remove(asset);
+        }
+        SelectedPhoto = Document.PhotoFrame.Photos.Count == 0
+            ? null
+            : Document.PhotoFrame.Photos[Math.Min(index, Document.PhotoFrame.Photos.Count - 1)];
+        Document.PhotoFrame.RuntimeCurrentIndex = current is not null && !ReferenceEquals(current, photo)
+            ? Math.Max(0, Document.PhotoFrame.Photos.IndexOf(current))
+            : Math.Clamp(index, 0, Math.Max(0, Document.PhotoFrame.Photos.Count - 1));
+        Document.PhotoFrame.RuntimePreviousIndex = -1;
+        MarkDirtyAndRefresh();
+        RaisePhotoCommandStates();
+    }
+
+    public void MovePhoto(PhotoFrameItem source, PhotoFrameItem target)
+    {
+        var current = Document.PhotoFrame.Photos.ElementAtOrDefault(Document.PhotoFrame.RuntimeCurrentIndex);
+        var previous = Document.PhotoFrame.Photos.ElementAtOrDefault(Document.PhotoFrame.RuntimePreviousIndex);
+        var oldIndex = Document.PhotoFrame.Photos.IndexOf(source);
+        var newIndex = Document.PhotoFrame.Photos.IndexOf(target);
+        if (oldIndex < 0 || newIndex < 0 || oldIndex == newIndex) return;
+        Document.PhotoFrame.Photos.Move(oldIndex, newIndex);
+        Document.PhotoFrame.RuntimeCurrentIndex = current is null ? 0 : Document.PhotoFrame.Photos.IndexOf(current);
+        Document.PhotoFrame.RuntimePreviousIndex = previous is null ? -1 : Document.PhotoFrame.Photos.IndexOf(previous);
+        SelectedPhoto = source;
+        MarkDirtyAndRefresh();
+        RaisePropertyChanged(nameof(PhotoPositionLabel));
+    }
+
+    public void PreviousPhoto() => MovePhotoBy(-1);
+    public void NextPhoto() => MovePhotoBy(1);
+
+    private void MovePhotoBy(int direction)
+    {
+        var count = Document.PhotoFrame.Photos.Count;
+        if (count == 0) return;
+        var next = (Document.PhotoFrame.RuntimeCurrentIndex + direction + count) % count;
+        SetCurrentPhoto(next, manual: true);
+    }
+
+    public void TogglePhotoPlayback()
+    {
+        _isPhotoPlaying = !_isPhotoPlaying;
+        _appSettings.PhotoFramePlaying = _isPhotoPlaying;
+        _settingsService.Save(_appSettings);
+        _photoStartedAt = DateTimeOffset.UtcNow;
+        RaisePropertyChanged(nameof(IsPhotoPlaying));
+        RaisePropertyChanged(nameof(PhotoPlaybackLabel));
+        ThemeChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void SaveAlbumPreset()
+    {
+        var path = _dialogs.SaveAlbumPreset(Document.Name + " album");
+        if (path is null) return;
+        try
+        {
+            _photoAlbumPresetService.Save(Workspace, path);
+            DeviceStatus = "Album preset saved";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Could not save album preset", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void LoadAlbumPreset()
+    {
+        var path = _dialogs.OpenAlbumPreset();
+        if (path is null) return;
+        try
+        {
+            ReplacePhotoFrameSettings(_photoAlbumPresetService.Load(path));
+            DeviceStatus = "Album preset loaded";
+            MarkDirtyAndRefresh();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Could not load album preset", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void ChooseWatchedFolder()
+    {
+        var folder = _dialogs.OpenFolder();
+        if (folder is null) return;
+        Document.PhotoFrame.WatchedFolder = folder;
+        Document.PhotoFrame.WatchFolderEnabled = true;
+        AddPhotoFiles(GetPhotoFiles(folder), embed: false);
+        ConfigurePhotoFolderWatcher();
+    }
+
+    private static IEnumerable<string> GetPhotoFiles(string folder)
+        => Directory.Exists(folder)
+            ? Directory.EnumerateFiles(folder, "*.*", SearchOption.AllDirectories).Where(IsSupportedPhoto).OrderBy(Path.GetFileName)
+            : [];
+
+    private static bool IsSupportedPhoto(string path)
+        => Path.GetExtension(path).ToLowerInvariant() is ".png" or ".jpg" or ".jpeg" or ".webp" or ".bmp";
+
+    private void InitializePhotoFrameRuntime()
+    {
+        var settings = Document.PhotoFrame;
+        settings.RuntimeCurrentIndex = Math.Clamp(_appSettings.LastPhotoIndex, 0, Math.Max(0, settings.Photos.Count - 1));
+        settings.RuntimePreviousIndex = -1;
+        settings.RuntimeTransitionProgress = 1;
+        settings.RuntimePhotoProgress = 0;
+        settings.RuntimeTransition = ResolveTransition(settings.Photos.ElementAtOrDefault(settings.RuntimeCurrentIndex));
+        _photoStartedAt = DateTimeOffset.UtcNow;
+        _photoTransitionStartedAt = _photoStartedAt;
+        SelectedPhoto = settings.Photos.ElementAtOrDefault(settings.RuntimeCurrentIndex);
+        UpdateEffectiveScreenMode(force: true);
+        ConfigurePhotoFolderWatcher();
+        PreloadUpcomingPhoto();
+        RaisePhotoCommandStates();
+    }
+
+    private bool UpdatePhotoPlayback()
+    {
+        var settings = Document.PhotoFrame;
+        if (settings.Photos.Count == 0) return false;
+        var now = DateTimeOffset.UtcNow;
+        var current = settings.Photos[Math.Clamp(settings.RuntimeCurrentIndex, 0, settings.Photos.Count - 1)];
+        var duration = TimeSpan.FromSeconds(current.DurationSeconds > 0 ? current.DurationSeconds : settings.DefaultDurationSeconds);
+        var elapsed = now - _photoStartedAt;
+
+        if (_isPhotoPlaying && elapsed >= duration)
+        {
+            if (!settings.Loop && !settings.Shuffle && settings.RuntimeCurrentIndex >= settings.Photos.Count - 1)
+            {
+                _isPhotoPlaying = false;
+                RaisePropertyChanged(nameof(IsPhotoPlaying));
+                RaisePropertyChanged(nameof(PhotoPlaybackLabel));
+            }
+            else
+            {
+                var next = settings.Shuffle && settings.Photos.Count > 1
+                    ? NextRandomPhoto(settings.RuntimeCurrentIndex, settings.Photos.Count)
+                    : (settings.RuntimeCurrentIndex + 1) % settings.Photos.Count;
+                SetCurrentPhoto(next, manual: false);
+                return true;
+            }
+        }
+
+        var transitionDuration = Math.Min(duration.TotalSeconds, settings.TransitionDurationSeconds);
+        settings.RuntimeTransitionProgress = transitionDuration <= 0
+            ? 1
+            : Math.Clamp((now - _photoTransitionStartedAt).TotalSeconds / transitionDuration, 0, 1);
+        settings.RuntimePhotoProgress = duration.TotalSeconds <= 0
+            ? 1
+            : Math.Clamp(elapsed.TotalSeconds / duration.TotalSeconds, 0, 1);
+        return settings.RuntimeTransitionProgress < 1 || settings.RuntimeTransition == PhotoTransition.KenBurns;
+    }
+
+    private void SetCurrentPhoto(int index, bool manual)
+    {
+        var settings = Document.PhotoFrame;
+        if (settings.Photos.Count == 0) return;
+        index = Math.Clamp(index, 0, settings.Photos.Count - 1);
+        settings.RuntimePreviousIndex = settings.RuntimeCurrentIndex;
+        settings.RuntimeCurrentIndex = index;
+        settings.RuntimeTransition = ResolveTransition(settings.Photos[index]);
+        settings.RuntimeTransitionProgress = settings.RuntimeTransition == PhotoTransition.Instant ? 1 : 0;
+        settings.RuntimePhotoProgress = 0;
+        _photoStartedAt = DateTimeOffset.UtcNow;
+        _photoTransitionStartedAt = _photoStartedAt;
+        _appSettings.LastPhotoIndex = index;
+        _settingsService.Save(_appSettings);
+        SelectedPhoto = settings.Photos[index];
+        RaisePropertyChanged(nameof(PhotoPositionLabel));
+        ThemeChanged?.Invoke(this, EventArgs.Empty);
+        if (LivePreview) RequestLiveFrame?.Invoke(this, EventArgs.Empty);
+        PreloadUpcomingPhoto();
+    }
+
+    private PhotoTransition ResolveTransition(PhotoFrameItem? item)
+    {
+        var transition = item?.TransitionOverride ?? Document.PhotoFrame.Transition;
+        if (transition != PhotoTransition.Random) return transition;
+        var choices = new[] { PhotoTransition.Crossfade, PhotoTransition.Slide, PhotoTransition.Zoom, PhotoTransition.KenBurns, PhotoTransition.Instant };
+        return choices[_photoRandom.Next(choices.Length)];
+    }
+
+    private int NextRandomPhoto(int current, int count)
+    {
+        var next = _photoRandom.Next(count - 1);
+        return next >= current ? next + 1 : next;
+    }
+
+    private void PreloadUpcomingPhoto()
+    {
+        var settings = Document.PhotoFrame;
+        if (settings.Photos.Count == 0) return;
+        var next = settings.Shuffle && settings.Photos.Count > 1
+            ? NextRandomPhoto(settings.RuntimeCurrentIndex, settings.Photos.Count)
+            : (settings.RuntimeCurrentIndex + 1) % settings.Photos.Count;
+        var workspace = Workspace;
+        var item = settings.Photos[next];
+        _ = Task.Run(() =>
+        {
+            try { ThemeRenderer.PreloadPhoto(workspace, item); } catch { }
+        });
+    }
+
+    private bool UpdateEffectiveScreenMode(bool force = false)
+    {
+        var settings = Document.PhotoFrame;
+        var next = MapRuntimeMode(Document.Mode);
+        if (settings.ScheduleEnabled &&
+            TimeSpan.TryParse(settings.InfoScreenStart, out var infoStart) &&
+            TimeSpan.TryParse(settings.PhotoFrameStart, out var photoStart) &&
+            TimeSpan.TryParse(settings.ScreenOffStart, out var offStart))
+        {
+            var now = DateTime.Now.TimeOfDay;
+            next = IsTimeInRange(now, photoStart, offStart)
+                ? MapRuntimeMode(settings.EveningMode)
+                : IsTimeInRange(now, infoStart, photoStart)
+                    ? RuntimeScreenMode.InfoScreen
+                    : RuntimeScreenMode.Off;
+        }
+
+        if (!force && Document.RuntimeMode == next) return false;
+        Document.RuntimeMode = next;
+        RaisePropertyChanged(nameof(EffectiveScreenModeLabel));
+        ThemeChanged?.Invoke(this, EventArgs.Empty);
+        if (LivePreview) RequestLiveFrame?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
+    private static RuntimeScreenMode MapRuntimeMode(ScreenMode mode)
+        => mode switch
+        {
+            ScreenMode.PhotoFrame => RuntimeScreenMode.PhotoFrame,
+            ScreenMode.Hybrid => RuntimeScreenMode.Hybrid,
+            _ => RuntimeScreenMode.InfoScreen
+        };
+
+    private static bool IsTimeInRange(TimeSpan value, TimeSpan start, TimeSpan end)
+        => start <= end
+            ? value >= start && value < end
+            : value >= start || value < end;
+
+    private void ConfigurePhotoFolderWatcher()
+    {
+        _photoFolderWatcher?.Dispose();
+        _photoFolderWatcher = null;
+        var settings = Document.PhotoFrame;
+        if (!settings.WatchFolderEnabled || !Directory.Exists(settings.WatchedFolder)) return;
+
+        _photoFolderWatcher = new FileSystemWatcher(settings.WatchedFolder)
+        {
+            NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
+            IncludeSubdirectories = true,
+            EnableRaisingEvents = true
+        };
+        _photoFolderWatcher.Created += OnWatchedPhotoChanged;
+        _photoFolderWatcher.Renamed += OnWatchedPhotoChanged;
+    }
+
+    private void OnWatchedPhotoChanged(object sender, FileSystemEventArgs e)
+    {
+        if (!IsSupportedPhoto(e.FullPath)) return;
+        Application.Current.Dispatcher.BeginInvoke(() => AddPhotoFiles([e.FullPath], embed: false));
+    }
+
+    private void ReplacePhotoFrameSettings(PhotoFrameSettings settings)
+    {
+        DetachPhotoFrame(Document.PhotoFrame);
+        Document.PhotoFrame = settings;
+        AttachPhotoFrame(settings);
+        InitializePhotoFrameRuntime();
+        RaisePropertyChanged(nameof(Document));
+    }
+
+    private void RaisePhotoCommandStates()
+    {
+        RemovePhotoCommand.RaiseCanExecuteChanged();
+        PreviousPhotoCommand.RaiseCanExecuteChanged();
+        TogglePhotoPlaybackCommand.RaiseCanExecuteChanged();
+        NextPhotoCommand.RaiseCanExecuteChanged();
+        SaveAlbumPresetCommand.RaiseCanExecuteChanged();
+        RaisePropertyChanged(nameof(PhotoPositionLabel));
     }
 
     private void ImportFont()
@@ -1468,6 +1892,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         FontAssets.Clear();
         foreach (var font in Document.Assets.Where(a => a.Kind == ThemeAssetKind.Font)) FontAssets.Add(font);
         SelectedWidget = Document.Widgets.OrderBy(w => w.ZIndex).FirstOrDefault();
+        InitializePhotoFrameRuntime();
         RaisePropertyChanged(nameof(Workspace));
         RaisePropertyChanged(nameof(Document));
         RaisePropertyChanged(nameof(IsDirty));
@@ -1482,6 +1907,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         workspace.Document.Widgets.CollectionChanged += OnWidgetsChanged;
         workspace.Document.Assets.CollectionChanged += OnAssetsChanged;
         foreach (var w in workspace.Document.Widgets) w.PropertyChanged += OnWidgetPropertyChanged;
+        AttachPhotoFrame(workspace.Document.PhotoFrame);
     }
 
     private void DetachWorkspace(ThemeWorkspace workspace)
@@ -1490,10 +1916,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         workspace.Document.Widgets.CollectionChanged -= OnWidgetsChanged;
         workspace.Document.Assets.CollectionChanged -= OnAssetsChanged;
         foreach (var w in workspace.Document.Widgets) w.PropertyChanged -= OnWidgetPropertyChanged;
+        DetachPhotoFrame(workspace.Document.PhotoFrame);
     }
 
     private void OnDocumentPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(ThemeDocument.Mode))
+            UpdateEffectiveScreenMode(force: true);
         MarkDirtyAndRefresh();
 
         if (_deviceService.IsConnected &&
@@ -1501,6 +1930,46 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             _ = ApplyDeviceOrientationAsync();
         }
+    }
+
+    private void AttachPhotoFrame(PhotoFrameSettings settings)
+    {
+        settings.PropertyChanged += OnPhotoFramePropertyChanged;
+        settings.Photos.CollectionChanged += OnPhotosChanged;
+        foreach (var photo in settings.Photos)
+            photo.PropertyChanged += OnPhotoPropertyChanged;
+    }
+
+    private void DetachPhotoFrame(PhotoFrameSettings settings)
+    {
+        settings.PropertyChanged -= OnPhotoFramePropertyChanged;
+        settings.Photos.CollectionChanged -= OnPhotosChanged;
+        foreach (var photo in settings.Photos)
+            photo.PropertyChanged -= OnPhotoPropertyChanged;
+    }
+
+    private void OnPhotoFramePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(PhotoFrameSettings.WatchFolderEnabled) or nameof(PhotoFrameSettings.WatchedFolder))
+            ConfigurePhotoFolderWatcher();
+        if (e.PropertyName is nameof(PhotoFrameSettings.ScheduleEnabled) or nameof(PhotoFrameSettings.InfoScreenStart) or nameof(PhotoFrameSettings.PhotoFrameStart) or nameof(PhotoFrameSettings.ScreenOffStart) or nameof(PhotoFrameSettings.EveningMode))
+            UpdateEffectiveScreenMode(force: true);
+        MarkDirtyAndRefresh();
+    }
+
+    private void OnPhotoPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        => MarkDirtyAndRefresh();
+
+    private void OnPhotosChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.OldItems is not null)
+            foreach (PhotoFrameItem photo in e.OldItems)
+                photo.PropertyChanged -= OnPhotoPropertyChanged;
+        if (e.NewItems is not null)
+            foreach (PhotoFrameItem photo in e.NewItems)
+                photo.PropertyChanged += OnPhotoPropertyChanged;
+        RaisePhotoCommandStates();
+        MarkDirtyAndRefresh();
     }
     private void OnWidgetPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -2238,6 +2707,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private sealed record PendingDisplayFrame(SkiaSharp.SKBitmap Bitmap, DeviceRotation Rotation);
 
     public sealed record RotationOption(string Label, DeviceRotation Value);
+    public sealed record ScreenModeOption(string Label, ScreenMode Value);
+    public sealed record OptionalTransitionOption(string Label, PhotoTransition? Value);
+    public sealed record OptionalFitOption(string Label, MediaFit? Value);
 
     public void Dispose()
     {
@@ -2248,6 +2720,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         DeleteRecoveryFile();
         _weatherMetrics.Dispose();
         _hardwareMetrics.Dispose();
+        _photoFolderWatcher?.Dispose();
         lock (_frameQueueSync)
         {
             _pendingFrame?.Bitmap.Dispose();
