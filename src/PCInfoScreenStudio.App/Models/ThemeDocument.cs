@@ -17,9 +17,11 @@ public sealed class ThemeDocument : ObservableObject
     private bool _editorGridVisible;
     private bool _snapToGrid;
     private double _gridSize = 10;
+    private ScreenMode _mode = ScreenMode.InfoScreen;
+    private PhotoFrameSettings _photoFrame = new();
 
     public int FormatVersion { get; set; } = CurrentFormatVersion;
-    public string MinimumAppVersion { get; set; } = "0.1.0";
+    public string MinimumAppVersion { get; set; } = "0.10.0";
 
     public string Name { get => _name; set => SetProperty(ref _name, value); }
     public string Author { get => _author; set => SetProperty(ref _author, value); }
@@ -51,6 +53,11 @@ public sealed class ThemeDocument : ObservableObject
     public bool EditorGridVisible { get => _editorGridVisible; set => SetProperty(ref _editorGridVisible, value); }
     public bool SnapToGrid { get => _snapToGrid; set => SetProperty(ref _snapToGrid, value); }
     public double GridSize { get => _gridSize; set => SetProperty(ref _gridSize, Math.Clamp(value, 2, 100)); }
+    public ScreenMode Mode { get => _mode; set => SetProperty(ref _mode, value); }
+    public PhotoFrameSettings PhotoFrame { get => _photoFrame; set => SetProperty(ref _photoFrame, value ?? new PhotoFrameSettings()); }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public RuntimeScreenMode RuntimeMode { get; set; } = RuntimeScreenMode.InfoScreen;
 
     public ObservableCollection<WidgetModel> Widgets { get; set; } = [];
     public ObservableCollection<ThemeAsset> Assets { get; set; } = [];
