@@ -9,7 +9,10 @@ public partial class ColorPickerButton : System.Windows.Controls.UserControl
 {
     public static readonly DependencyProperty HexColorProperty = DependencyProperty.Register(
         nameof(HexColor), typeof(string), typeof(ColorPickerButton),
-        new FrameworkPropertyMetadata("#FFFFFFFF", FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, OnColorChanged));
+        new FrameworkPropertyMetadata(
+            "#FFFFFFFF",
+            FrameworkPropertyMetadataOptions.BindsTwoWayByDefault,
+            OnColorChanged));
 
     public ColorPickerButton()
     {
@@ -28,15 +31,9 @@ public partial class ColorPickerButton : System.Windows.Controls.UserControl
 
     private void UpdateSwatch(string? value)
     {
-        try
-        {
-            Swatch.Background = new SolidColorBrush(
-                (MediaColor)ColorConverter.ConvertFromString(value ?? "#FFFFFFFF"));
-        }
-        catch
-        {
-            Swatch.Background = Brushes.Magenta;
-        }
+        var color = Parse(value);
+        Swatch.Background = new SolidColorBrush(color);
+        TransparentMark.Visibility = color.A == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void OnClick(object sender, RoutedEventArgs e)
@@ -45,14 +42,26 @@ public partial class ColorPickerButton : System.Windows.Controls.UserControl
         using var dialog = new Forms.ColorDialog
         {
             FullOpen = true,
-            Color = System.Drawing.Color.FromArgb(current.A, current.R, current.G, current.B)
+            Color = System.Drawing.Color.FromArgb(current.R, current.G, current.B)
         };
 
         if (dialog.ShowDialog() != Forms.DialogResult.OK)
             return;
 
         var c = dialog.Color;
-        HexColor = $"#{c.A:X2}{c.R:X2}{c.G:X2}{c.B:X2}";
+        ApplyHexColor($"#FF{c.R:X2}{c.G:X2}{c.B:X2}");
+    }
+
+    private void OnTransparentClick(object sender, RoutedEventArgs e)
+        => ApplyHexColor("#00000000");
+
+    private void ApplyHexColor(string value)
+    {
+        // SetCurrentValue preserves the DataTemplate binding. SetValue would
+        // replace it, leaving the swatch changed while the widget retained and
+        // saved its previous colour.
+        SetCurrentValue(HexColorProperty, value);
+        GetBindingExpression(HexColorProperty)?.UpdateSource();
     }
 
     private static MediaColor Parse(string? value)
