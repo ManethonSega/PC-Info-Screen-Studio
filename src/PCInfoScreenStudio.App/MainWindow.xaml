@@ -33,10 +33,17 @@
     <Border Grid.Row="0" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
       <DockPanel Margin="8,5">
         <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
-          <Button Content="New" Command="{Binding NewCommand}" ToolTip="Create a new blank theme (Ctrl+N)." />
-          <Button Content="Open" Command="{Binding OpenCommand}" ToolTip="Open an existing .t3theme file (Ctrl+O)." />
-          <Button Content="Save" Command="{Binding SaveCommand}" ToolTip="Save changes to the current theme (Ctrl+S)." />
-          <Button Content="Save as" Command="{Binding SaveAsCommand}" ToolTip="Save a copy under a new name or location (Ctrl+Shift+S)." />
+          <Button Content="File  ▾" Click="OnFileMenuClick" Padding="14,6" ToolTip="Create, open, or save a theme.">
+            <Button.ContextMenu>
+              <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                <MenuItem Header="New theme" Command="{Binding NewCommand}" InputGestureText="Ctrl+N" />
+                <MenuItem Header="Open…" Command="{Binding OpenCommand}" InputGestureText="Ctrl+O" />
+                <Separator />
+                <MenuItem Header="Save" Command="{Binding SaveCommand}" InputGestureText="Ctrl+S" />
+                <MenuItem Header="Save as…" Command="{Binding SaveAsCommand}" InputGestureText="Ctrl+Shift+S" />
+              </ContextMenu>
+            </Button.ContextMenu>
+          </Button>
           <Button Content="Undo" Command="{Binding UndoCommand}" ToolTip="Undo (Ctrl+Z)" />
           <Button Content="Redo" Command="{Binding RedoCommand}" ToolTip="Redo (Ctrl+Y)" />
         </StackPanel>

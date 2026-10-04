@@ -66,6 +66,14 @@ public partial class MainWindow : Window
     private void SetModeFromTray(ScreenMode mode)
         => Dispatcher.Invoke(() => _viewModel.Document.Mode = mode);
 
+    private void OnFileMenuClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { ContextMenu: { } menu } button)
+            return;
+        menu.PlacementTarget = button;
+        menu.IsOpen = true;
+    }
+
     private void OnPhotoPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         _photoDragStart = e.GetPosition(null);
