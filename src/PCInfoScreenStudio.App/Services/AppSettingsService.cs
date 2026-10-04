@@ -18,7 +18,22 @@ public sealed class AppSettingsService
                 return new AppSettings();
 
             var json = File.ReadAllText(_settingsPath);
-            return JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+            var settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+            if (settings.SettingsVersion < 2)
+            {
+                settings.SettingsVersion = 2;
+                settings.AdvancedDisplayExpanded = true;
+                settings.PositionPanelExpanded = true;
+                settings.DataPanelExpanded = true;
+                settings.TypographyPanelExpanded = true;
+                settings.GraphPanelExpanded = true;
+                settings.GaugePanelExpanded = true;
+                settings.MediaPanelExpanded = true;
+                settings.ShapePanelExpanded = true;
+                settings.ColoursPanelExpanded = true;
+                Save(settings);
+            }
+            return settings;
         }
         catch
         {
@@ -43,12 +58,21 @@ public sealed class AppSettingsService
 
 public sealed class AppSettings
 {
+    public int SettingsVersion { get; set; } = 2;
     public string WeatherCity { get; set; } = string.Empty;
     public DisplayProtocolProfile DisplayProtocol { get; set; } = DisplayProtocolProfile.Auto;
     public DisplayColorMode DisplayColorMode { get; set; } = DisplayColorMode.Auto;
     public bool CloseToTray { get; set; } = true;
     public bool AutoStartDisplay { get; set; }
     public bool ShowAdvancedSensors { get; set; }
-    public bool AdvancedDisplayExpanded { get; set; }
+    public bool AdvancedDisplayExpanded { get; set; } = true;
+    public bool PositionPanelExpanded { get; set; } = true;
+    public bool DataPanelExpanded { get; set; } = true;
+    public bool TypographyPanelExpanded { get; set; } = true;
+    public bool GraphPanelExpanded { get; set; } = true;
+    public bool GaugePanelExpanded { get; set; } = true;
+    public bool MediaPanelExpanded { get; set; } = true;
+    public bool ShapePanelExpanded { get; set; } = true;
+    public bool ColoursPanelExpanded { get; set; } = true;
     public double CanvasZoom { get; set; } = 1.0;
 }
