@@ -21,7 +21,17 @@ public sealed class ThemePackageService
         return new ThemeWorkspace(document, root);
     }
 
-    public async Task SaveAsync(ThemeWorkspace workspace, string filePath, CancellationToken cancellationToken = default)
+    public Task SaveAsync(ThemeWorkspace workspace, string filePath, CancellationToken cancellationToken = default)
+        => SaveCoreAsync(workspace, filePath, updateWorkspace: true, cancellationToken);
+
+    public Task SaveCopyAsync(ThemeWorkspace workspace, string filePath, CancellationToken cancellationToken = default)
+        => SaveCoreAsync(workspace, filePath, updateWorkspace: false, cancellationToken);
+
+    private async Task SaveCoreAsync(
+        ThemeWorkspace workspace,
+        string filePath,
+        bool updateWorkspace,
+        CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(filePath))!);
         var tempFile = filePath + ".tmp";
@@ -58,8 +68,11 @@ public sealed class ThemePackageService
         }
 
         File.Move(tempFile, filePath, overwrite: true);
-        workspace.FilePath = filePath;
-        workspace.IsDirty = false;
+        if (updateWorkspace)
+        {
+            workspace.FilePath = filePath;
+            workspace.IsDirty = false;
+        }
     }
 
     public async Task<ThemeWorkspace> LoadAsync(string filePath, CancellationToken cancellationToken = default)
