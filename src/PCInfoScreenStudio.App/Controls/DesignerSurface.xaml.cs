@@ -171,7 +171,9 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
 
     private void OnCanvasMouseDown(object sender, MouseButtonEventArgs e)
     {
-        if (_viewModel is null || FindAncestor<DesignerItemControl>(e.OriginalSource as DependencyObject) is not null)
+        if (_viewModel is null ||
+            _viewModel.Document.Mode == ScreenMode.PhotoFrame ||
+            FindAncestor<DesignerItemControl>(e.OriginalSource as DependencyObject) is not null)
             return;
 
         _marqueeStart = e.GetPosition(EditorCanvas);
