@@ -1,7 +1,9 @@
 using System.Windows;
 using System.Windows.Threading;
+using PCInfoScreenStudio.Models;
 using PCInfoScreenStudio.Rendering;
 using PCInfoScreenStudio.Services;
+using SkiaSharp;
 
 namespace PCInfoScreenStudio;
 
@@ -45,6 +47,30 @@ public partial class App : Application
                 using var bitmap = renderer.Render(workspace);
                 if (bitmap.Width <= 0 || bitmap.Height <= 0)
                     throw new InvalidOperationException("Renderer returned an invalid bitmap.");
+
+                var photoPath = Path.Combine(workspace.RootDirectory, "smoke-photo.png");
+                using (var photo = new SKBitmap(64, 48))
+                {
+                    photo.Erase(SKColors.CornflowerBlue);
+                    using var image = SKImage.FromBitmap(photo);
+                    using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+                    using var stream = File.Create(photoPath);
+                    data.SaveTo(stream);
+                }
+
+                workspace.Document.PhotoFrame.Photos.Add(new PhotoFrameItem
+                {
+                    DisplayName = "Smoke photo",
+                    SourcePath = photoPath,
+                    CaptionMode = PhotoCaptionMode.Custom,
+                    CustomCaption = "Photo frame smoke test"
+                });
+                workspace.Document.RuntimeMode = RuntimeScreenMode.PhotoFrame;
+                using var photoFrame = renderer.Render(workspace);
+                workspace.Document.RuntimeMode = RuntimeScreenMode.Hybrid;
+                using var hybridFrame = renderer.Render(workspace);
+                if (photoFrame.Width != workspace.Document.CanvasWidth || hybridFrame.Height != workspace.Document.CanvasHeight)
+                    throw new InvalidOperationException("Photo frame renderer returned an invalid bitmap.");
             }
 
             var window = new MainWindow();
