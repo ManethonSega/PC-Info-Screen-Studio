@@ -75,4 +75,6 @@ public sealed class AppSettings
     public bool ShapePanelExpanded { get; set; } = true;
     public bool ColoursPanelExpanded { get; set; } = true;
     public double CanvasZoom { get; set; } = 1.0;
+    public int LastPhotoIndex { get; set; }
+    public bool PhotoFramePlaying { get; set; } = true;
 }
