@@ -14,12 +14,162 @@ public sealed class ThemeRenderer
         var doc = workspace.Document;
         var bitmap = new SKBitmap(doc.CanvasWidth, doc.CanvasHeight, SKColorType.Bgra8888, SKAlphaType.Premul);
         using var canvas = new SKCanvas(bitmap);
-        canvas.Clear(ParseColor(doc.BackgroundColor));
+        if (doc.RuntimeMode == RuntimeScreenMode.Off)
+        {
+            canvas.Clear(SKColors.Black);
+            return bitmap;
+        }
 
-        foreach (var widget in doc.Widgets.Where(w => w.IsVisible).OrderBy(w => w.ZIndex))
-            DrawWidget(canvas, workspace, widget);
+        var photoMode = doc.RuntimeMode is RuntimeScreenMode.PhotoFrame or RuntimeScreenMode.Hybrid;
+        if (photoMode)
+            DrawPhotoFrame(canvas, workspace);
+        else
+            canvas.Clear(ParseColor(doc.BackgroundColor));
+
+        if (doc.RuntimeMode is RuntimeScreenMode.InfoScreen or RuntimeScreenMode.Hybrid)
+            foreach (var widget in doc.Widgets.Where(w => w.IsVisible).OrderBy(w => w.ZIndex))
+                DrawWidget(canvas, workspace, widget);
 
         return bitmap;
+    }
+
+    private static void DrawPhotoFrame(SKCanvas canvas, ThemeWorkspace workspace)
+    {
+        var doc = workspace.Document;
+        var settings = doc.PhotoFrame;
+        canvas.Clear(ParseColor(settings.BackgroundColor));
+        if (settings.Photos.Count == 0)
+        {
+            using var font = new SKFont(SKTypeface.Default, 18);
+            using var paint = new SKPaint { Color = SKColors.LightGray, IsAntialias = true };
+            const string message = "ADD PHOTOS";
+            var width = font.MeasureText(message, paint);
+            canvas.DrawText(message, (doc.CanvasWidth - width) / 2, doc.CanvasHeight / 2f, SKTextAlign.Left, font, paint);
+            return;
+        }
+
+        var currentIndex = Math.Clamp(settings.RuntimeCurrentIndex, 0, settings.Photos.Count - 1);
+        var currentItem = settings.Photos[currentIndex];
+        var current = PreparePhoto(workspace, currentItem);
+        if (current is null) return;
+
+        var destination = new SKRect(0, 0, doc.CanvasWidth, doc.CanvasHeight);
+        var progress = (float)Math.Clamp(settings.RuntimeTransitionProgress, 0, 1);
+        var transition = settings.RuntimeTransition;
+        SKBitmap? previous = null;
+        if (settings.RuntimePreviousIndex >= 0 && settings.RuntimePreviousIndex < settings.Photos.Count)
+            previous = PreparePhoto(workspace, settings.Photos[settings.RuntimePreviousIndex]);
+
+        if (previous is null || progress >= 1 || transition == PhotoTransition.Instant)
+        {
+            DrawKenBurns(canvas, current, destination, settings.RuntimePhotoProgress, transition == PhotoTransition.KenBurns, 255);
+        }
+        else
+        {
+            switch (transition)
+            {
+                case PhotoTransition.Slide:
+                    var previousDestination = destination;
+                    previousDestination.Offset(-doc.CanvasWidth * progress, 0);
+                    var currentDestination = destination;
+                    currentDestination.Offset(doc.CanvasWidth * (1 - progress), 0);
+                    canvas.DrawBitmap(previous, previousDestination);
+                    canvas.DrawBitmap(current, currentDestination);
+                    break;
+                case PhotoTransition.Zoom:
+                    DrawBitmapAlpha(canvas, previous, destination, (byte)(255 * (1 - progress)));
+                    var scale = .82f + .18f * progress;
+                    var zoomRect = ScaleAroundCenter(destination, scale);
+                    DrawBitmapAlpha(canvas, current, zoomRect, (byte)(255 * progress));
+                    break;
+                case PhotoTransition.KenBurns:
+                    DrawBitmapAlpha(canvas, previous, destination, (byte)(255 * (1 - progress)));
+                    DrawKenBurns(canvas, current, destination, settings.RuntimePhotoProgress, true, (byte)(255 * progress));
+                    break;
+                default:
+                    DrawBitmapAlpha(canvas, previous, destination, (byte)(255 * (1 - progress)));
+                    DrawBitmapAlpha(canvas, current, destination, (byte)(255 * progress));
+                    break;
+            }
+        }
+
+        if (settings.ShowCaptions)
+            DrawPhotoCaption(canvas, settings, currentItem, doc.CanvasWidth, doc.CanvasHeight);
+    }
+
+    private static SKBitmap? PreparePhoto(ThemeWorkspace workspace, PhotoFrameItem item)
+    {
+        var settings = workspace.Document.PhotoFrame;
+        var path = ResolvePhotoPath(workspace, item);
+        if (path is null || !File.Exists(path)) return null;
+        return RenderResourceCache.GetPreparedPhoto(
+            path,
+            workspace.Document.CanvasWidth,
+            workspace.Document.CanvasHeight,
+            item.FitOverride ?? settings.Fit,
+            item.CropZoom,
+            item.FocalX,
+            item.FocalY,
+            settings.BackgroundMode,
+            settings.BackgroundColor);
+    }
+
+    internal static string? ResolvePhotoPath(ThemeWorkspace workspace, PhotoFrameItem item)
+    {
+        if (item.AssetId is Guid assetId)
+        {
+            var asset = workspace.Document.Assets.FirstOrDefault(a => a.Id == assetId);
+            return asset is null ? null : workspace.GetAbsolutePath(asset);
+        }
+        return item.SourcePath;
+    }
+
+    internal static void PreloadPhoto(ThemeWorkspace workspace, PhotoFrameItem item)
+        => _ = PreparePhoto(workspace, item);
+
+    private static void DrawPhotoCaption(SKCanvas canvas, PhotoFrameSettings settings, PhotoFrameItem item, int width, int height)
+    {
+        var caption = item.GetCaption();
+        if (string.IsNullOrWhiteSpace(caption)) return;
+        var size = (float)settings.CaptionFontSize;
+        using var typeface = SKTypeface.FromFamilyName("Segoe UI") ?? SKTypeface.Default;
+        using var font = new SKFont(typeface, size);
+        using var textPaint = new SKPaint { Color = ParseColor(settings.CaptionColor), IsAntialias = true };
+        var measured = Math.Min(width - 20, font.MeasureText(caption, textPaint));
+        var barHeight = size + 18;
+        using var background = new SKPaint { Color = new SKColor(0, 0, 0, 155), IsAntialias = true };
+        canvas.DrawRoundRect(new SKRect(8, height - barHeight - 8, width - 8, height - 8), 6, 6, background);
+        canvas.Save();
+        canvas.ClipRect(new SKRect(14, height - barHeight - 8, 14 + measured, height - 8));
+        canvas.DrawText(caption, 14, height - 16, SKTextAlign.Left, font, textPaint);
+        canvas.Restore();
+    }
+
+    private static void DrawKenBurns(SKCanvas canvas, SKBitmap bitmap, SKRect destination, double photoProgress, bool enabled, byte alpha)
+    {
+        if (!enabled)
+        {
+            DrawBitmapAlpha(canvas, bitmap, destination, alpha);
+            return;
+        }
+        var progress = (float)Math.Clamp(photoProgress, 0, 1);
+        var scale = 1.02f + progress * .10f;
+        var target = ScaleAroundCenter(destination, scale);
+        target.Offset(-destination.Width * .025f * progress, -destination.Height * .018f * progress);
+        DrawBitmapAlpha(canvas, bitmap, target, alpha);
+    }
+
+    private static SKRect ScaleAroundCenter(SKRect rect, float scale)
+    {
+        var halfWidth = rect.Width * scale / 2;
+        var halfHeight = rect.Height * scale / 2;
+        return new SKRect(rect.MidX - halfWidth, rect.MidY - halfHeight, rect.MidX + halfWidth, rect.MidY + halfHeight);
+    }
+
+    private static void DrawBitmapAlpha(SKCanvas canvas, SKBitmap bitmap, SKRect destination, byte alpha)
+    {
+        using var paint = new SKPaint { Color = new SKColor(255, 255, 255, alpha), IsAntialias = true, FilterQuality = SKFilterQuality.High };
+        canvas.DrawBitmap(bitmap, destination, paint);
     }
 
     private static void DrawWidget(SKCanvas canvas, ThemeWorkspace workspace, WidgetModel w)
