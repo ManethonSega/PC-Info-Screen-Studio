@@ -16,10 +16,11 @@
         </Grid.ColumnDefinitions>
         <Grid Width="22" Height="22">
           <Border Background="#FFFFFFFF" CornerRadius="3" />
-          <Path Data="M 0,22 L 22,0 M 0,0 L 22,22"
+          <Path x:Name="TransparentMark"
+                Data="M 0,22 L 22,0 M 0,0 L 22,22"
                 Stroke="#FFD04444"
                 StrokeThickness="2"
-                Visibility="{Binding IsTransparent, ElementName=Root, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                Visibility="Collapsed" />
           <Border x:Name="Swatch" CornerRadius="3" BorderBrush="#55606E" BorderThickness="1" />
         </Grid>
         <TextBlock Grid.Column="1" Text="{Binding HexColor, ElementName=Root}" VerticalAlignment="Center" Margin="8,0,0,0" />
