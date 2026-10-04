@@ -8,7 +8,7 @@
         Width="1480" Height="880" MinWidth="1080" MinHeight="680"
         WindowStartupLocation="CenterScreen"
         Loaded="OnLoaded"
-        Closing="OnClosing" AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop">
+        Closing="OnClosing" StateChanged="OnWindowStateChanged" AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop">
   <Window.InputBindings>
     <KeyBinding Key="N" Modifiers="Control" Command="{Binding NewCommand}" />
     <KeyBinding Key="O" Modifiers="Control" Command="{Binding OpenCommand}" />
@@ -39,22 +39,6 @@
           <Button Content="Save as" Command="{Binding SaveAsCommand}" ToolTip="Save a copy under a new name or location (Ctrl+Shift+S)." />
           <Button Content="Undo" Command="{Binding UndoCommand}" ToolTip="Undo (Ctrl+Z)" />
           <Button Content="Redo" Command="{Binding RedoCommand}" ToolTip="Redo (Ctrl+Y)" />
-          <Separator Margin="7,3" />
-          <Button Command="{Binding ToggleOrientationCommand}" Padding="12,6" ToolTip="Switch the theme canvas between landscape and portrait.">
-            <StackPanel Orientation="Horizontal">
-              <TextBlock Text="Layout: " Foreground="{StaticResource MutedTextBrush}" />
-              <TextBlock Text="{Binding Document.Orientation}" />
-            </StackPanel>
-          </Button>
-          <TextBlock Text="Mount" Margin="12,0,4,0" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
-          <ComboBox Width="92" ItemsSource="{Binding RotationOptions}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Document.DeviceRotation}" VerticalContentAlignment="Center" ToolTip="Choose how the finished image is rotated on the physical display." />
-          <Button Content="Rotate" Command="{Binding RotateDeviceCommand}" ToolTip="Rotate the current device mounting orientation by 90 degrees." />
-          <CheckBox Content="Live data" IsChecked="{Binding UseLiveData}" VerticalAlignment="Center" Margin="12,0,0,0" ToolTip="Use current computer sensor values instead of the preview values." />
-          <Button Content="Hardware sensors..."
-                  Command="{Binding EnableFullSensorsCommand}"
-                  Margin="8,0,0,0"
-                  Padding="9,5"
-                  ToolTip="Install or inspect full hardware sensor access" />
         </StackPanel>
 
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
@@ -72,6 +56,7 @@
           </Border>
           <Button Content="{Binding DisplayActionLabel}"
                   Command="{Binding ConnectCommand}"
+                  Style="{StaticResource PrimaryButtonStyle}"
                   Padding="18,6"
                   ToolTip="Automatically detect, connect, send the theme and start live updates" />
         </StackPanel>
@@ -81,7 +66,7 @@
     <!-- Main three-column editor -->
     <Grid Grid.Row="1">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="280" />
+        <ColumnDefinition Width="320" />
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="{Binding PropertiesPanelWidth}" />
       </Grid.ColumnDefinitions>
@@ -99,6 +84,34 @@
           </Grid.RowDefinitions>
 
           <StackPanel Grid.Row="0">
+            <TextBlock Text="DEVICE" Style="{StaticResource SectionTitleStyle}" Margin="4,2,0,7" />
+            <TextBlock Text="{Binding DeviceStatus}" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="4,0,4,5" />
+            <Expander Header="DEVICE SETTINGS" IsExpanded="{Binding AdvancedDisplayExpanded}" Margin="2,0,2,8">
+              <StackPanel Margin="0,7,0,0">
+                <ComboBox ItemsSource="{Binding Ports}" DisplayMemberPath="DisplayName" SelectedValuePath="PortName" SelectedValue="{Binding SelectedPort}" ToolTip="Detected USB serial devices." />
+                <UniformGrid Columns="2" Margin="0,3,0,6">
+                  <Button Content="Detect screen" Command="{Binding DetectScreenCommand}" ToolTip="Find the compatible screen automatically." />
+                  <Button Content="Refresh ports" Command="{Binding RefreshPortsCommand}" ToolTip="Scan Windows again for connected serial devices." />
+                </UniformGrid>
+                <Button Command="{Binding ToggleOrientationCommand}" ToolTip="Switch the theme canvas between landscape and portrait.">
+                  <StackPanel Orientation="Horizontal"><TextBlock Text="Layout orientation: " Foreground="{StaticResource MutedTextBrush}" /><TextBlock Text="{Binding Document.Orientation}" /></StackPanel>
+                </Button>
+                <TextBlock Text="Physical screen rotation" Foreground="{StaticResource MutedTextBrush}" Margin="2,6,0,2" />
+                <ComboBox ItemsSource="{Binding RotationOptions}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Document.DeviceRotation}" ToolTip="Match the way the physical screen is mounted." />
+                <CheckBox Content="Use live sensor data" IsChecked="{Binding UseLiveData}" Margin="3,7,0,2" ToolTip="Use current computer sensor values instead of preview values." />
+                <CheckBox Content="Send changes immediately" IsChecked="{Binding LivePreview}" Margin="3,2,0,2" ToolTip="Send editor changes to the connected screen immediately." />
+                <CheckBox Content="Start display automatically" IsChecked="{Binding AutoStartDisplay}" Margin="3,2,0,2" ToolTip="Connect and start updates when the app opens." />
+                <CheckBox Content="Keep running in system tray" IsChecked="{Binding CloseToTray}" Margin="3,2,0,7" ToolTip="Continue the lightweight display runtime after closing the editor window." />
+                <TextBlock Text="Protocol" Foreground="{StaticResource MutedTextBrush}" />
+                <ComboBox ItemsSource="{Binding DisplayProtocolOptions}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding DisplayProtocol}" Margin="0,2,0,5" ToolTip="Auto is recommended unless detection fails." />
+                <TextBlock Text="Colour compatibility" Foreground="{StaticResource MutedTextBrush}" />
+                <ComboBox ItemsSource="{Binding DisplayColorOptions}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding DisplayColorMode}" Margin="0,2,0,5" ToolTip="Auto is recommended for supported screens." />
+                <UniformGrid Columns="2">
+                  <Button Content="Colour test" Command="{Binding TestScreenCommand}" ToolTip="Send a six-colour diagnostic pattern." />
+                  <Button Content="Sensor access" Command="{Binding EnableFullSensorsCommand}" ToolTip="Install or inspect full hardware sensor access." />
+                </UniformGrid>
+              </StackPanel>
+            </Expander>
             <StackPanel>
               <StackPanel.Style>
                 <Style TargetType="StackPanel">
@@ -110,57 +123,7 @@
                   </Style.Triggers>
                 </Style>
               </StackPanel.Style>
-            <TextBlock Text="DISPLAY" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="4,2,0,7" />
-            <Button Content="{Binding DisplayActionLabel}"
-                    Command="{Binding ConnectCommand}"
-                    Padding="12,7"
-                    ToolTip="Automatically detect, connect, send the theme and start live updates" />
-            <CheckBox Content="Start automatically"
-                      IsChecked="{Binding AutoStartDisplay}"
-                      Margin="3,4,0,0"
-                      ToolTip="Automatically connect to the display and start updates when the app opens." />
-            <CheckBox Content="Close window to system tray"
-                      IsChecked="{Binding CloseToTray}"
-                      Margin="3,2,0,0"
-                      ToolTip="Keep the display service running in the notification area when the window is closed." />
-
-            <Expander Header="Advanced display"
-                      IsExpanded="{Binding AdvancedDisplayExpanded}"
-                      Margin="2,6,2,0">
-              <StackPanel Margin="0,5,0,0">
-                <ComboBox ItemsSource="{Binding Ports}"
-                          DisplayMemberPath="DisplayName"
-                          SelectedValuePath="PortName"
-                          SelectedValue="{Binding SelectedPort}"
-                          ToolTip="Detected serial devices" />
-                <UniformGrid Columns="2" Margin="0,3,0,5">
-                  <Button Content="Detect" Command="{Binding DetectScreenCommand}" ToolTip="Probe available serial ports and select the compatible display." />
-                  <Button Content="Refresh" Command="{Binding RefreshPortsCommand}" ToolTip="Scan Windows again for connected serial devices." />
-                </UniformGrid>
-                <TextBlock Text="Protocol" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
-                <ComboBox ItemsSource="{Binding DisplayProtocolOptions}"
-                          DisplayMemberPath="Label"
-                          SelectedValuePath="Value"
-                          SelectedValue="{Binding DisplayProtocol}"
-                          Margin="0,2,0,5"
-                          ToolTip="Select the USB/display protocol. Auto is recommended unless detection fails." />
-                <TextBlock Text="Colour mode" Foreground="{StaticResource MutedTextBrush}" FontSize="10" />
-                <ComboBox ItemsSource="{Binding DisplayColorOptions}"
-                          DisplayMemberPath="Label"
-                          SelectedValuePath="Value"
-                          SelectedValue="{Binding DisplayColorMode}"
-                          Margin="0,2,0,5"
-                          ToolTip="Select the display colour byte order. Auto is recommended." />
-                <CheckBox Content="Keep sending live changes"
-                          IsChecked="{Binding LivePreview}"
-                          ToolTip="Send editor changes to the connected display immediately." />
-                <Button Content="Colour test"
-                        Command="{Binding TestScreenCommand}"
-                        ToolTip="Send the six-colour diagnostic pattern" />
-              </StackPanel>
-            </Expander>
-
-            <TextBlock Text="THEMES" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="4,12,0,7" />
+            <TextBlock Text="THEMES" Style="{StaticResource SectionTitleStyle}" Margin="4,5,0,7" />
             <ComboBox ItemsSource="{Binding Themes}"
                       SelectedItem="{Binding SelectedTheme}"
                       Margin="2,0,2,5"
@@ -188,18 +151,19 @@
               <Button Content="Delete" Command="{Binding DeleteThemeCommand}" ToolTip="Permanently delete the selected custom theme." />
             </UniformGrid>
 
-            <TextBlock Text="ADD" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="4,14,0,7" />
-            <UniformGrid Columns="2">
-              <Button Content="Text" Command="{Binding AddWidgetCommand}" CommandParameter="Text" ToolTip="Add a fixed-size text label to the canvas." />
-              <Button Content="Value" Command="{Binding AddWidgetCommand}" CommandParameter="Value" ToolTip="Add a label and live sensor value." />
-              <Button Content="Circle" Command="{Binding AddWidgetCommand}" CommandParameter="CircularGauge" ToolTip="Add a circular gauge with optional label and value." />
-              <Button Content="Clock" Command="{Binding AddWidgetCommand}" CommandParameter="AnalogClock" ToolTip="Add a traditional analogue clock." />
-              <Button Content="Bar" Command="{Binding AddWidgetCommand}" CommandParameter="BarGauge" ToolTip="Add a segmented horizontal sensor gauge." />
-              <Button Content="Graph" Command="{Binding AddWidgetCommand}" CommandParameter="Graph" ToolTip="Add a live history graph for a selected data source." />
-              <Button Content="Shape" Command="{Binding AddWidgetCommand}" CommandParameter="Shape" ToolTip="Add a coloured rectangle or ellipse for layout and backgrounds." />
-            </UniformGrid>
+            <TextBlock Text="ADD TO SCREEN" Style="{StaticResource SectionTitleStyle}" Margin="4,14,0,7" />
+            <TextBox Text="{Binding AddSearchText, UpdateSourceTrigger=PropertyChanged}" ToolTip="Search by widget or data source, for example CPU temperature, GPU usage, or clock." Margin="2,0,2,5" />
+            <ItemsControl ItemsSource="{Binding FilteredAddCatalog}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Button Command="{Binding DataContext.AddCatalogItemCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalContentAlignment="Left" Padding="9,6" ToolTip="{Binding Description}">
+                    <StackPanel><TextBlock Text="{Binding Label}" FontWeight="SemiBold" /><TextBlock Text="{Binding Description}" FontSize="10" Foreground="{StaticResource MutedTextBrush}" /></StackPanel>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
 
-            <TextBlock Text="MEDIA" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="4,14,0,7" />
+            <TextBlock Text="MEDIA" Style="{StaticResource SectionTitleStyle}" Margin="4,14,0,7" />
             <UniformGrid Columns="2">
               <Button Content="Image" Command="{Binding ImportImageCommand}" ToolTip="Import a still image and add it to the canvas." />
               <Button Content="GIF" Command="{Binding ImportGifCommand}" ToolTip="Import an animated GIF and add it to the canvas." />
@@ -359,14 +323,16 @@
                 </Expander.Style>
                 <StackPanel Margin="0,5,0,0">
                   <TextBlock Text="Add only the information you want over the photos." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="2,0,2,4" />
-                  <UniformGrid Columns="2">
-                    <Button Content="Text" Command="{Binding AddWidgetCommand}" CommandParameter="Text" ToolTip="Add a text overlay." />
-                    <Button Content="Value" Command="{Binding AddWidgetCommand}" CommandParameter="Value" ToolTip="Add a live sensor value overlay." />
-                    <Button Content="Circle" Command="{Binding AddWidgetCommand}" CommandParameter="CircularGauge" ToolTip="Add a circular sensor overlay." />
-                    <Button Content="Clock" Command="{Binding AddWidgetCommand}" CommandParameter="AnalogClock" ToolTip="Add a clock overlay." />
-                    <Button Content="Bar" Command="{Binding AddWidgetCommand}" CommandParameter="BarGauge" ToolTip="Add a sensor bar overlay." />
-                    <Button Content="Graph" Command="{Binding AddWidgetCommand}" CommandParameter="Graph" ToolTip="Add a history graph overlay." />
-                  </UniformGrid>
+                  <TextBox Text="{Binding AddSearchText, UpdateSourceTrigger=PropertyChanged}" ToolTip="Search overlays by data source, for example CPU temperature, GPU usage, or clock." Margin="2,0,2,5" />
+                  <ItemsControl ItemsSource="{Binding FilteredAddCatalog}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Button Command="{Binding DataContext.AddCatalogItemCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalContentAlignment="Left" Padding="9,6" ToolTip="{Binding Description}">
+                          <StackPanel><TextBlock Text="{Binding Label}" FontWeight="SemiBold" /><TextBlock Text="{Binding Description}" FontSize="10" Foreground="{StaticResource MutedTextBrush}" /></StackPanel>
+                        </Button>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
                 </StackPanel>
               </Expander>
 
@@ -844,5 +810,36 @@
         </StackPanel>
       </DockPanel>
     </Border>
+
+    <!-- Guided setup is shown only on a genuinely new installation. -->
+    <Grid Grid.RowSpan="3" Background="#D9101216" Panel.ZIndex="50">
+      <Grid.Style>
+        <Style TargetType="Grid">
+          <Setter Property="Visibility" Value="Collapsed" />
+          <Style.Triggers>
+            <DataTrigger Binding="{Binding IsFirstRunVisible}" Value="True"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+          </Style.Triggers>
+        </Style>
+      </Grid.Style>
+      <Border Width="610" Padding="30" Background="#1B1F26" BorderBrush="{StaticResource AccentBrush}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <StackPanel>
+          <TextBlock Text="Welcome to PC Info Screen Studio" FontSize="25" FontWeight="SemiBold" />
+          <TextBlock Text="Connect the screen, choose how you want to use it, and start with a useful layout." Foreground="{StaticResource MutedTextBrush}" FontSize="14" TextWrapping="Wrap" Margin="0,6,0,22" />
+
+          <TextBlock Text="1  SCREEN" Style="{StaticResource SectionTitleStyle}" />
+          <Button Content="Detect and connect screen" Command="{Binding FirstRunConnectCommand}" Style="{StaticResource PrimaryButtonStyle}" HorizontalAlignment="Left" Padding="18,8" Margin="0,7,0,5" />
+          <TextBlock Text="{Binding FirstRunStatus}" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" />
+
+          <TextBlock Text="2  MODE" Style="{StaticResource SectionTitleStyle}" Margin="0,22,0,7" />
+          <ComboBox ItemsSource="{Binding ScreenModes}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Document.Mode}" FontSize="14" />
+
+          <TextBlock Text="3  STARTING LAYOUT" Style="{StaticResource SectionTitleStyle}" Margin="0,22,0,7" />
+          <CheckBox Content="Use the starter theme with sensible CPU, GPU, and RAM widgets" IsChecked="{Binding FirstRunUseStarterTheme}" />
+          <TextBlock Text="Turn this off to start with a blank canvas. Photo files always stay on this PC." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="22,3,0,0" />
+
+          <Button Content="Finish setup" Command="{Binding CompleteFirstRunCommand}" Style="{StaticResource PrimaryButtonStyle}" HorizontalAlignment="Right" Padding="24,9" Margin="0,24,0,0" />
+        </StackPanel>
+      </Border>
+    </Grid>
   </Grid>
 </Window>

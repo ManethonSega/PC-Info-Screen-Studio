@@ -36,6 +36,7 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
             _viewModel.ThemeChanged -= OnThemeChanged;
             _viewModel.RequestLiveFrame -= OnRequestLiveFrame;
             _viewModel.AlignmentGuidesChanged -= OnAlignmentGuidesChanged;
+            _viewModel.EditorActivityChanged -= OnEditorActivityChanged;
         }
 
         _viewModel = e.NewValue as MainViewModel;
@@ -44,6 +45,7 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
             _viewModel.ThemeChanged += OnThemeChanged;
             _viewModel.RequestLiveFrame += OnRequestLiveFrame;
             _viewModel.AlignmentGuidesChanged += OnAlignmentGuidesChanged;
+            _viewModel.EditorActivityChanged += OnEditorActivityChanged;
         }
 
         RenderPreview(sendLive: false);
@@ -59,6 +61,22 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
 
     private void OnAlignmentGuidesChanged(object? sender, EventArgs e)
         => UpdateAlignmentGuides();
+
+    private void OnEditorActivityChanged(object? sender, EventArgs e)
+    {
+        if (_viewModel?.IsEditorActive == true)
+        {
+            QueueRender(sendLive: false, forceSend: false);
+            return;
+        }
+
+        // The preview and editor overlays are not needed while the app is in
+        // the tray. The live USB frame is still rendered on demand.
+        RenderSurface.Source = null;
+        GridOverlay.Children.Clear();
+        VerticalGuide.Visibility = Visibility.Collapsed;
+        HorizontalGuide.Visibility = Visibility.Collapsed;
+    }
 
     private void QueueRender(bool sendLive, bool forceSend)
     {
@@ -77,7 +95,8 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
             _sendLivePending = false;
             _forceSendPending = false;
 
-            UpdateGridOverlay();
+            if (_viewModel?.IsEditorActive == true)
+                UpdateGridOverlay();
             RenderPreview(shouldSend, shouldForce);
         });
     }
@@ -90,8 +109,12 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
             return;
         }
 
+        if (!_viewModel.IsEditorActive && !sendLive)
+            return;
+
         using var bitmap = _renderer.Render(_viewModel.Workspace);
-        RenderSurface.Source = ToBitmapSource(bitmap);
+        if (_viewModel.IsEditorActive)
+            RenderSurface.Source = ToBitmapSource(bitmap);
 
         if (sendLive && (_viewModel.LivePreview || forceSend))
             _viewModel.SendLiveFrame(bitmap, forceSend);

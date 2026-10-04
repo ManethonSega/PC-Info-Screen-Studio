@@ -33,6 +33,14 @@ public sealed class AppSettingsService
                 settings.ColoursPanelExpanded = true;
                 Save(settings);
             }
+            if (settings.SettingsVersion < 3)
+            {
+                // Existing users already know the application; the assistant
+                // is reserved for genuinely new installations.
+                settings.SettingsVersion = 3;
+                settings.FirstRunCompleted = true;
+                Save(settings);
+            }
             return settings;
         }
         catch
@@ -58,7 +66,8 @@ public sealed class AppSettingsService
 
 public sealed class AppSettings
 {
-    public int SettingsVersion { get; set; } = 2;
+    public int SettingsVersion { get; set; } = 3;
+    public bool FirstRunCompleted { get; set; }
     public string WeatherCity { get; set; } = string.Empty;
     public DisplayProtocolProfile DisplayProtocol { get; set; } = DisplayProtocolProfile.Auto;
     public DisplayColorMode DisplayColorMode { get; set; } = DisplayColorMode.Auto;

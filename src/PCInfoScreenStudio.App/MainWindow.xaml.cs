@@ -116,6 +116,7 @@ public partial class MainWindow : Window
     {
         Dispatcher.Invoke(() =>
         {
+            _viewModel.SetEditorActive(true);
             Show();
             if (WindowState == WindowState.Minimized)
                 WindowState = WindowState.Normal;
@@ -124,6 +125,15 @@ public partial class MainWindow : Window
             Topmost = false;
             Focus();
         });
+    }
+
+    private void OnWindowStateChanged(object? sender, EventArgs e)
+    {
+        if (WindowState == WindowState.Minimized && _viewModel.CloseToTray)
+        {
+            _viewModel.SetEditorActive(false);
+            Hide();
+        }
     }
 
     private void ExitFromTray()
@@ -188,6 +198,7 @@ public partial class MainWindow : Window
         if (!_exitRequested && _viewModel.CloseToTray)
         {
             e.Cancel = true;
+            _viewModel.SetEditorActive(false);
             Hide();
             return;
         }

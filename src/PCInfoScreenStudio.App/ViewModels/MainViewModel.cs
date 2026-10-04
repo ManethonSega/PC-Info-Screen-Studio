@@ -71,6 +71,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly HashSet<string> _advancedSensorSources = new(StringComparer.OrdinalIgnoreCase);
     private int _dataSampleBusy;
     private DateTimeOffset _suspendLiveDisplayUntil = DateTimeOffset.MinValue;
+    private bool _isEditorActive = true;
+    private bool _isFirstRunVisible;
+    private bool _firstRunUseStarterTheme = true;
+    private string _firstRunStatus = "Connect your screen now, or finish setup and connect later.";
+    private string _addSearchText = string.Empty;
 
     public event EventHandler? AlignmentGuidesChanged;
 
@@ -133,6 +138,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         SaveModeThemeCommand = new RelayCommand(SaveModeTheme, () => Document.Mode != ScreenMode.InfoScreen);
         LoadModeThemeCommand = new RelayCommand(LoadModeTheme, () => SelectedModeTheme is not null);
         DeleteModeThemeCommand = new RelayCommand(DeleteModeTheme, () => SelectedModeTheme is not null);
+        AddCatalogItemCommand = new RelayCommand(AddCatalogItem);
+        FirstRunConnectCommand = new RelayCommand(() => _ = DetectAndConnectFirstRunAsync(), () => !IsDeviceBusy);
+        CompleteFirstRunCommand = new RelayCommand(CompleteFirstRun);
 
         _dataTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
@@ -140,11 +148,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         };
         _dataTimer.Tick += async (_, _) =>
         {
+            if (!IsEditorActive && !LivePreview)
+                return;
             if (UseLiveData)
                 await RefreshRuntimeDataAsync();
             else if (RuntimeWidgets.Any(w => w.Type == WidgetType.AnalogClock))
             {
-                ThemeChanged?.Invoke(this, EventArgs.Empty);
+                if (IsEditorActive)
+                    ThemeChanged?.Invoke(this, EventArgs.Empty);
                 if (LivePreview)
                     RequestLiveFrame?.Invoke(this, EventArgs.Empty);
             }
@@ -157,6 +168,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         };
         _animationTimer.Tick += (_, _) =>
         {
+            if (!IsEditorActive && !LivePreview)
+                return;
             var animations = RuntimeWidgets
                 .Where(w => w.IsVisible && w.Type == WidgetType.AnimatedImage)
                 .ToArray();
@@ -175,7 +188,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             if (photoActive && Document.PhotoFrame.RuntimeTransitionProgress < 1)
                 requestedFps = Math.Max(requestedFps, 20);
             _animationTimer.Interval = TimeSpan.FromMilliseconds(1000d / requestedFps);
-            ThemeChanged?.Invoke(this, EventArgs.Empty);
+            if (IsEditorActive)
+                ThemeChanged?.Invoke(this, EventArgs.Empty);
             if (LivePreview)
                 RequestLiveFrame?.Invoke(this, EventArgs.Empty);
         };
@@ -205,10 +219,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         RefreshPorts();
         RefreshThemes();
         RefreshModeThemes();
+        _isFirstRunVisible = !_appSettings.FirstRunCompleted;
     }
 
     public event EventHandler? ThemeChanged;
     public event EventHandler? RequestLiveFrame;
+    public event EventHandler? EditorActivityChanged;
 
     public ThemeWorkspace Workspace => _workspace;
     public ThemeDocument Document => _workspace.Document;
@@ -218,6 +234,61 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public ObservableCollection<ThemeLibraryItem> Themes { get; }
     public ObservableCollection<ModeThemeLibraryItem> ModeThemes { get; }
     public ObservableCollection<ThemeAsset> FontAssets { get; }
+
+    public IReadOnlyList<AddWidgetOption> AddCatalog { get; } =
+    [
+        new("CPU usage", "Circular gauge · ready to use", WidgetType.CircularGauge, "CPU.Usage", "processor load percent circle"),
+        new("CPU temperature", "Live temperature value", WidgetType.Value, "CPU.Temperature", "processor temp heat"),
+        new("GPU usage", "Circular gauge · ready to use", WidgetType.CircularGauge, "GPU.Usage", "graphics load percent circle"),
+        new("GPU temperature", "Live history graph", WidgetType.Graph, "GPU.Temperature", "graphics temp heat chart"),
+        new("RAM usage", "Segmented horizontal gauge", WidgetType.BarGauge, "RAM.Usage", "memory percent bar"),
+        new("Clock", "Traditional analogue clock", WidgetType.AnalogClock, "Clock.Time", "time watch"),
+        new("Date", "Current date text", WidgetType.Value, "Clock.Date", "day calendar"),
+        new("Text", "Custom text label", WidgetType.Text, null, "label heading"),
+        new("Value", "Label and live value", WidgetType.Value, "CPU.Usage", "sensor number"),
+        new("Circle", "Circular sensor gauge", WidgetType.CircularGauge, "CPU.Usage", "dial ring"),
+        new("Bar", "Segmented sensor gauge", WidgetType.BarGauge, "RAM.Usage", "horizontal meter"),
+        new("Graph", "Live history graph", WidgetType.Graph, "GPU.Temperature", "chart history"),
+        new("Shape", "Rectangle or ellipse", WidgetType.Shape, null, "background panel")
+    ];
+
+    public IEnumerable<AddWidgetOption> FilteredAddCatalog
+    {
+        get
+        {
+            var query = AddSearchText.Trim();
+            return string.IsNullOrWhiteSpace(query)
+                ? AddCatalog.Take(7)
+                : AddCatalog.Where(item => item.Matches(query));
+        }
+    }
+
+    public string AddSearchText
+    {
+        get => _addSearchText;
+        set
+        {
+            if (!SetProperty(ref _addSearchText, value)) return;
+            RaisePropertyChanged(nameof(FilteredAddCatalog));
+        }
+    }
+
+    public bool IsEditorActive => _isEditorActive;
+    public bool IsFirstRunVisible
+    {
+        get => _isFirstRunVisible;
+        private set => SetProperty(ref _isFirstRunVisible, value);
+    }
+    public bool FirstRunUseStarterTheme
+    {
+        get => _firstRunUseStarterTheme;
+        set => SetProperty(ref _firstRunUseStarterTheme, value);
+    }
+    public string FirstRunStatus
+    {
+        get => _firstRunStatus;
+        private set => SetProperty(ref _firstRunStatus, value);
+    }
 
     public ObservableCollection<string> DataSources { get; } =
     [
@@ -445,6 +516,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             DetectScreenCommand.RaiseCanExecuteChanged();
             TestScreenCommand.RaiseCanExecuteChanged();
             BenchmarkCommand.RaiseCanExecuteChanged();
+            FirstRunConnectCommand.RaiseCanExecuteChanged();
         }
     }
 
@@ -600,6 +672,33 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand SaveModeThemeCommand { get; }
     public RelayCommand LoadModeThemeCommand { get; }
     public RelayCommand DeleteModeThemeCommand { get; }
+    public RelayCommand AddCatalogItemCommand { get; }
+    public RelayCommand FirstRunConnectCommand { get; }
+    public RelayCommand CompleteFirstRunCommand { get; }
+
+    public void SetEditorActive(bool active)
+    {
+        if (_isEditorActive == active) return;
+        _isEditorActive = active;
+        RaisePropertyChanged(nameof(IsEditorActive));
+
+        if (active)
+        {
+            _dataTimer.Start();
+            _animationTimer.Start();
+            _ = LoadThemeThumbnailsAsync();
+            ThemeChanged?.Invoke(this, EventArgs.Empty);
+        }
+        else
+        {
+            // Thumbnail bitmaps and the WPF preview are editor-only. Releasing
+            // them keeps the tray runtime small while the USB display continues.
+            foreach (var theme in Themes)
+                theme.Thumbnail = null;
+        }
+
+        EditorActivityChanged?.Invoke(this, EventArgs.Empty);
+    }
 
     public void SelectWidget(WidgetModel? widget, bool additive = false, bool toggle = false)
     {
@@ -839,7 +938,24 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private void AddWidget(object? parameter)
     {
         if (parameter is null || !Enum.TryParse<WidgetType>(parameter.ToString(), out var type)) return;
+        AddWidgetToCanvas(type, null);
+    }
+
+    private void AddCatalogItem(object? parameter)
+    {
+        if (parameter is not AddWidgetOption option) return;
+        AddWidgetToCanvas(option.Type, option.DataSource);
+    }
+
+    private void AddWidgetToCanvas(WidgetType type, string? dataSource)
+    {
         var widget = NewWidget(type);
+        if (!string.IsNullOrWhiteSpace(dataSource))
+        {
+            widget.DataSource = dataSource;
+            ApplyDataSourceDefaults(widget);
+            widget.Name = FriendlyLabel(dataSource);
+        }
         Document.EditorWidgets.Insert(0, widget);
         NormalizeZIndices();
         SelectedWidget = widget;
@@ -1487,6 +1603,40 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         DeviceStatus = Ports.Count == 0
             ? "No serial screen/COM device detected."
             : "No screen could be identified automatically. Choose the USB serial device from the list.";
+    }
+
+    private async Task DetectAndConnectFirstRunAsync()
+    {
+        if (_deviceService.IsConnected)
+        {
+            FirstRunStatus = "Screen is connected. Choose a mode and finish setup.";
+            return;
+        }
+
+        DetectScreen();
+        if (string.IsNullOrWhiteSpace(SelectedPort))
+        {
+            FirstRunStatus = "No screen was found. Check the USB cable; you can finish setup and connect later.";
+            return;
+        }
+
+        FirstRunStatus = $"Screen found on {SelectedPort}. Connecting…";
+        await ConnectOrDisconnectAsync();
+        FirstRunStatus = _deviceService.IsConnected
+            ? "Screen connected. Choose a mode and finish setup."
+            : "The screen could not be connected. You can finish setup and retry from Device Settings.";
+    }
+
+    private void CompleteFirstRun()
+    {
+        if (FirstRunUseStarterTheme)
+            CreateStarterLayout();
+        else
+            CreateBlankLayout();
+
+        _appSettings.FirstRunCompleted = true;
+        _settingsService.Save(_appSettings);
+        IsFirstRunVisible = false;
     }
 
     private async Task ConnectOrDisconnectAsync()
@@ -2352,7 +2502,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 }
             }
 
-            ThemeChanged?.Invoke(this, EventArgs.Empty);
+            if (IsEditorActive)
+                ThemeChanged?.Invoke(this, EventArgs.Empty);
             if (LivePreview)
                 RequestLiveFrame?.Invoke(this, EventArgs.Empty);
         }
@@ -2818,6 +2969,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public sealed record RotationOption(string Label, DeviceRotation Value);
     public sealed record ScreenModeOption(string Label, ScreenMode Value);
     public sealed record PhotoCaptionOption(string Label, PhotoCaptionMode Value);
+    public sealed record AddWidgetOption(string Label, string Description, WidgetType Type, string? DataSource, string SearchTerms)
+    {
+        public bool Matches(string query)
+            => (Label + " " + Description + " " + SearchTerms + " " + DataSource)
+                .Contains(query, StringComparison.CurrentCultureIgnoreCase);
+    }
 
     public void Dispose()
     {
