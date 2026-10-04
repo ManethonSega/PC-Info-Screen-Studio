@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Threading;
 using PCInfoScreenStudio.Models;
 using PCInfoScreenStudio.Services;
+using PCInfoScreenStudio.Rendering;
 
 namespace PCInfoScreenStudio.ViewModels;
 
@@ -38,7 +39,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private bool _useLiveData;
     private bool _suppressDirty;
     private bool _isDeviceBusy;
-    private int _frameSendBusy;
+    private readonly object _frameQueueSync = new();
+    private PendingDisplayFrame? _pendingFrame;
+    private bool _frameSenderRunning;
+    private readonly HashSet<string> _advancedSensorSources = new(StringComparer.OrdinalIgnoreCase);
     private int _dataSampleBusy;
     private DateTimeOffset _suspendLiveDisplayUntil = DateTimeOffset.MinValue;
 
@@ -98,13 +102,21 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         _animationTimer = new DispatcherTimer(DispatcherPriority.Render)
         {
-            Interval = TimeSpan.FromMilliseconds(50)
+            Interval = TimeSpan.FromMilliseconds(33)
         };
         _animationTimer.Tick += (_, _) =>
         {
-            if (!Document.Widgets.Any(w => w.IsVisible && w.Type == WidgetType.AnimatedImage))
+            var animations = Document.Widgets
+                .Where(w => w.IsVisible && w.Type == WidgetType.AnimatedImage)
+                .ToArray();
+
+            if (animations.Length == 0)
                 return;
 
+            var requestedFps = animations.Max(w => w.TargetFps > 0
+                ? Math.Clamp(w.TargetFps, 1, 60)
+                : 30);
+            _animationTimer.Interval = TimeSpan.FromMilliseconds(1000d / requestedFps);
             ThemeChanged?.Invoke(this, EventArgs.Empty);
         };
         _animationTimer.Start();
@@ -360,31 +372,55 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if ((!LivePreview && !force) || !_deviceService.IsConnected) return;
         if (DateTimeOffset.UtcNow < _suspendLiveDisplayUntil) return;
 
-        if (Interlocked.CompareExchange(ref _frameSendBusy, 1, 0) != 0)
-            return;
+        var next = new PendingDisplayFrame(bitmap.Copy(), Document.DeviceRotation);
+        lock (_frameQueueSync)
+        {
+            // USB transmission is slower than preview rendering. Keep only the
+            // newest waiting frame so the display never builds up animation lag.
+            _pendingFrame?.Bitmap.Dispose();
+            _pendingFrame = next;
 
-        var copy = bitmap.Copy();
-        var rotation = Document.DeviceRotation;
-        _ = SendLiveFrameAsync(copy, rotation);
+            if (_frameSenderRunning)
+                return;
+
+            _frameSenderRunning = true;
+        }
+
+        _ = DrainLiveFrameQueueAsync();
     }
 
-    private async Task SendLiveFrameAsync(SkiaSharp.SKBitmap bitmap, DeviceRotation rotation)
+    private async Task DrainLiveFrameQueueAsync()
     {
-        try
+        while (true)
         {
-            await _deviceService.DisplayAsync(bitmap, rotation);
-            await Application.Current.Dispatcher.InvokeAsync(() =>
-                DeviceStatus = BuildConnectionStatus());
-        }
-        catch (Exception ex)
-        {
-            await Application.Current.Dispatcher.InvokeAsync(() =>
-                DeviceStatus = "Display error: " + ex.Message);
-        }
-        finally
-        {
-            bitmap.Dispose();
-            Interlocked.Exchange(ref _frameSendBusy, 0);
+            PendingDisplayFrame? frame;
+            lock (_frameQueueSync)
+            {
+                frame = _pendingFrame;
+                _pendingFrame = null;
+
+                if (frame is null)
+                {
+                    _frameSenderRunning = false;
+                    return;
+                }
+            }
+
+            try
+            {
+                await _deviceService.DisplayAsync(frame.Bitmap, frame.Rotation);
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                    DeviceStatus = BuildConnectionStatus());
+            }
+            catch (Exception ex)
+            {
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                    DeviceStatus = "Display error: " + ex.Message);
+            }
+            finally
+            {
+                frame.Bitmap.Dispose();
+            }
         }
     }
 
@@ -921,6 +957,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         DetachWorkspace(_workspace);
         _workspace.Dispose();
+        ThemeRenderer.ClearCaches();
         _workspace = workspace;
         AttachWorkspace(_workspace);
         FontAssets.Clear();
@@ -1182,10 +1219,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             {
                 sample[pair.Key] = pair.Value;
 
-                if (pair.Key.StartsWith("Sensor: ", StringComparison.OrdinalIgnoreCase) &&
-                    !DataSources.Contains(pair.Key))
+                if (pair.Key.StartsWith("Sensor: ", StringComparison.OrdinalIgnoreCase))
                 {
-                    DataSources.Add(pair.Key);
+                    _advancedSensorSources.Add(pair.Key);
+                    if (ShowAdvancedSensors && !DataSources.Contains(pair.Key))
+                        DataSources.Add(pair.Key);
                 }
             }
 
@@ -1493,6 +1531,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         return result == MessageBoxResult.Yes;
     }
 
+    private sealed record PendingDisplayFrame(SkiaSharp.SKBitmap Bitmap, DeviceRotation Rotation);
+
     public sealed record RotationOption(string Label, DeviceRotation Value);
 
     public void Dispose()
@@ -1501,6 +1541,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _animationTimer.Stop();
         _weatherMetrics.Dispose();
         _hardwareMetrics.Dispose();
+        lock (_frameQueueSync)
+        {
+            _pendingFrame?.Bitmap.Dispose();
+            _pendingFrame = null;
+        }
+        ThemeRenderer.ClearCaches();
         _deviceService.Dispose();
         DetachWorkspace(_workspace);
         _workspace.Dispose();
