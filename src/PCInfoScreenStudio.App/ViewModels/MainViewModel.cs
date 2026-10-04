@@ -72,6 +72,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         SaveAsCommand = new RelayCommand(async () => await SaveAsync(true));
         UndoCommand = new RelayCommand(Undo, () => _historyIndex > 0);
         RedoCommand = new RelayCommand(Redo, () => _historyIndex >= 0 && _historyIndex < _history.Count - 1);
+        NudgeWidgetCommand = new RelayCommand(NudgeSelected, _ => SelectedWidget is not null && SelectedWidget.IsLocked == false);
+        AlignWidgetCommand = new RelayCommand(AlignSelected, _ => SelectedWidget is not null && SelectedWidget.IsLocked == false);
         AddWidgetCommand = new RelayCommand(AddWidget);
         DeleteWidgetCommand = new RelayCommand(DeleteSelected, () => SelectedWidget is not null);
         DuplicateWidgetCommand = new RelayCommand(DuplicateSelected, () => SelectedWidget is not null);
@@ -416,6 +418,21 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public string DisplayActionLabel => _deviceService.IsConnected ? "Stop display" : "Start display";
 
+    public double CanvasZoom
+    {
+        get => Math.Clamp(_appSettings.CanvasZoom, 0.5, 3.0);
+        set
+        {
+            var zoom = Math.Clamp(value, 0.5, 3.0);
+            if (Math.Abs(_appSettings.CanvasZoom - zoom) < .001)
+                return;
+
+            _appSettings.CanvasZoom = zoom;
+            _settingsService.Save(_appSettings);
+            RaisePropertyChanged();
+        }
+    }
+
     public bool IsDirty => Workspace.IsDirty;
     public string WindowTitle => $"{Document.Name}{(IsDirty ? " *" : string.Empty)} - PC Info Screen Studio";
 
@@ -425,6 +442,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand SaveAsCommand { get; }
     public RelayCommand UndoCommand { get; }
     public RelayCommand RedoCommand { get; }
+    public RelayCommand NudgeWidgetCommand { get; }
+    public RelayCommand AlignWidgetCommand { get; }
     public RelayCommand AddWidgetCommand { get; }
     public RelayCommand DeleteWidgetCommand { get; }
     public RelayCommand DuplicateWidgetCommand { get; }
@@ -675,6 +694,46 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Document.Widgets.Insert(Math.Max(0, selectedIndex), clone);
         NormalizeZIndices();
         SelectedWidget = clone;
+        MarkDirtyAndRefresh();
+    }
+
+    private void NudgeSelected(object? parameter)
+    {
+        var widget = SelectedWidget;
+        if (widget is null || widget.IsLocked || parameter is not string instruction)
+            return;
+
+        var parts = instruction.Split(':');
+        var direction = parts[0];
+        var amount = parts.Length > 1 && double.TryParse(parts[1], out var parsed) ? parsed : 1d;
+
+        switch (direction)
+        {
+            case "Left": widget.X = Math.Max(0, widget.X - amount); break;
+            case "Right": widget.X = Math.Min(Document.CanvasWidth - widget.Width, widget.X + amount); break;
+            case "Up": widget.Y = Math.Max(0, widget.Y - amount); break;
+            case "Down": widget.Y = Math.Min(Document.CanvasHeight - widget.Height, widget.Y + amount); break;
+        }
+
+        MarkDirtyAndRefresh();
+    }
+
+    private void AlignSelected(object? parameter)
+    {
+        var widget = SelectedWidget;
+        if (widget is null || widget.IsLocked || parameter is not string alignment)
+            return;
+
+        switch (alignment)
+        {
+            case "Left": widget.X = 0; break;
+            case "Center": widget.X = Math.Max(0, (Document.CanvasWidth - widget.Width) / 2); break;
+            case "Right": widget.X = Math.Max(0, Document.CanvasWidth - widget.Width); break;
+            case "Top": widget.Y = 0; break;
+            case "Middle": widget.Y = Math.Max(0, (Document.CanvasHeight - widget.Height) / 2); break;
+            case "Bottom": widget.Y = Math.Max(0, Document.CanvasHeight - widget.Height); break;
+        }
+
         MarkDirtyAndRefresh();
     }
 
@@ -1824,6 +1883,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         DuplicateWidgetCommand.RaiseCanExecuteChanged();
         MoveLayerUpCommand.RaiseCanExecuteChanged();
         MoveLayerDownCommand.RaiseCanExecuteChanged();
+        NudgeWidgetCommand.RaiseCanExecuteChanged();
+        AlignWidgetCommand.RaiseCanExecuteChanged();
     }
 
     private bool ConfirmDiscardIfNeeded()
