@@ -215,17 +215,24 @@
             <Run Text="{Binding Document.CanvasWidth}" /><Run Text=" × " /><Run Text="{Binding Document.CanvasHeight}" />
           </TextBlock>
 
-          <TextBlock Grid.Column="1"
-                     Text="Drag to move · drag handles to resize"
-                     Foreground="{StaticResource MutedTextBrush}"
-                     VerticalAlignment="Center"
-                     HorizontalAlignment="Center" />
+          <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <TextBlock Text="Align" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" Margin="0,0,3,0" />
+            <Button Content="L" Command="{Binding AlignWidgetCommand}" CommandParameter="Left" Padding="6,3" ToolTip="Align left" />
+            <Button Content="C" Command="{Binding AlignWidgetCommand}" CommandParameter="Center" Padding="6,3" ToolTip="Centre horizontally" />
+            <Button Content="R" Command="{Binding AlignWidgetCommand}" CommandParameter="Right" Padding="6,3" ToolTip="Align right" />
+            <Button Content="T" Command="{Binding AlignWidgetCommand}" CommandParameter="Top" Padding="6,3" ToolTip="Align top" />
+            <Button Content="M" Command="{Binding AlignWidgetCommand}" CommandParameter="Middle" Padding="6,3" ToolTip="Centre vertically" />
+            <Button Content="B" Command="{Binding AlignWidgetCommand}" CommandParameter="Bottom" Padding="6,3" ToolTip="Align bottom" />
+          </StackPanel>
 
           <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
             <CheckBox Content="Grid" IsChecked="{Binding Document.EditorGridVisible}" Margin="4,0,8,0" />
             <CheckBox Content="Snap" IsChecked="{Binding Document.SnapToGrid}" Margin="0,0,8,0" />
             <TextBlock Text="Size" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" Margin="0,0,4,0" />
             <TextBox Width="42" Text="{Binding Document.GridSize, UpdateSourceTrigger=LostFocus}" ToolTip="Grid spacing in screen pixels" />
+            <TextBlock Text="Zoom" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" Margin="10,0,4,0" />
+            <Slider Width="74" Minimum="0.5" Maximum="3" SmallChange="0.1" LargeChange="0.5"
+                    Value="{Binding CanvasZoom}" ToolTip="Editor zoom only. The physical output remains 480 × 320." />
           </StackPanel>
         </Grid>
         <Border Grid.Row="1" Margin="18" Padding="18" Background="#111419" BorderBrush="#252A32" BorderThickness="1" CornerRadius="8">
