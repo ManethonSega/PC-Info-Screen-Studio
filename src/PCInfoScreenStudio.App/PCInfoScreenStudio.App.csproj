@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <Resource Include="Assets\PCInfoScreenStudio.ico" />
+    <Resource Include="Assets\PCInfoScreenStudio.png" />
     <Content Include="Assets\Fonts\*.ttf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
