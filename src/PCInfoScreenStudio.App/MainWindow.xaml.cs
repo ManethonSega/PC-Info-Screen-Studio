@@ -48,8 +48,9 @@ public partial class MainWindow : Window
         _trayIcon.DoubleClick += (_, _) => RestoreFromTray();
     }
 
-    private void OnLoaded(object sender, RoutedEventArgs e)
+    private async void OnLoaded(object sender, RoutedEventArgs e)
     {
+        await _viewModel.RecoverIfAvailableAsync();
         _viewModel.StartAutoDisplayIfEnabled();
     }
 
