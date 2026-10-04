@@ -330,6 +330,63 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    public bool AutoStartDisplay
+    {
+        get => _appSettings.AutoStartDisplay;
+        set
+        {
+            if (_appSettings.AutoStartDisplay == value)
+                return;
+
+            _appSettings.AutoStartDisplay = value;
+            _settingsService.Save(_appSettings);
+            RaisePropertyChanged();
+        }
+    }
+
+    public bool ShowAdvancedSensors
+    {
+        get => _appSettings.ShowAdvancedSensors;
+        set
+        {
+            if (_appSettings.ShowAdvancedSensors == value)
+                return;
+
+            _appSettings.ShowAdvancedSensors = value;
+            _settingsService.Save(_appSettings);
+
+            if (value)
+            {
+                foreach (var source in _advancedSensorSources.OrderBy(x => x, StringComparer.CurrentCultureIgnoreCase))
+                    if (!DataSources.Contains(source))
+                        DataSources.Add(source);
+            }
+            else
+            {
+                foreach (var source in DataSources.Where(x => x.StartsWith("Sensor: ", StringComparison.OrdinalIgnoreCase)).ToArray())
+                    DataSources.Remove(source);
+            }
+
+            RaisePropertyChanged();
+        }
+    }
+
+    public bool AdvancedDisplayExpanded
+    {
+        get => _appSettings.AdvancedDisplayExpanded;
+        set
+        {
+            if (_appSettings.AdvancedDisplayExpanded == value)
+                return;
+
+            _appSettings.AdvancedDisplayExpanded = value;
+            _settingsService.Save(_appSettings);
+            RaisePropertyChanged();
+        }
+    }
+
+    public string DisplayActionLabel => _deviceService.IsConnected ? "Stop display" : "Start display";
+
     public bool IsDirty => Workspace.IsDirty;
     public string WindowTitle => $"{Document.Name}{(IsDirty ? " *" : string.Empty)} - PC Info Screen Studio";
 
@@ -692,11 +749,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (_deviceService.IsConnected)
         {
             IsDeviceBusy = true;
-            DeviceStatus = "Disconnecting...";
+            DeviceStatus = "Stopping display...";
+            LivePreview = false;
             try
             {
                 await _deviceService.DisconnectAsync();
-                DeviceStatus = "Not connected";
+                DeviceStatus = "Display stopped";
             }
             catch (Exception ex)
             {
@@ -705,14 +763,18 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             finally
             {
                 IsDeviceBusy = false;
+                RaisePropertyChanged(nameof(DisplayActionLabel));
                 BenchmarkCommand.RaiseCanExecuteChanged();
             }
             return;
         }
 
         if (string.IsNullOrWhiteSpace(SelectedPort))
+            DetectScreen();
+
+        if (string.IsNullOrWhiteSpace(SelectedPort))
         {
-            MessageBox.Show("Choose a COM port first.", "Connect display", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show("No compatible serial display was found.", "Start display", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
@@ -731,7 +793,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 DisplayColorMode,
                 deviceInfo);
 
+            LivePreview = true;
             DeviceStatus = BuildConnectionStatus();
+            RaisePropertyChanged(nameof(DisplayActionLabel));
             RequestLiveFrame?.Invoke(this, EventArgs.Empty);
         }
         catch (UnauthorizedAccessException)
@@ -751,8 +815,19 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         finally
         {
             IsDeviceBusy = false;
+            RaisePropertyChanged(nameof(DisplayActionLabel));
             BenchmarkCommand.RaiseCanExecuteChanged();
         }
+    }
+
+    public void StartAutoDisplayIfEnabled()
+    {
+        if (!AutoStartDisplay || _deviceService.IsConnected || IsDeviceBusy)
+            return;
+
+        DetectScreen();
+        if (!string.IsNullOrWhiteSpace(SelectedPort))
+            _ = ConnectOrDisconnectAsync();
     }
 
     private async Task TestScreenAsync()
