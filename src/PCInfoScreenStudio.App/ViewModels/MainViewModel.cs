@@ -51,6 +51,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private bool _useLiveData;
     private bool _suppressDirty;
     private bool _isDeviceBusy;
+    private bool _suppressHistory;
+    private bool _recoveryBusy;
+    private int _historyIndex = -1;
     private readonly object _frameQueueSync = new();
     private PendingDisplayFrame? _pendingFrame;
     private bool _frameSenderRunning;
