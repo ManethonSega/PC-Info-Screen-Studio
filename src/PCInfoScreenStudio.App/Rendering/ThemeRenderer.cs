@@ -69,7 +69,7 @@ public sealed class ThemeRenderer
     private static void DrawAutoText(SKCanvas canvas, ThemeWorkspace workspace, WidgetModel w, string text)
     {
         FillBackground(canvas, w);
-        var size = FitTextSize(workspace, w, text, (float)Math.Max(1, w.Width - 8), (float)Math.Max(1, w.Height - 8), (float)Math.Max(6, w.FontSize));
+        var size = (float)Math.Max(6, w.FontSize);
         DrawCenteredText(canvas, workspace, w, text, size, w.ForegroundColor, (float)(w.Height / 2));
     }
 
@@ -84,20 +84,20 @@ public sealed class ThemeRenderer
         {
             var labelArea = (float)Math.Max(8, w.Height * .28);
             var valueArea = (float)Math.Max(8, w.Height - labelArea - padding * 2);
-            var labelSize = FitTextSize(workspace, w, w.Label, availableWidth, labelArea, (float)Math.Max(6, w.FontSize * .5));
-            var valueSize = FitTextSize(workspace, w, value, availableWidth, valueArea, (float)Math.Max(6, w.FontSize));
+            var labelSize = (float)Math.Max(6, w.FontSize * .5);
+            var valueSize = (float)Math.Max(6, w.FontSize);
 
             DrawCenteredText(canvas, workspace, w, w.Label, labelSize, w.ForegroundColor, labelArea * .55f);
             DrawCenteredText(canvas, workspace, w, value, valueSize, w.AccentColor, labelArea + valueArea * .50f);
         }
         else if (w.ShowLabel)
         {
-            var labelSize = FitTextSize(workspace, w, w.Label, availableWidth, (float)Math.Max(1, w.Height - 8), (float)Math.Max(6, w.FontSize));
+            var labelSize = (float)Math.Max(6, w.FontSize);
             DrawCenteredText(canvas, workspace, w, w.Label, labelSize, w.ForegroundColor, (float)(w.Height / 2));
         }
         else if (w.ShowValue)
         {
-            var valueSize = FitTextSize(workspace, w, value, availableWidth, (float)Math.Max(1, w.Height - 8), (float)Math.Max(6, w.FontSize));
+            var valueSize = (float)Math.Max(6, w.FontSize);
             DrawCenteredText(canvas, workspace, w, value, valueSize, w.AccentColor, (float)(w.Height / 2));
         }
     }
@@ -124,12 +124,12 @@ public sealed class ThemeRenderer
         if (w.ShowValue)
         {
             var value = FormatValue(w);
-            var valueSize = FitTextSize(workspace, w, value, innerWidth, (float)Math.Max(8, diameter * .28), (float)Math.Max(6, w.FontSize));
+            var valueSize = (float)Math.Max(6, w.FontSize);
             DrawCenteredText(canvas, workspace, w, value, valueSize, w.ForegroundColor, (float)(top + diameter * .53));
         }
         if (w.ShowLabel)
         {
-            var labelSize = FitTextSize(workspace, w, w.Label, innerWidth, (float)Math.Max(7, diameter * .16), (float)Math.Max(6, w.FontSize * .55));
+            var labelSize = (float)Math.Max(6, w.FontSize * .55);
             DrawCenteredText(canvas, workspace, w, w.Label, labelSize, w.ForegroundColor, (float)(top + diameter * .72));
         }
     }
