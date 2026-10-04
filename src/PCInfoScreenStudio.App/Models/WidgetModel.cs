@@ -15,6 +15,7 @@ public sealed class WidgetModel : ObservableObject
     private bool _isVisible = true;
     private bool _isLocked;
     private bool _isSelected;
+    private Guid? _groupId;
     private string _dataSource = "Preview.Value";
     private string _label = "Value";
     private string _valueFormat = "0";
@@ -71,6 +72,8 @@ public sealed class WidgetModel : ObservableObject
 
     [JsonIgnore]
     public bool IsSelected { get => _isSelected; set => SetProperty(ref _isSelected, value); }
+
+    public Guid? GroupId { get => _groupId; set => SetProperty(ref _groupId, value); }
 
     public string DataSource { get => _dataSource; set => SetProperty(ref _dataSource, value); }
     public string Label { get => _label; set => SetProperty(ref _label, value); }
@@ -145,6 +148,7 @@ public sealed class WidgetModel : ObservableObject
             ZIndex = ZIndex + 1,
             IsVisible = IsVisible,
             IsLocked = false,
+            GroupId = GroupId,
             DataSource = DataSource,
             Label = Label,
             ValueFormat = ValueFormat,
