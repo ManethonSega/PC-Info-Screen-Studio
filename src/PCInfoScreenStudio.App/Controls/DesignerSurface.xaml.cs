@@ -12,6 +12,9 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
 {
     private readonly ThemeRenderer _renderer = new();
     private MainViewModel? _viewModel;
+    private bool _renderQueued;
+    private bool _sendLivePending;
+    private bool _forceSendPending;
 
     public DesignerSurface()
     {
@@ -40,14 +43,32 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
     }
 
     private void OnThemeChanged(object? sender, EventArgs e)
-        => Dispatcher.BeginInvoke(() =>
-        {
-            UpdateGridOverlay();
-            RenderPreview(_viewModel?.LivePreview == true);
-        });
+        => QueueRender(_viewModel?.LivePreview == true, forceSend: false);
 
     private void OnRequestLiveFrame(object? sender, EventArgs e)
-        => Dispatcher.BeginInvoke(() => RenderPreview(sendLive: true, forceSend: true));
+        => QueueRender(sendLive: true, forceSend: true);
+
+    private void QueueRender(bool sendLive, bool forceSend)
+    {
+        _sendLivePending |= sendLive;
+        _forceSendPending |= forceSend;
+
+        if (_renderQueued)
+            return;
+
+        _renderQueued = true;
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Render, () =>
+        {
+            _renderQueued = false;
+            var shouldSend = _sendLivePending;
+            var shouldForce = _forceSendPending;
+            _sendLivePending = false;
+            _forceSendPending = false;
+
+            UpdateGridOverlay();
+            RenderPreview(shouldSend, shouldForce);
+        });
+    }
 
     private void RenderPreview(bool sendLive, bool forceSend = false)
     {
