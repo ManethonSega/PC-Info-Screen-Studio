@@ -25,6 +25,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly AppSettings _appSettings;
     private readonly DispatcherTimer _dataTimer;
     private readonly DispatcherTimer _animationTimer;
+    private readonly DispatcherTimer _historyTimer;
+    private readonly DispatcherTimer _recoveryTimer;
+    private readonly DocumentHistoryService _historyService = new();
+    private readonly List<string> _history = [];
+    private readonly string _recoveryPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "PCInfoScreenStudio",
+        "Recovery",
+        "recovery.t3theme");
     private ThemeWorkspace _workspace;
     private WidgetModel? _selectedWidget;
     private string? _selectedPort;
@@ -61,6 +70,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         OpenCommand = new RelayCommand(async () => await OpenThemeAsync());
         SaveCommand = new RelayCommand(async () => await SaveAsync(false));
         SaveAsCommand = new RelayCommand(async () => await SaveAsync(true));
+        UndoCommand = new RelayCommand(Undo, () => _historyIndex > 0);
+        RedoCommand = new RelayCommand(Redo, () => _historyIndex >= 0 && _historyIndex < _history.Count - 1);
         AddWidgetCommand = new RelayCommand(AddWidget);
         DeleteWidgetCommand = new RelayCommand(DeleteSelected, () => SelectedWidget is not null);
         DuplicateWidgetCommand = new RelayCommand(DuplicateSelected, () => SelectedWidget is not null);
@@ -121,8 +132,26 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         };
         _animationTimer.Start();
 
+        _historyTimer = new DispatcherTimer(DispatcherPriority.Background)
+        {
+            Interval = TimeSpan.FromMilliseconds(350)
+        };
+        _historyTimer.Tick += (_, _) =>
+        {
+            _historyTimer.Stop();
+            CaptureHistoryNow();
+        };
+
+        _recoveryTimer = new DispatcherTimer(DispatcherPriority.Background)
+        {
+            Interval = TimeSpan.FromSeconds(8)
+        };
+        _recoveryTimer.Tick += async (_, _) => await SaveRecoveryAsync();
+        _recoveryTimer.Start();
+
         AttachWorkspace(_workspace);
         CreateStarterLayout();
+        InitializeHistory();
         RefreshPorts();
         RefreshThemes();
     }
@@ -394,6 +423,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public RelayCommand OpenCommand { get; }
     public RelayCommand SaveCommand { get; }
     public RelayCommand SaveAsCommand { get; }
+    public RelayCommand UndoCommand { get; }
+    public RelayCommand RedoCommand { get; }
     public RelayCommand AddWidgetCommand { get; }
     public RelayCommand DeleteWidgetCommand { get; }
     public RelayCommand DuplicateWidgetCommand { get; }
@@ -519,6 +550,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         try
         {
             await _packageService.SaveAsync(Workspace, path);
+            DeleteRecoveryFile();
             RaisePropertyChanged(nameof(IsDirty));
             RaisePropertyChanged(nameof(WindowTitle));
             RefreshThemes();
@@ -1043,6 +1075,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         RaisePropertyChanged(nameof(IsDirty));
         RaisePropertyChanged(nameof(WindowTitle));
         ThemeChanged?.Invoke(this, EventArgs.Empty);
+        InitializeHistory();
     }
 
     private void AttachWorkspace(ThemeWorkspace workspace)
@@ -1589,6 +1622,200 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Workspace.IsDirty = true;
         RaisePropertyChanged(nameof(IsDirty));
         RaisePropertyChanged(nameof(WindowTitle));
+        ScheduleHistoryCapture();
+    }
+
+    private void InitializeHistory()
+    {
+        _historyTimer?.Stop();
+        _history.Clear();
+        _history.Add(_historyService.Capture(Document));
+        _historyIndex = 0;
+        RaiseHistoryCommandStates();
+    }
+
+    private void ScheduleHistoryCapture()
+    {
+        if (_suppressHistory || _suppressDirty || _historyTimer is null)
+            return;
+
+        _historyTimer.Stop();
+        _historyTimer.Start();
+    }
+
+    private void CaptureHistoryNow()
+    {
+        if (_suppressHistory)
+            return;
+
+        var snapshot = _historyService.Capture(Document);
+        if (_historyIndex >= 0 && _historyIndex < _history.Count &&
+            string.Equals(_history[_historyIndex], snapshot, StringComparison.Ordinal))
+            return;
+
+        if (_historyIndex < _history.Count - 1)
+            _history.RemoveRange(_historyIndex + 1, _history.Count - _historyIndex - 1);
+
+        _history.Add(snapshot);
+        if (_history.Count > 60)
+            _history.RemoveAt(0);
+
+        _historyIndex = _history.Count - 1;
+        RaiseHistoryCommandStates();
+    }
+
+    private void Undo()
+    {
+        CaptureHistoryNow();
+        if (_historyIndex <= 0)
+            return;
+
+        _historyIndex--;
+        ApplyHistorySnapshot(_history[_historyIndex]);
+    }
+
+    private void Redo()
+    {
+        if (_historyIndex < 0 || _historyIndex >= _history.Count - 1)
+            return;
+
+        _historyIndex++;
+        ApplyHistorySnapshot(_history[_historyIndex]);
+    }
+
+    private void ApplyHistorySnapshot(string snapshot)
+    {
+        var restored = _historyService.Restore(snapshot);
+        var selectedId = SelectedWidget?.Id;
+        var assetPaths = Document.Assets.ToDictionary(a => a.Id, a => a.LocalPath);
+
+        _suppressHistory = true;
+        _suppressDirty = true;
+        try
+        {
+            DetachWorkspace(_workspace);
+
+            Document.FormatVersion = restored.FormatVersion;
+            Document.MinimumAppVersion = restored.MinimumAppVersion;
+            Document.Name = restored.Name;
+            Document.Author = restored.Author;
+            Document.Description = restored.Description;
+            Document.Orientation = restored.Orientation;
+            Document.CanvasWidth = restored.CanvasWidth;
+            Document.CanvasHeight = restored.CanvasHeight;
+            Document.DeviceRotation = restored.DeviceRotation;
+            Document.BackgroundColor = restored.BackgroundColor;
+            Document.EditorGridVisible = restored.EditorGridVisible;
+            Document.SnapToGrid = restored.SnapToGrid;
+            Document.GridSize = restored.GridSize;
+
+            Document.Widgets.Clear();
+            foreach (var widget in restored.Widgets)
+                Document.Widgets.Add(widget);
+
+            Document.Assets.Clear();
+            foreach (var asset in restored.Assets)
+            {
+                if (assetPaths.TryGetValue(asset.Id, out var localPath))
+                    asset.LocalPath = localPath;
+                Document.Assets.Add(asset);
+            }
+
+            AttachWorkspace(_workspace);
+            FontAssets.Clear();
+            foreach (var font in Document.Assets.Where(a => a.Kind == ThemeAssetKind.Font))
+                FontAssets.Add(font);
+
+            SelectedWidget = Document.Widgets.FirstOrDefault(w => w.Id == selectedId)
+                             ?? Document.Widgets.FirstOrDefault();
+            Workspace.IsDirty = true;
+        }
+        finally
+        {
+            _suppressDirty = false;
+            _suppressHistory = false;
+        }
+
+        RaisePropertyChanged(nameof(IsDirty));
+        RaisePropertyChanged(nameof(WindowTitle));
+        RaiseHistoryCommandStates();
+        ThemeRenderer.ClearCaches();
+        ThemeChanged?.Invoke(this, EventArgs.Empty);
+        if (LivePreview)
+            RequestLiveFrame?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void RaiseHistoryCommandStates()
+    {
+        UndoCommand?.RaiseCanExecuteChanged();
+        RedoCommand?.RaiseCanExecuteChanged();
+    }
+
+    private async Task SaveRecoveryAsync()
+    {
+        if (!Workspace.IsDirty || _recoveryBusy)
+            return;
+
+        _recoveryBusy = true;
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(_recoveryPath)!);
+            await _packageService.SaveCopyAsync(Workspace, _recoveryPath);
+        }
+        catch
+        {
+            // Recovery is best-effort and must never interrupt editing.
+        }
+        finally
+        {
+            _recoveryBusy = false;
+        }
+    }
+
+    public async Task RecoverIfAvailableAsync()
+    {
+        if (!File.Exists(_recoveryPath))
+            return;
+
+        var answer = MessageBox.Show(
+            "PC Info Screen Studio found an unsaved theme from the previous session.\n\nRecover it now?",
+            "Recover unsaved theme",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (answer != MessageBoxResult.Yes)
+        {
+            DeleteRecoveryFile();
+            return;
+        }
+
+        try
+        {
+            var recovered = await _packageService.LoadAsync(_recoveryPath);
+            recovered.FilePath = null;
+            recovered.IsDirty = true;
+            ReplaceWorkspace(recovered);
+            Workspace.IsDirty = true;
+            RaisePropertyChanged(nameof(IsDirty));
+            RaisePropertyChanged(nameof(WindowTitle));
+            DeleteRecoveryFile();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Could not recover theme", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void DeleteRecoveryFile()
+    {
+        try
+        {
+            if (File.Exists(_recoveryPath))
+                File.Delete(_recoveryPath);
+        }
+        catch
+        {
+        }
     }
 
     private void RaiseCommandStates()
@@ -1614,6 +1841,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         _dataTimer.Stop();
         _animationTimer.Stop();
+        _historyTimer.Stop();
+        _recoveryTimer.Stop();
+        DeleteRecoveryFile();
         _weatherMetrics.Dispose();
         _hardwareMetrics.Dispose();
         lock (_frameQueueSync)
