@@ -126,14 +126,21 @@ public sealed class ThemeRenderer
         var size = (float)settings.CaptionFontSize;
         using var typeface = SKTypeface.FromFamilyName("Segoe UI") ?? SKTypeface.Default;
         using var font = new SKFont(typeface, size);
-        using var textPaint = new SKPaint { Color = ParseColor(settings.CaptionColor), IsAntialias = true };
-        var measured = Math.Min(width - 20, font.MeasureText(caption, textPaint));
-        var barHeight = size + 18;
-        using var background = new SKPaint { Color = new SKColor(0, 0, 0, 155), IsAntialias = true };
-        canvas.DrawRoundRect(new SKRect(8, height - barHeight - 8, width - 8, height - 8), 6, 6, background);
+        using var fillPaint = new SKPaint { Color = ParseColor(settings.CaptionColor), IsAntialias = true };
+        var outlineWidth = (float)settings.CaptionOutlineThickness;
+        using var outlinePaint = new SKPaint
+        {
+            Color = ParseColor(settings.CaptionOutlineColor),
+            IsAntialias = true,
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = outlineWidth,
+            StrokeJoin = SKStrokeJoin.Round
+        };
         canvas.Save();
-        canvas.ClipRect(new SKRect(14, height - barHeight - 8, 14 + measured, height - 8));
-        canvas.DrawText(caption, 14, height - 16, SKTextAlign.Left, font, textPaint);
+        canvas.ClipRect(new SKRect(8, height - size - 22, width - 8, height - 8));
+        if (outlineWidth > 0)
+            canvas.DrawText(caption, 14, height - 16, SKTextAlign.Left, font, outlinePaint);
+        canvas.DrawText(caption, 14, height - 16, SKTextAlign.Left, font, fillPaint);
         canvas.Restore();
     }
 

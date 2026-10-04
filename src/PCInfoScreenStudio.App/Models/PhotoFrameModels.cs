@@ -17,15 +17,12 @@ public sealed class PhotoFrameSettings : ObservableObject
     private bool _showCaptions = true;
     private double _captionFontSize = 18;
     private string _captionColor = "#FFF7F8FA";
+    private string _captionOutlineColor = "#FF000000";
+    private double _captionOutlineThickness = 1.5;
     private PhotoCaptionMode _captionMode = PhotoCaptionMode.FileName;
     private string _customCaption = string.Empty;
     private bool _watchFolderEnabled;
     private string _watchedFolder = string.Empty;
-    private bool _scheduleEnabled;
-    private string _infoScreenStart = "07:00";
-    private string _photoFrameStart = "18:00";
-    private string _screenOffStart = "23:30";
-    private ScreenMode _eveningMode = ScreenMode.PhotoFrame;
 
     public ObservableCollection<PhotoFrameItem> Photos { get; set; } = [];
     public double DefaultDurationSeconds { get => _defaultDurationSeconds; set => SetProperty(ref _defaultDurationSeconds, Math.Clamp(value, 1, 3600)); }
@@ -40,15 +37,12 @@ public sealed class PhotoFrameSettings : ObservableObject
     public bool ShowCaptions { get => _showCaptions; set => SetProperty(ref _showCaptions, value); }
     public double CaptionFontSize { get => _captionFontSize; set => SetProperty(ref _captionFontSize, Math.Clamp(value, 6, 100)); }
     public string CaptionColor { get => _captionColor; set => SetProperty(ref _captionColor, value); }
+    public string CaptionOutlineColor { get => _captionOutlineColor; set => SetProperty(ref _captionOutlineColor, value); }
+    public double CaptionOutlineThickness { get => _captionOutlineThickness; set => SetProperty(ref _captionOutlineThickness, Math.Clamp(value, 0, 10)); }
     public PhotoCaptionMode CaptionMode { get => _captionMode; set => SetProperty(ref _captionMode, value); }
     public string CustomCaption { get => _customCaption; set => SetProperty(ref _customCaption, value); }
     public bool WatchFolderEnabled { get => _watchFolderEnabled; set => SetProperty(ref _watchFolderEnabled, value); }
     public string WatchedFolder { get => _watchedFolder; set => SetProperty(ref _watchedFolder, value); }
-    public bool ScheduleEnabled { get => _scheduleEnabled; set => SetProperty(ref _scheduleEnabled, value); }
-    public string InfoScreenStart { get => _infoScreenStart; set => SetProperty(ref _infoScreenStart, value); }
-    public string PhotoFrameStart { get => _photoFrameStart; set => SetProperty(ref _photoFrameStart, value); }
-    public string ScreenOffStart { get => _screenOffStart; set => SetProperty(ref _screenOffStart, value); }
-    public ScreenMode EveningMode { get => _eveningMode; set => SetProperty(ref _eveningMode, value == ScreenMode.InfoScreen ? ScreenMode.PhotoFrame : value); }
 
     [JsonIgnore] public int RuntimeCurrentIndex { get; set; }
     [JsonIgnore] public int RuntimePreviousIndex { get; set; } = -1;
@@ -87,10 +81,10 @@ public sealed class PhotoFrameItem : ObservableObject
         {
             PhotoCaptionMode.None => string.Empty,
             PhotoCaptionMode.FileName => DisplayName,
-            PhotoCaptionMode.DateTaken => string.IsNullOrWhiteSpace(DateTaken) ? DisplayName : DateTaken,
-            PhotoCaptionMode.Location => string.IsNullOrWhiteSpace(Location) ? DisplayName : Location,
+            PhotoCaptionMode.DateTaken => DateTaken,
+            PhotoCaptionMode.Location => Location,
             PhotoCaptionMode.Custom => customCaption,
-            _ => DisplayName
+            _ => string.Empty
         };
 }
 

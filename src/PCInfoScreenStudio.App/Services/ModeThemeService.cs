@@ -23,17 +23,17 @@ public sealed class ModeThemeService
         Converters = { new JsonStringEnumConverter() }
     };
 
-    private readonly string _root = Path.Combine(
+    private readonly string _appRoot = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-        "PC Info Screen Studio",
-        "Mode Themes");
+        "PC Info Screen Studio");
 
     public IReadOnlyList<ModeThemeLibraryItem> GetThemes(ScreenMode mode)
     {
         if (mode == ScreenMode.InfoScreen) return [];
         var directory = DirectoryFor(mode);
         Directory.CreateDirectory(directory);
-        return Directory.EnumerateFiles(directory, "*.pcmode", SearchOption.TopDirectoryOnly)
+        MigrateLegacyThemes(mode, directory);
+        return Directory.EnumerateFiles(directory, "*" + ExtensionFor(mode), SearchOption.TopDirectoryOnly)
             .OrderBy(path => Path.GetFileNameWithoutExtension(path), StringComparer.CurrentCultureIgnoreCase)
             .Select(path => new ModeThemeLibraryItem(Path.GetFileNameWithoutExtension(path), path))
             .ToArray();
@@ -64,7 +64,7 @@ public sealed class ModeThemeService
 
         var directory = DirectoryFor(mode);
         Directory.CreateDirectory(directory);
-        var path = Path.Combine(directory, name + ".pcmode");
+        var path = Path.Combine(directory, name + ExtensionFor(mode));
         File.WriteAllText(path, JsonSerializer.Serialize(preset, Options));
         return path;
     }
@@ -79,7 +79,28 @@ public sealed class ModeThemeService
     }
 
     private string DirectoryFor(ScreenMode mode)
-        => Path.Combine(_root, mode == ScreenMode.Hybrid ? "Hybrid" : "Photo Frame");
+        => Path.Combine(_appRoot, mode == ScreenMode.Hybrid ? "Hybrid Themes" : "Photo Frame Themes");
+
+    private static string ExtensionFor(ScreenMode mode)
+        => mode == ScreenMode.Hybrid ? ".pchybrid" : ".pcphoto";
+
+    private void MigrateLegacyThemes(ScreenMode mode, string destinationDirectory)
+    {
+        var legacyDirectory = Path.Combine(
+            _appRoot,
+            "Mode Themes",
+            mode == ScreenMode.Hybrid ? "Hybrid" : "Photo Frame");
+        if (!Directory.Exists(legacyDirectory)) return;
+
+        foreach (var oldPath in Directory.EnumerateFiles(legacyDirectory, "*.pcmode", SearchOption.TopDirectoryOnly))
+        {
+            var newPath = Path.Combine(
+                destinationDirectory,
+                Path.GetFileNameWithoutExtension(oldPath) + ExtensionFor(mode));
+            if (!File.Exists(newPath))
+                File.Copy(oldPath, newPath);
+        }
+    }
 
     private static PhotoFrameSettings Clone(PhotoFrameSettings source)
         => JsonSerializer.Deserialize<PhotoFrameSettings>(JsonSerializer.Serialize(source, Options), Options)

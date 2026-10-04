@@ -238,6 +238,7 @@
                             SelectedItem="{Binding SelectedModeTheme}"
                             DisplayMemberPath="DisplayName"
                             ToolTip="Settings themes for this mode only. Photos stay linked to files on this PC." />
+                  <TextBlock Text="{Binding ModeThemeSummary}" FontSize="10" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="2,1,2,3" />
                   <UniformGrid Columns="3">
                     <Button Content="Load" Command="{Binding LoadModeThemeCommand}" ToolTip="Apply the selected settings theme without replacing the photo playlist." />
                     <Button Content="Save" Command="{Binding SaveModeThemeCommand}" ToolTip="Save the current settings as a theme for this mode." />
@@ -246,7 +247,12 @@
                 </StackPanel>
               </Expander>
 
-              <Button Content="Add photos" Command="{Binding AddPhotosCommand}" Padding="12,8" Margin="2,7,2,3" ToolTip="Select several photos. Files remain on this PC and are not embedded in the theme." />
+              <Expander Header="ADD PHOTOS" IsExpanded="True" Margin="0,6,0,0">
+                <UniformGrid Columns="2" Margin="0,5,0,0">
+                  <Button Content="Add files" Command="{Binding AddPhotosCommand}" Padding="10,7" ToolTip="Select one or several photo files. They remain linked to this PC." />
+                  <Button Content="Add folder" Command="{Binding AddPhotoFolderCommand}" Padding="10,7" ToolTip="Add every supported photo in a folder and its subfolders." />
+                </UniformGrid>
+              </Expander>
 
               <ListBox x:Name="PhotoPlaylist"
                        Height="220"
@@ -296,15 +302,49 @@
                     <CheckBox Content="Loop" IsChecked="{Binding Document.PhotoFrame.Loop}" Margin="0,3,15,3" ToolTip="Restart at the beginning after the last photo." />
                     <CheckBox Content="Shuffle" IsChecked="{Binding Document.PhotoFrame.Shuffle}" ToolTip="Choose the next photo randomly." />
                   </StackPanel>
-                  <StackPanel Orientation="Horizontal">
-                    <CheckBox Content="Captions" IsChecked="{Binding Document.PhotoFrame.ShowCaptions}" Margin="0,3,15,3" ToolTip="Show one globally configured caption style for all photos." />
-                    <TextBlock Text="Size" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
-                    <TextBox Width="46" Text="{Binding Document.PhotoFrame.CaptionFontSize, UpdateSourceTrigger=LostFocus}" ToolTip="Caption text size in screen pixels." />
-                    <controls:ColorPickerButton Width="82" HexColor="{Binding Document.PhotoFrame.CaptionColor}" ToolTip="Caption text colour." />
+                  <CheckBox Content="Show captions" IsChecked="{Binding Document.PhotoFrame.ShowCaptions}" Margin="0,4,0,2" ToolTip="Show one globally configured caption style for all photos." />
+                  <TextBlock Text="Caption source" Foreground="{StaticResource MutedTextBrush}" Margin="0,4,0,0" />
+                  <ComboBox ItemsSource="{Binding PhotoCaptionModes}"
+                            DisplayMemberPath="Label"
+                            SelectedValuePath="Value"
+                            SelectedValue="{Binding Document.PhotoFrame.CaptionMode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                            ToolTip="Missing EXIF dates or GPS locations remain blank instead of showing the file name." />
+                  <StackPanel Margin="0,4,0,0">
+                    <StackPanel.Style>
+                      <Style TargetType="StackPanel">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding Document.PhotoFrame.CaptionMode}" Value="{x:Static models:PhotoCaptionMode.Custom}">
+                            <Setter Property="Visibility" Value="Visible" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </StackPanel.Style>
+                    <TextBlock Text="Custom caption text" Foreground="{StaticResource MutedTextBrush}" />
+                    <TextBox Text="{Binding Document.PhotoFrame.CustomCaption, UpdateSourceTrigger=PropertyChanged}" ToolTip="One caption used for every photo." />
                   </StackPanel>
-                  <TextBlock Text="Caption content" Foreground="{StaticResource MutedTextBrush}" Margin="0,4,0,0" />
-                  <ComboBox ItemsSource="{Binding PhotoCaptionModes}" SelectedItem="{Binding Document.PhotoFrame.CaptionMode}" ToolTip="Use filenames, EXIF dates, GPS locations, one custom caption, or no caption." />
-                  <TextBox Text="{Binding Document.PhotoFrame.CustomCaption, UpdateSourceTrigger=PropertyChanged}" ToolTip="Global text used when Caption content is Custom." />
+                  <Grid Margin="0,4,0,0">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <StackPanel Margin="0,0,4,0">
+                      <TextBlock Text="Caption font size (px)" Foreground="{StaticResource MutedTextBrush}" />
+                      <TextBox Text="{Binding Document.PhotoFrame.CaptionFontSize, UpdateSourceTrigger=LostFocus}" ToolTip="Caption font size in screen pixels." />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                      <TextBlock Text="Caption text colour" Foreground="{StaticResource MutedTextBrush}" />
+                      <controls:ColorPickerButton HexColor="{Binding Document.PhotoFrame.CaptionColor}" ToolTip="Caption text colour." />
+                    </StackPanel>
+                  </Grid>
+                  <Grid Margin="0,4,0,0">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                    <StackPanel Margin="0,0,4,0">
+                      <TextBlock Text="Outline colour" Foreground="{StaticResource MutedTextBrush}" />
+                      <controls:ColorPickerButton HexColor="{Binding Document.PhotoFrame.CaptionOutlineColor}" ToolTip="Thin outline around caption letters for readability." />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                      <TextBlock Text="Outline width (px)" Foreground="{StaticResource MutedTextBrush}" />
+                      <TextBox Text="{Binding Document.PhotoFrame.CaptionOutlineThickness, UpdateSourceTrigger=LostFocus}" ToolTip="Set to 0 for no outline." />
+                    </StackPanel>
+                  </Grid>
                 </StackPanel>
               </Expander>
 
@@ -330,9 +370,8 @@
                 </StackPanel>
               </Expander>
 
-              <Expander Header="PHOTO SOURCE &amp; PRESETS" IsExpanded="True" Margin="0,6,0,0">
+              <Expander Header="WATCHED FOLDER &amp; PLAYLISTS" IsExpanded="True" Margin="0,6,0,0">
                 <StackPanel Margin="0,5,0,0">
-                  <Button Content="Add an entire folder" Command="{Binding AddPhotoFolderCommand}" ToolTip="Add every supported photo in a folder and its subfolders." />
                   <CheckBox Content="Watch folder for new photos" IsChecked="{Binding Document.PhotoFrame.WatchFolderEnabled}" ToolTip="Automatically add new images created in the selected folder." />
                   <TextBlock Text="{Binding Document.PhotoFrame.WatchedFolder}" TextTrimming="CharacterEllipsis" Foreground="{StaticResource MutedTextBrush}" ToolTip="{Binding Document.PhotoFrame.WatchedFolder}" />
                   <Button Content="Choose watched folder" Command="{Binding ChooseWatchedFolderCommand}" ToolTip="Select the folder monitored for new photos." />
@@ -340,23 +379,6 @@
                     <Button Content="Save playlist" Command="{Binding SaveAlbumPresetCommand}" ToolTip="Save this playlist as links to photos that remain on this PC." />
                     <Button Content="Load playlist" Command="{Binding LoadAlbumPresetCommand}" ToolTip="Replace the current playlist with a saved linked playlist." />
                   </UniformGrid>
-                </StackPanel>
-              </Expander>
-
-              <Expander Header="SCHEDULE" IsExpanded="True" Margin="0,6,0,0">
-                <StackPanel Margin="0,5,0,0">
-                  <CheckBox Content="Enable daily schedule" IsChecked="{Binding Document.PhotoFrame.ScheduleEnabled}" ToolTip="Automatically use Info Screen, Photo Frame or Hybrid, and screen-off periods each day." />
-                  <Grid>
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                    <StackPanel Margin="0,0,4,0"><TextBlock Text="Info starts" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding Document.PhotoFrame.InfoScreenStart, UpdateSourceTrigger=LostFocus}" ToolTip="Daily start time for Info Screen, in HH:mm format." /></StackPanel>
-                    <StackPanel Grid.Column="1" Margin="4,0,0,0"><TextBlock Text="Photos start" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding Document.PhotoFrame.PhotoFrameStart, UpdateSourceTrigger=LostFocus}" ToolTip="Daily start time for the evening Photo Frame or Hybrid period." /></StackPanel>
-                  </Grid>
-                  <Grid Margin="0,4,0,0">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                    <StackPanel Margin="0,0,4,0"><TextBlock Text="Screen off" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding Document.PhotoFrame.ScreenOffStart, UpdateSourceTrigger=LostFocus}" ToolTip="Daily time to send a black screen until the Info start time." /></StackPanel>
-                    <StackPanel Grid.Column="1" Margin="4,0,0,0"><TextBlock Text="Evening mode" Foreground="{StaticResource MutedTextBrush}" /><ComboBox ItemsSource="{Binding DataContext.EveningModes, RelativeSource={RelativeSource AncestorType=Window}}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding EveningMode}" ToolTip="Choose Photo Frame or Hybrid for the scheduled evening period." /></StackPanel>
-                  </Grid>
-                  <TextBlock Text="{Binding DataContext.EffectiveScreenModeLabel, RelativeSource={RelativeSource AncestorType=Window}, StringFormat=Active now: {0}}" Foreground="{StaticResource AccentBrush}" Margin="0,5,0,0" />
                 </StackPanel>
               </Expander>
             </StackPanel>

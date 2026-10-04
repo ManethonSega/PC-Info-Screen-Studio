@@ -157,7 +157,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         };
         _animationTimer.Tick += (_, _) =>
         {
-            var modeChanged = UpdateEffectiveScreenMode();
             var animations = RuntimeWidgets
                 .Where(w => w.IsVisible && w.Type == WidgetType.AnimatedImage)
                 .ToArray();
@@ -165,7 +164,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 && Document.PhotoFrame.Photos.Count > 0;
             var photoNeedsRender = photoActive && UpdatePhotoPlayback();
 
-            if (animations.Length == 0 && !photoNeedsRender && !modeChanged)
+            if (animations.Length == 0 && !photoNeedsRender)
                 return;
 
             var requestedFps = animations.Length == 0
@@ -254,15 +253,17 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public Array ShapeStyles => Enum.GetValues(typeof(ShapeStyle));
     public IReadOnlyList<PhotoTransition> PhotoTransitions { get; } =
         Enum.GetValues<PhotoTransition>().Where(value => value != PhotoTransition.KenBurns).ToArray();
-    public Array PhotoCaptionModes => Enum.GetValues(typeof(PhotoCaptionMode));
+    public IReadOnlyList<PhotoCaptionOption> PhotoCaptionModes { get; } =
+    [
+        new("No caption", PhotoCaptionMode.None),
+        new("File name", PhotoCaptionMode.FileName),
+        new("Date taken (EXIF)", PhotoCaptionMode.DateTaken),
+        new("Location (GPS)", PhotoCaptionMode.Location),
+        new("Custom text", PhotoCaptionMode.Custom)
+    ];
     public IReadOnlyList<ScreenModeOption> ScreenModes { get; } =
     [
         new("Info Screen", ScreenMode.InfoScreen),
-        new("Photo Frame", ScreenMode.PhotoFrame),
-        new("Hybrid", ScreenMode.Hybrid)
-    ];
-    public IReadOnlyList<ScreenModeOption> EveningModes { get; } =
-    [
         new("Photo Frame", ScreenMode.PhotoFrame),
         new("Hybrid", ScreenMode.Hybrid)
     ];
@@ -325,6 +326,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     }
 
     public string ModeThemeTitle => Document.Mode == ScreenMode.Hybrid ? "HYBRID THEMES" : "PHOTO FRAME THEMES";
+    public string ModeThemeSummary => Document.Mode == ScreenMode.Hybrid
+        ? "Hybrid settings only (.pchybrid). Photos stay on this PC."
+        : "Photo Frame settings only (.pcphoto). Photos stay on this PC.";
     public GridLength PropertiesPanelWidth => Document.Mode == ScreenMode.PhotoFrame ? new GridLength(0) : new GridLength(330);
 
     public bool IsPhotoPlaying => _isPhotoPlaying;
@@ -332,14 +336,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public string PhotoPositionLabel => Document.PhotoFrame.Photos.Count == 0
         ? "No photos"
         : $"{Document.PhotoFrame.RuntimeCurrentIndex + 1} / {Document.PhotoFrame.Photos.Count}";
-    public string EffectiveScreenModeLabel => Document.RuntimeMode switch
-    {
-        RuntimeScreenMode.InfoScreen => "Info Screen",
-        RuntimeScreenMode.PhotoFrame => "Photo Frame",
-        RuntimeScreenMode.Hybrid => "Hybrid",
-        _ => "Screen off"
-    };
-
     public string? SelectedPort
     {
         get => _selectedPort;
@@ -1173,24 +1169,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private bool UpdateEffectiveScreenMode(bool force = false)
     {
-        var settings = Document.PhotoFrame;
         var next = MapRuntimeMode(Document.Mode);
-        if (settings.ScheduleEnabled &&
-            TimeSpan.TryParse(settings.InfoScreenStart, out var infoStart) &&
-            TimeSpan.TryParse(settings.PhotoFrameStart, out var photoStart) &&
-            TimeSpan.TryParse(settings.ScreenOffStart, out var offStart))
-        {
-            var now = DateTime.Now.TimeOfDay;
-            next = IsTimeInRange(now, photoStart, offStart)
-                ? MapRuntimeMode(settings.EveningMode)
-                : IsTimeInRange(now, infoStart, photoStart)
-                    ? RuntimeScreenMode.InfoScreen
-                    : RuntimeScreenMode.Off;
-        }
-
         if (!force && Document.RuntimeMode == next) return false;
         Document.RuntimeMode = next;
-        RaisePropertyChanged(nameof(EffectiveScreenModeLabel));
         ThemeChanged?.Invoke(this, EventArgs.Empty);
         if (LivePreview) RequestLiveFrame?.Invoke(this, EventArgs.Empty);
         return true;
@@ -1203,11 +1184,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             ScreenMode.Hybrid => RuntimeScreenMode.Hybrid,
             _ => RuntimeScreenMode.InfoScreen
         };
-
-    private static bool IsTimeInRange(TimeSpan value, TimeSpan start, TimeSpan end)
-        => start <= end
-            ? value >= start && value < end
-            : value >= start || value < end;
 
     private void ConfigurePhotoFolderWatcher()
     {
@@ -1779,6 +1755,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         try
         {
             var preset = _modeThemeService.Load(SelectedModeTheme.FilePath);
+            if (preset.Mode != Document.Mode)
+                throw new InvalidDataException("This settings theme belongs to a different screen mode.");
             ApplyGlobalPhotoSettings(preset.PhotoFrame);
             if (Document.Mode == ScreenMode.Hybrid)
             {
@@ -1824,15 +1802,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         target.ShowCaptions = source.ShowCaptions;
         target.CaptionFontSize = source.CaptionFontSize;
         target.CaptionColor = source.CaptionColor;
+        target.CaptionOutlineColor = source.CaptionOutlineColor;
+        target.CaptionOutlineThickness = source.CaptionOutlineThickness;
         target.CaptionMode = source.CaptionMode;
         target.CustomCaption = source.CustomCaption;
         target.WatchFolderEnabled = source.WatchFolderEnabled;
         target.WatchedFolder = source.WatchedFolder;
-        target.ScheduleEnabled = source.ScheduleEnabled;
-        target.InfoScreenStart = source.InfoScreenStart;
-        target.PhotoFrameStart = source.PhotoFrameStart;
-        target.ScreenOffStart = source.ScreenOffStart;
-        target.EveningMode = source.EveningMode;
     }
 
     private async Task LoadThemeThumbnailsAsync()
@@ -2048,6 +2023,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             SelectWidget(Document.EditorWidgets.OrderBy(widget => widget.ZIndex).FirstOrDefault());
             RefreshModeThemes();
             RaisePropertyChanged(nameof(ModeThemeTitle));
+            RaisePropertyChanged(nameof(ModeThemeSummary));
             RaisePropertyChanged(nameof(PropertiesPanelWidth));
             SaveModeThemeCommand.RaiseCanExecuteChanged();
         }
@@ -2080,8 +2056,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         if (e.PropertyName is nameof(PhotoFrameSettings.WatchFolderEnabled) or nameof(PhotoFrameSettings.WatchedFolder))
             ConfigurePhotoFolderWatcher();
-        if (e.PropertyName is nameof(PhotoFrameSettings.ScheduleEnabled) or nameof(PhotoFrameSettings.InfoScreenStart) or nameof(PhotoFrameSettings.PhotoFrameStart) or nameof(PhotoFrameSettings.ScreenOffStart) or nameof(PhotoFrameSettings.EveningMode))
-            UpdateEffectiveScreenMode(force: true);
         MarkDirtyAndRefresh();
     }
 
@@ -2843,6 +2817,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public sealed record RotationOption(string Label, DeviceRotation Value);
     public sealed record ScreenModeOption(string Label, ScreenMode Value);
+    public sealed record PhotoCaptionOption(string Label, PhotoCaptionMode Value);
 
     public void Dispose()
     {
