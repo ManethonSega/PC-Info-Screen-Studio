@@ -2,14 +2,35 @@
              x:Name="Root"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-  <Button Click="OnClick" Padding="6,4" HorizontalContentAlignment="Stretch">
-    <Grid>
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="28" />
-        <ColumnDefinition Width="*" />
-      </Grid.ColumnDefinitions>
-      <Border x:Name="Swatch" Width="22" Height="22" CornerRadius="3" BorderBrush="#55606E" BorderThickness="1" />
-      <TextBlock Grid.Column="1" Text="{Binding HexColor, ElementName=Root}" VerticalAlignment="Center" Margin="8,0,0,0" />
-    </Grid>
-  </Button>
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="*" />
+      <ColumnDefinition Width="Auto" />
+    </Grid.ColumnDefinitions>
+
+    <Button Grid.Column="0" Click="OnClick" Padding="6,4" HorizontalContentAlignment="Stretch">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="28" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid Width="22" Height="22">
+          <Border Background="#FFFFFFFF" CornerRadius="3" />
+          <Path Data="M 0,22 L 22,0 M 0,0 L 22,22"
+                Stroke="#FFD04444"
+                StrokeThickness="2"
+                Visibility="{Binding IsTransparent, ElementName=Root, Converter={StaticResource BooleanToVisibilityConverter}}" />
+          <Border x:Name="Swatch" CornerRadius="3" BorderBrush="#55606E" BorderThickness="1" />
+        </Grid>
+        <TextBlock Grid.Column="1" Text="{Binding HexColor, ElementName=Root}" VerticalAlignment="Center" Margin="8,0,0,0" />
+      </Grid>
+    </Button>
+
+    <Button Grid.Column="1"
+            Content="None"
+            Click="OnTransparentClick"
+            Padding="6,4"
+            Margin="4,0,0,0"
+            ToolTip="Set this colour to fully transparent" />
+  </Grid>
 </UserControl>
