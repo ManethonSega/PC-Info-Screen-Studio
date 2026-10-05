@@ -82,6 +82,23 @@ internal static class Program
         ModeThemeService.Apply(document, service.Load(hybridPath));
         Assert(document.HybridWidgets[0].X == 117 && document.HybridWidgets[0].Y == 63 && document.HybridWidgets[0].Name == "Clock",
             "Repeated Hybrid save/load must not offset or rename overlays.");
+        var legacy = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(hybridPath))!.AsObject();
+        legacy.Remove("FormatVersion");
+        var legacyWidget = legacy["HybridWidgets"]![0]!;
+        legacyWidget["X"] = 127;
+        legacyWidget["Y"] = 73;
+        legacyWidget["ZIndex"] = 5;
+        legacyWidget["Name"] = "Clock copy";
+        var legacyPath = Path.Combine(service.DirectoryFor(ScreenMode.Hybrid), "Legacy.pchybrid");
+        File.WriteAllText(legacyPath, legacy.ToJsonString());
+        ModeThemeService.Apply(document, service.Load(legacyPath));
+        Assert(document.HybridWidgets[0].X == 117 && document.HybridWidgets[0].Y == 63 &&
+            document.HybridWidgets[0].Name == "Clock" && document.HybridWidgets[0].ZIndex == 4,
+            "Older Hybrid themes must undo the saved Duplicate offset, suffix and layer increment.");
+        service.SaveToPath(document, ScreenMode.Hybrid, legacyPath);
+        ModeThemeService.Apply(document, service.Load(legacyPath));
+        Assert(document.HybridWidgets[0].X == 117 && document.HybridWidgets[0].Y == 63,
+            "Resaving an older Hybrid theme must not apply its migration a second time.");
         var rejected = false;
         try { ModeThemeService.Apply(document, preset); } catch (InvalidDataException) { rejected = true; }
         Assert(rejected, "A theme from the wrong mode must be rejected.");

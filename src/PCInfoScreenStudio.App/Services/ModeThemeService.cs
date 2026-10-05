@@ -8,6 +8,7 @@ public sealed record ModeThemeLibraryItem(string DisplayName, string FilePath);
 
 public sealed class ModeThemePreset
 {
+    public int FormatVersion { get; set; }
     public string Name { get; set; } = "Mode theme";
     public ScreenMode Mode { get; set; }
     public PhotoFrameSettings PhotoFrame { get; set; } = new();
@@ -62,6 +63,7 @@ public sealed class ModeThemeService
 
         var preset = new ModeThemePreset
         {
+            FormatVersion = 1,
             Name = name,
             Mode = mode,
             PhotoFrame = settings,
@@ -76,8 +78,25 @@ public sealed class ModeThemeService
     }
 
     public ModeThemePreset Load(string path)
-        => JsonSerializer.Deserialize<ModeThemePreset>(File.ReadAllText(path), Options)
-           ?? throw new InvalidDataException("The mode theme could not be read.");
+    {
+        var preset = JsonSerializer.Deserialize<ModeThemePreset>(File.ReadAllText(path), Options)
+            ?? throw new InvalidDataException("The mode theme could not be read.");
+        if (preset.FormatVersion == 0)
+        {
+            // Unversioned themes were saved with Duplicate's offset, suffix and layer increment.
+            // Remove the save-time mutation once; Apply now preserves these values exactly.
+            foreach (var widget in preset.HybridWidgets)
+            {
+                widget.X -= 10;
+                widget.Y -= 10;
+                widget.ZIndex -= 1;
+                if (widget.Name.EndsWith(" copy", StringComparison.Ordinal))
+                    widget.Name = widget.Name[..^5];
+            }
+            preset.FormatVersion = 1;
+        }
+        return preset;
+    }
 
     public static void Apply(ThemeDocument document, ModeThemePreset preset)
     {
