@@ -40,9 +40,10 @@ internal static class WorkflowChecks
         vm.AddWidgetCommand.Execute("Text");
         vm.SelectedWidget!.Label = "Added directly";
         vm.SelectedWidget.X = 54;
+        var addedTextId = vm.SelectedWidget.Id;
         awaitTask(vm.SaveCurrentThemeAsync());
         var info = packages.LoadAsync(infoPath); awaitTask(info);
-        using (info.Result) Assert(info.Result.Document.Widgets.Count == 2 && info.Result.Document.Widgets[1].X == 54, "Info Screen Add and Save must preserve new widgets.");
+        using (info.Result) Assert(info.Result.Document.Widgets.Count == 2 && info.Result.Document.Widgets.Any(w => w.Id == addedTextId && w.X == 54 && w.Label == "Added directly"), "Info Screen Add and Save must preserve new widgets.");
         vm.Document.Mode = ScreenMode.PhotoFrame;
         vm.LoadModeThemeFile(photoPath);
         vm.Document.PhotoFrame.CaptionFontSize = 24;
