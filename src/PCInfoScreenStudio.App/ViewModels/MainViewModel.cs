@@ -1138,11 +1138,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             MessageBoxButton.YesNo,
             MessageBoxImage.Warning);
         if (answer != MessageBoxResult.Yes) return;
-        _themeSessions.MovePath(SelectedModeTheme.FilePath, null);
-        _modeThemeService.Delete(SelectedModeTheme.FilePath);
-        Workspace.IsDirty = _themeSessions.HasUnsavedChanges;
-        NotifyThemeState();
-        RefreshModeThemes();
+        try
+        {
+            var path = SelectedModeTheme.FilePath;
+            _modeThemeService.Delete(path);
+            _themeSessions.MovePath(path, null);
+            Workspace.IsDirty = _themeSessions.HasUnsavedChanges;
+            NotifyThemeState();
+            RefreshModeThemes();
+        }
+        catch (Exception ex)
+        { MessageBox.Show(ex.Message, "Could not delete settings theme", MessageBoxButton.OK, MessageBoxImage.Warning); }
     }
 
     private void ApplyGlobalPhotoSettings(PhotoFrameSettings source)

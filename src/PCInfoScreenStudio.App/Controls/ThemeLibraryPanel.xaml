@@ -22,7 +22,7 @@
               ToolTip="New, open, save as, duplicate, rename, delete or refresh themes for this mode.">
         <Button.ContextMenu>
           <ContextMenu Placement="Bottom">
-            <MenuItem Header="New theme" Command="{Binding NewCommand}" InputGestureText="Ctrl+N" ToolTip="Start a new theme for the current screen mode. Photo playlists are kept." />
+            <MenuItem Header="New theme" Command="{Binding NewCommand}" InputGestureText="Ctrl+N" ToolTip="Start a new theme for this mode. Photo Frame and Hybrid keep the current playlist." />
             <MenuItem Header="Open theme…" Command="{Binding OpenCommand}" InputGestureText="Ctrl+O" ToolTip="Open a theme file for this screen mode." />
             <MenuItem Header="Save as…" Command="{Binding SaveAsCommand}" InputGestureText="Ctrl+Shift+S" ToolTip="Save the current theme under a different name." />
             <Separator Style="{StaticResource ThemeMenuSeparatorStyle}" />
