@@ -27,7 +27,7 @@ public sealed partial class MainViewModel
             WindowsStartupStatus = "Windows startup is off. Your workspace still reopens when you launch the app.";
             return;
         }
-        if (await Task.Run(_windowsStartup.IsConfiguredForCurrentLocation))
+        if (await Task.Run(() => _windowsStartup.IsConfiguredForCurrentLocation()))
         {
             WindowsStartupStatus = "Enabled for this Windows account. Starts in the tray with the approved sensor permissions.";
             return;
