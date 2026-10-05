@@ -404,6 +404,45 @@
         </ControlTemplate>
       </Setter.Value></Setter>
     </Style>
+    <Style x:Key="ScrollThumbStyle" TargetType="Thumb">
+      <Setter Property="Background" Value="#4A5668" />
+      <Setter Property="MinHeight" Value="18" />
+      <Setter Property="MinWidth" Value="8" />
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Thumb">
+        <Border Background="{TemplateBinding Background}" CornerRadius="5" Margin="2" />
+      </ControlTemplate></Setter.Value></Setter>
+      <Style.Triggers>
+        <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#6F85A4" /></Trigger>
+        <Trigger Property="IsDragging" Value="True"><Setter Property="Background" Value="{StaticResource AccentBrush}" /></Trigger>
+      </Style.Triggers>
+    </Style>
+    <Style x:Key="ScrollPageStyle" TargetType="RepeatButton">
+      <Setter Property="Focusable" Value="False" />
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RepeatButton"><Border Background="Transparent" /></ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style TargetType="ScrollBar">
+      <Setter Property="Width" Value="12" />
+      <Setter Property="Background" Value="#111419" />
+      <Setter Property="Focusable" Value="False" />
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ScrollBar">
+        <Border Background="{TemplateBinding Background}">
+          <Track x:Name="PART_Track" Orientation="{TemplateBinding Orientation}" IsDirectionReversed="True"
+                 Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}" Value="{TemplateBinding Value}" ViewportSize="{TemplateBinding ViewportSize}">
+            <Track.DecreaseRepeatButton><RepeatButton x:Name="PageBefore" Command="{x:Static ScrollBar.PageUpCommand}" Style="{StaticResource ScrollPageStyle}" /></Track.DecreaseRepeatButton>
+            <Track.Thumb><Thumb Style="{StaticResource ScrollThumbStyle}" /></Track.Thumb>
+            <Track.IncreaseRepeatButton><RepeatButton x:Name="PageAfter" Command="{x:Static ScrollBar.PageDownCommand}" Style="{StaticResource ScrollPageStyle}" /></Track.IncreaseRepeatButton>
+          </Track>
+        </Border>
+        <ControlTemplate.Triggers>
+          <Trigger Property="Orientation" Value="Horizontal">
+            <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False" />
+            <Setter TargetName="PageBefore" Property="Command" Value="{x:Static ScrollBar.PageLeftCommand}" />
+            <Setter TargetName="PageAfter" Property="Command" Value="{x:Static ScrollBar.PageRightCommand}" />
+          </Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+      <Style.Triggers><Trigger Property="Orientation" Value="Horizontal"><Setter Property="Width" Value="Auto" /><Setter Property="Height" Value="12" /></Trigger></Style.Triggers>
+    </Style>
     <Style TargetType="Slider">
       <Setter Property="Margin" Value="0,4" />
     </Style>

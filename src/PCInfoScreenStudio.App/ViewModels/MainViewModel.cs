@@ -380,7 +380,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         : "Photo Frame settings only (.pcphoto). Photos stay on this PC.";
     public GridLength LeftPanelWidth => IsLiveMode ? new GridLength(0) : new GridLength(320);
     public GridLength PropertiesPanelWidth => IsLiveMode || Document.Mode == ScreenMode.PhotoFrame ? new GridLength(0) : new GridLength(330);
-    public GridLength EditorTopBarHeight => IsLiveMode ? new GridLength(0) : new GridLength(42);
+    public GridLength EditorTopBarHeight => IsLiveMode ? new GridLength(0) : new GridLength(52);
     public GridLength EditorBottomBarHeight => IsLiveMode ? new GridLength(0) : new GridLength(32);
     public Visibility EditorChromeVisibility => IsLiveMode ? Visibility.Collapsed : Visibility.Visible;
     public bool IsLiveMode

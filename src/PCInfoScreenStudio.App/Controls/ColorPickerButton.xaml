@@ -23,7 +23,7 @@
                 Visibility="Collapsed" />
           <Border x:Name="Swatch" CornerRadius="3" BorderBrush="#55606E" BorderThickness="1" />
         </Grid>
-        <TextBlock Grid.Column="1" Text="{Binding HexColor, ElementName=Root}" VerticalAlignment="Center" Margin="8,0,0,0" />
+        <TextBlock Grid.Column="1" Text="{Binding HexColor, ElementName=Root}" VerticalAlignment="Center" Margin="4,0,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding HexColor, ElementName=Root}" />
       </Grid>
     </Button>
 

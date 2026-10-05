@@ -486,8 +486,8 @@
                 <DataTemplate DataType="{x:Type models:WidgetModel}">
                   <StackPanel>
                     <DockPanel Margin="0,0,0,10">
-                      <TextBlock Text="{Binding Type}" FontSize="18" FontWeight="SemiBold" />
-                      <CheckBox DockPanel.Dock="Right" Content="Lock" IsChecked="{Binding IsLocked}" VerticalAlignment="Center" ToolTip="Prevent this widget from being moved, resized, or aligned." />
+                      <CheckBox DockPanel.Dock="Right" Content="Lock" IsChecked="{Binding IsLocked}" Margin="10,0,0,0" VerticalAlignment="Center" ToolTip="Prevent this widget from being moved, resized, or aligned." />
+                      <TextBlock Text="{Binding Type}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                     </DockPanel>
 
                     <TextBlock Text="Name" Foreground="{StaticResource MutedTextBrush}" />
