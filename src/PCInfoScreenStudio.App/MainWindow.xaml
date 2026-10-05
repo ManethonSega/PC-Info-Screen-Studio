@@ -129,7 +129,7 @@
             <UniformGrid Columns="2">
               <Button Content="Image" Command="{Binding ImportImageCommand}" ToolTip="Import a still image and add it to the canvas." />
               <Button Content="GIF" Command="{Binding ImportGifCommand}" ToolTip="Import an animated GIF and add it to the canvas." />
-              <Button Content="Video" Command="{Binding ImportVideoCommand}" ToolTip="Import a video asset for supported display workflows." />
+              <Button Content="Video" Command="{Binding ImportVideoCommand}" ToolTip="Import a video asset as a placeholder. Video playback is not available in this alpha." />
               <Button Content="Font" Command="{Binding ImportFontCommand}" ToolTip="Embed a redistributable font inside the theme file." />
             </UniformGrid>
             </StackPanel>

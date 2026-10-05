@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 internal static class UiStateChecks
 {
@@ -17,7 +18,14 @@ internal static class UiStateChecks
         panel.Children.Add(new ComboBoxItem { Content = "Selected source: CPU temperature", IsSelected = true, Margin = new Thickness(0, 8, 0, 4) });
         panel.Children.Add(new ListBoxItem { Content = "Selected layer: Clock overlay", IsSelected = true });
         panel.Children.Add(new TextBox { Text = "Type a sensor name or change a value", Margin = new Thickness(0, 8, 0, 8) });
-        panel.Children.Add(new ToolTip { Content = "Remove this photo from the playlist. The original file stays on your PC.", MaxWidth = 520 });
+        var tip = CreateToolTip();
+        tip.ApplyTemplate();
+        tip.Measure(new Size(520, double.PositiveInfinity));
+        tip.Arrange(new Rect(tip.DesiredSize));
+        tip.UpdateLayout();
+        var tipBitmap = new RenderTargetBitmap((int)Math.Ceiling(tip.ActualWidth), (int)Math.Ceiling(tip.ActualHeight), 96, 96, PixelFormats.Pbgra32);
+        tipBitmap.Render(tip);
+        panel.Children.Add(new Image { Source = tipBitmap, Stretch = Stretch.None, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 4, 0, 0) });
         panel.Children.Add(new Expander { Header = "CAPTION SETTINGS", IsExpanded = true, Margin = new Thickness(0, 8, 0, 0),
             Content = new TextBlock { Text = "Each section keeps its existing controls and expanded state.", TextWrapping = TextWrapping.Wrap } });
         return new Border { Background = (Brush)Application.Current.Resources["PanelBrush"], Padding = new Thickness(18), Child = panel };
@@ -38,14 +46,28 @@ internal static class UiStateChecks
                 Assert(Contrast((SolidColorBrush)item.Foreground, (SolidColorBrush)border.Background) >= 4.5,
                     "Selected items must have readable text on their actual rendered backgrounds.");
             }
-            var tip = (ToolTip)Find(gallery, typeof(ToolTip))!;
-            tip.ApplyTemplate();
-            Assert(Contrast((SolidColorBrush)tip.Foreground, (SolidColorBrush)tip.Background) >= 4.5,
-                "Tooltip text and background must remain readable.");
+            var tip = CreateToolTip();
+            tip.PlacementTarget = gallery;
+            try
+            {
+                tip.IsOpen = true;
+                tip.ApplyTemplate();
+                tip.UpdateLayout();
+                var tipText = (TextBlock)Find(tip, typeof(TextBlock))!;
+                var tipBorder = (Border)Find(tip, typeof(Border))!;
+                Assert(Contrast((SolidColorBrush)tipText.Foreground, (SolidColorBrush)tipBorder.Background) >= 4.5,
+                    "The actual popup tooltip text and background must remain readable.");
+            }
+            finally { tip.IsOpen = false; }
             Console.WriteLine("PASS: actual dark selected-item templates and tooltip contrast.");
         }
         finally { host.Close(); }
     }
+    private static ToolTip CreateToolTip() => new()
+    {
+        Style = (Style)Application.Current.Resources[typeof(ToolTip)],
+        Content = "Remove this photo from the playlist. The original file stays on your PC.", MaxWidth = 520
+    };
     private static DependencyObject? Find(DependencyObject element, Type type)
     {
         if (element.GetType() == type) return element;
