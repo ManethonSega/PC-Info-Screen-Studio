@@ -44,9 +44,9 @@ Each mode has a **Themes** panel with visible **Load** and **Save** buttons. The
 
 ### Settings window
 
-Open **Settings** from the top bar to manage screen connection, runtime, sensor access and editor preferences. Hardware and Settings pages use a burgundy `#4D0219` background with white and silver text. **Use live sensor data** stays checked because live readings are always enabled.
+Open **Settings** from the top bar to manage screen connection, runtime, sensor access and editor preferences. Hardware and Settings pages use an almost-black charcoal `#101216` background with white and silver text. **Use live sensor data** stays checked because live readings are always enabled.
 
-![Settings window with burgundy background, readable silver and white text, and the checked live-sensor indicator](docs/images/settings-window.png)
+![Settings window with charcoal background, readable silver and white text, and the checked live-sensor indicator](docs/images/settings-window.png)
 
 ## Editor and Hardware pages
 
@@ -54,7 +54,7 @@ Use **Editor** to build your screen and **Hardware** to view PC hardware names a
 
 Theme actions are now in **Themes** on the left for each mode. Choose a theme and select **Load**, or use **Save** and **Theme actions** for New, Open, Save as, Duplicate, Rename, Delete and Refresh. Ctrl+N, Ctrl+O, Ctrl+S and Ctrl+Shift+S use the active mode's file format. Editor shortcuts are suspended while viewing Hardware.
 
-Photo Frame (`.pcphoto`) and Hybrid (`.pchybrid`) themes save settings in their separate folders; photos stay on the PC and the current playlist is retained when loading a settings theme. Info Screen uses `.t3theme` files. Use **Save playlist** to save photo links separately.
+Photo Frame (`.pcphoto`) and Hybrid (`.pchybrid`) themes save settings in their separate folders; photos stay on the PC. Themes remember the selected photo folder and reload its photos when opened. Themes without a folder keep the current playlist. Info Screen uses `.t3theme` files. Use **Save playlist** to save photo links separately.
 
 ## Download and run
 
@@ -88,7 +88,7 @@ The prominent **SCREEN MODE** selector changes the left panel to show controls r
 | Photo Frame | A photo playlist with shared slideshow and caption settings | `.pcphoto` settings in `Documents/PC Info Screen Studio/Photo Frame Themes` |
 | Hybrid | Photos with a separate set of information overlays | `.pchybrid` settings and overlays in `Documents/PC Info Screen Studio/Hybrid Themes` |
 
-Photo Frame and Hybrid themes do **not** embed photos or replace your current playlist. Photos remain on your PC. Use **Save playlist** / **Load playlist** to store and restore photo references separately as a `.pcalbum` preset. Keep linked files available at their saved locations; these presets are not portable photo bundles.
+Photo Frame and Hybrid themes do **not** embed photos. **Add folder** remembers the folder in the mode theme; opening that theme reloads its photos, including subfolders, whether folder watching is on or off. Hybrid themes also preserve exact overlay positions and layer settings. Themes without a saved folder keep the current playlist. Photos remain on your PC. Use **Save playlist** / **Load playlist** to store and restore photo references separately as a `.pcalbum` preset. Keep linked files available at their saved locations; these presets are not portable photo bundles. For older themes saved without a folder path, choose **Add folder** once and save the mode theme again.
 
 ### Info Screen editing
 
@@ -105,7 +105,7 @@ Live sensor data is always enabled. The checked **Use live sensor data** option 
 
 ### Photo Frame and Hybrid
 
-- Under **ADD PHOTOS**, add multiple files or a folder. Drag playlist entries to reorder; use previous, pause/play, next, and remove controls.
+- Under **ADD PHOTOS**, add multiple files or a folder. Save the mode theme to remember the folder for next time; use a playlist preset to preserve individually selected files or a custom order. Drag playlist entries to reorder; use previous, pause/play, next, and remove controls.
 - Set a shared display duration, transition duration, loop, shuffle, and Fit/Fill/Stretch behaviour.
 - Choose Crossfade, Slide, Zoom, Instant, or Random transitions **between** photos. There is no continuous pan-and-zoom animation.
 - Choose a solid background colour.
