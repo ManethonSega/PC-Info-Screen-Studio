@@ -72,7 +72,9 @@ public sealed class AppSettingsService
             WriteIndented = true
         });
 
-        File.WriteAllText(_settingsPath, json);
+        var pending = _settingsPath + ".tmp";
+        File.WriteAllText(pending, json);
+        File.Move(pending, _settingsPath, overwrite: true);
     }
 }
 

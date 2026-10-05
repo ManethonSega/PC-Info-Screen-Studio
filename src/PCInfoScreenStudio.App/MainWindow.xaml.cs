@@ -138,12 +138,18 @@ public partial class MainWindow : Window
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
-        var restored = await _viewModel.RestoreLastSessionAsync();
-        if (!restored) await _viewModel.RecoverIfAvailableAsync();
-        if (StartInTray)
+        IsEnabled = false;
+        _viewModel.SetEditorActive(false);
+        if (StartInTray) Hide();
+        try
         {
-            _viewModel.SetEditorActive(false);
-            Hide();
+            var restored = await _viewModel.RestoreLastSessionAsync();
+            if (!restored) await _viewModel.RecoverIfAvailableAsync();
+        }
+        finally
+        {
+            IsEnabled = true;
+            _viewModel.SetEditorActive(!StartInTray);
         }
         _viewModel.StartAutoDisplayIfEnabled();
         await _viewModel.InitializeWindowsStartupAsync();
@@ -257,6 +263,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             _exitRequested = false;
+            _sessionSaveTask = null;
             IsEnabled = true;
             MessageBox.Show(this, "Could not save the last session. The app will stay open so your work is preserved.\n\n" + ex.Message,
                 "Save session", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -264,9 +271,9 @@ public partial class MainWindow : Window
         finally { _savingSession = false; }
     }
 
-    // Windows logoff does not wait for an async Closing event. Snapshot while the dispatcher is paused.
     public void MarkSessionSavedForExit() => _sessionSaved = true;
 
+    // Windows logoff does not wait for an async Closing event. Snapshot while the dispatcher is paused.
     public void SaveSessionForWindowsShutdown()
     {
         if (_disposed || _sessionSaved) return;
