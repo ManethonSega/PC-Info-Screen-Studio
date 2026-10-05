@@ -42,6 +42,14 @@ Each mode has a **Themes** panel with visible **Load** and **Save** buttons. The
 
 ![Dark theme-actions menu with keyboard shortcuts and clearly disabled actions for built-in themes](docs/images/theme-actions.png)
 
+### Caption fonts, Hybrid shapes and widget backgrounds
+
+Choose a global caption font in Photo Frame or Hybrid, add a **Shape** from Hybrid overlays, and adjust **Background transparency (%)** on any widget. The percentage affects the background fill while text, gauges, images and outlines keep their appearance.
+
+| Caption settings | Hybrid overlays | Widget background |
+| --- | --- | --- |
+| ![Global caption font, size, colour and outline controls](docs/images/caption-settings.png) | ![Hybrid Add controls including Shape](docs/images/hybrid-overlays.png) | ![Widget colours with a background-only transparency slider and percentage input](docs/images/widget-background.png) |
+
 ### Settings window
 
 Open **Settings** from the top bar to manage screen connection, runtime, sensor access and editor preferences. Hardware and Settings pages use an almost-black charcoal `#101216` background with white and silver text. **Use live sensor data** stays checked because live readings are always enabled.
@@ -94,12 +102,14 @@ Photo Frame and Hybrid themes do **not** embed photos. **Add folder** remembers 
 
 - Add **Text**, **Value**, **Circle**, **Clock**, **Bar**, **Graph**, or **Shape** directly from the left panel.
 - Use **SEARCH & ADD** on the right to find sources such as CPU temperature, GPU usage, RAM, or clock, then click a result once.
-- Drag widgets on the canvas and edit their appearance and data source in the right-hand properties panel. Widget resizing does not change its explicit font-size setting.
+- Drag widgets on the canvas and edit their appearance and data source in the right-hand properties panel. **Background transparency (%)** runs from 0 (solid) to 100 (invisible) and affects only the widget background, preserving text, gauges, images and outlines. Widget resizing does not change its explicit font-size setting.
 - Organize layers, hide or lock objects, use multi-selection and grouping, and align or distribute items. Grid snapping, smart guides, keyboard movement, undo/redo, and editor zoom are implemented.
 - Add images, animated GIFs, and custom fonts. The built-in fonts include Bungee, Fredoka, Monoton, and Orbitron.
 - Use **Themes > Save** or **Theme actions > Save as...** for a shareable `.t3theme` package with imported assets. The theme library supports generated thumbnails, loading, duplication, renaming, and deletion.
 
 Live sensor data is always enabled. The checked **Use live sensor data** option in Settings is an indicator; missing sensors remain unavailable. Select `Preview.Value` as a widget data source when you want to set a manual design value.
+
+The app opens in a larger window, automatically fitting within the monitor work area and Windows display scaling. Both side panels remain scrollable.
 
 **Live view** hides editing controls for a clean preview. **Back to edit** returns to the editor. This is separate from starting or stopping physical display output.
 
@@ -110,9 +120,9 @@ Live sensor data is always enabled. The checked **Use live sensor data** option 
 - Choose Crossfade, Slide, Zoom, Instant, or Random transitions **between** photos. There is no continuous pan-and-zoom animation.
 - Choose a solid background colour.
 - Configure captions globally: none, filename, date taken, location, or custom text. Missing date/location metadata leaves the caption blank.
-- **Caption font size**, text colour, outline colour, and outline width control readability. Set outline width to zero for no outline; there is no fixed caption highlight.
+- **Caption font**, **Caption font size**, text colour, outline colour, and outline width control readability. Caption font selection includes bundled fonts and fonts installed on your PC; the choice is saved in the mode theme. Set outline width to zero for no outline; there is no fixed caption highlight.
 - Folder watching and playlist presets are grouped under **WATCHED FOLDER & PLAYLISTS**.
-- Hybrid adds text, values, circles, clocks, bars, and graphs over the photos.
+- Hybrid adds text, values, circles, clocks, bars, graphs, and shapes over the photos.
 
 EXIF orientation is corrected when preparing photos. Per-photo crop, focal point, duration controls, blurred backgrounds, and scheduling are deliberately excluded from the current interface.
 
