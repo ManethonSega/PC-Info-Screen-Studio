@@ -42,6 +42,12 @@ Each mode has a **Themes** panel with visible **Load** and **Save** buttons. The
 
 ![Dark theme-actions menu with keyboard shortcuts and clearly disabled actions for built-in themes](docs/images/theme-actions.png)
 
+### Settings window
+
+Open **Settings** from the top bar to manage screen connection, runtime, sensor access and editor preferences. Hardware and Settings pages use a burgundy `#4D0219` background with white and silver text. **Use live sensor data** stays checked because live readings are always enabled.
+
+![Settings window with burgundy background, readable silver and white text, and the checked live-sensor indicator](docs/images/settings-window.png)
+
 ## Editor and Hardware pages
 
 Use **Editor** to build your screen and **Hardware** to view PC hardware names and live CPU, GPU, memory, storage, network and cooling readings. Hardware is an app page; your selected Info Screen, Photo Frame or Hybrid mode and physical display output continue unchanged. Unavailable sensors are labelled clearly.
