@@ -157,6 +157,7 @@ public partial class MainWindow : Window
 
     private void OnDragOver(object sender, System.Windows.DragEventArgs e)
     {
+        if (!_viewModel.IsEditorPage) { e.Effects = DragDropEffects.None; e.Handled = true; return; }
         e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop)
             ? DragDropEffects.Copy
             : DragDropEffects.None;

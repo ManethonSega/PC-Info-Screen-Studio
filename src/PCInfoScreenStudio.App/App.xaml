@@ -149,7 +149,7 @@
           <Border x:Name="MenuRow" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" CornerRadius="3">
             <Grid>
               <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-              <ContentPresenter ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center" />
+              <AccessText Text="{TemplateBinding Header}" Foreground="{TemplateBinding Foreground}" VerticalAlignment="Center" />
               <TextBlock Grid.Column="1" Text="{TemplateBinding InputGestureText}" Foreground="{TemplateBinding Foreground}" Opacity="0.7" Margin="24,0,0,0" VerticalAlignment="Center" />
             </Grid>
           </Border>
@@ -160,7 +160,7 @@
         </ControlTemplate>
       </Setter.Value></Setter>
     </Style>
-    <Style TargetType="Separator">
+    <Style x:Key="ThemeMenuSeparatorStyle" TargetType="Separator">
       <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Separator"><Border Height="1" Background="{StaticResource BorderBrush}" Margin="8,5" /></ControlTemplate></Setter.Value></Setter>
     </Style>
     <Style TargetType="TextBox">

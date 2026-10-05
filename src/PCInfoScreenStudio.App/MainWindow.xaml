@@ -761,17 +761,15 @@
     <Border Grid.Row="1" Visibility="{Binding HardwarePageVisibility}"><controls:HardwareDashboard DataContext="{Binding HardwareDashboard}" /></Border>
 
     <Border Grid.Row="2" Background="#0C0F13" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0">
-      <DockPanel Margin="10,0">
-        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
-          <TextBlock Text="{Binding DeviceStatus}" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
-          <TextBlock Text="   Sensors: " VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
-          <TextBlock Text="{Binding HardwareStatus}" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" ToolTip="{Binding HardwareStatus}" />
-        </StackPanel>
-        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+      <Grid Margin="10,0">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+        <TextBlock Text="{Binding DeviceStatus}" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" MaxWidth="240" TextTrimming="CharacterEllipsis" ToolTip="{Binding DeviceStatus}" />
+        <TextBlock Grid.Column="1" Text="{Binding HardwareStatus}" Margin="18,0" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" TextTrimming="CharacterEllipsis" ToolTip="{Binding HardwareStatus}" />
+        <StackPanel Grid.Column="2" Orientation="Horizontal">
           <TextBlock Text="Theme: " Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" />
-          <TextBlock Text="{Binding CurrentThemeName}" VerticalAlignment="Center" />
+          <TextBlock Text="{Binding CurrentThemeName}" MaxWidth="250" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
         </StackPanel>
-      </DockPanel>
+      </Grid>
     </Border>
 
     <!-- Guided setup is shown only on a genuinely new installation. -->

@@ -1111,10 +1111,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void RefreshModeThemes()
     {
-        var previousPath = SelectedModeTheme?.FilePath;
+        var previousPath = ActiveThemePath ?? SelectedModeTheme?.FilePath;
         ModeThemes.Clear();
         foreach (var theme in _modeThemeService.GetThemes(Document.Mode))
             ModeThemes.Add(theme);
+        if (Document.Mode != ScreenMode.InfoScreen && ActiveThemePath is string activePath && File.Exists(activePath) && !ModeThemes.Any(t => t.FilePath.Equals(activePath, StringComparison.OrdinalIgnoreCase)))
+            ModeThemes.Add(new ModeThemeLibraryItem(Path.GetFileNameWithoutExtension(activePath), activePath));
         SelectedModeTheme = ModeThemes.FirstOrDefault(theme =>
                                 string.Equals(theme.FilePath, previousPath, StringComparison.OrdinalIgnoreCase))
                             ?? ModeThemes.FirstOrDefault();
@@ -1321,6 +1323,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         ThemeRenderer.ClearCaches();
         _workspace = workspace;
         _themeSessions.Reset();
+        _lastThemeMode = Document.Mode;
         _themeSessions.Loaded(Document.Mode, workspace.FilePath);
         if (workspace.IsDirty) _themeSessions.MarkDirty(Document.Mode);
         AttachWorkspace(_workspace);
@@ -1362,8 +1365,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void OnDocumentPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(ThemeDocument.EditorWidgets)) return;
         if (e.PropertyName == nameof(ThemeDocument.Mode))
         {
+            var wasSuppressed = _suppressDirty;
+            _suppressDirty = true;
+            try { _themeSessions.SwitchSettings(_lastThemeMode, Document.Mode, Document.PhotoFrame); }
+            finally { _suppressDirty = wasSuppressed; }
+            _lastThemeMode = Document.Mode;
             UpdateEffectiveScreenMode(force: true);
             SelectWidget(Document.EditorWidgets.OrderBy(widget => widget.ZIndex).FirstOrDefault());
             RefreshModeThemes();
@@ -1501,7 +1510,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             WeatherStatus = _weatherMetrics.Status;
 
             if (IsHardwarePageVisible) HardwareDashboard.Update(sample);
-            if (!UseLiveData) return;
+            if (!UseLiveData)
+            {
+                if (LivePreview && RuntimeWidgets.Any(w => w.Type == WidgetType.AnalogClock))
+                    RequestLiveFrame?.Invoke(this, EventArgs.Empty);
+                return;
+            }
 
             foreach (var widget in AllWidgets)
             {
@@ -1889,6 +1903,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
 
             AttachWorkspace(_workspace);
+            _lastThemeMode = Document.Mode;
             FontAssets.Clear();
             foreach (var font in Document.Assets.Where(a => a.Kind == ThemeAssetKind.Font))
                 FontAssets.Add(font);

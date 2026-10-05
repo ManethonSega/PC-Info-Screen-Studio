@@ -75,6 +75,14 @@ internal static class Program
         sessions.Loaded(ScreenMode.Hybrid, hybridPath);
         Assert(sessions.IsDirty(ScreenMode.InfoScreen) && sessions.HasUnsavedChanges, "Saving one mode must not discard another mode's unsaved state.");
         Assert(sessions.PathFor(ScreenMode.PhotoFrame) == photoPath && sessions.PathFor(ScreenMode.Hybrid) == hybridPath, "Save must keep separate active filenames for each mode.");
+        var current = new PhotoFrameSettings { CaptionFontSize = 24 };
+        current.Photos.Add(photo);
+        sessions.SwitchSettings(ScreenMode.PhotoFrame, ScreenMode.Hybrid, current);
+        current.CaptionFontSize = 36;
+        sessions.SwitchSettings(ScreenMode.Hybrid, ScreenMode.PhotoFrame, current);
+        Assert(current.CaptionFontSize == 24 && current.Photos.Count == 1, "Returning to a mode must restore its settings while retaining the shared playlist.");
+        sessions.SwitchSettings(ScreenMode.PhotoFrame, ScreenMode.Hybrid, current);
+        Assert(current.CaptionFontSize == 36, "Photo and Hybrid settings must remain independent in memory.");
     }
 
     private static void CheckDashboard()
@@ -95,6 +103,7 @@ internal static class Program
         using var vm = new MainViewModel(Settings(root, "navigation"));
         vm.SetEditorActive(false); // Avoid accessing physical sensors in this check.
         vm.Document.Mode = ScreenMode.Hybrid;
+        Assert(!vm.IsDirty, "Switching screen modes alone must not create unsaved theme edits.");
         vm.Document.HybridWidgets.Add(new WidgetModel { Type = WidgetType.Text, Label = "Unsaved overlay" });
         var document = vm.Document;
         var selected = vm.SelectedWidget;

@@ -9,6 +9,7 @@ namespace PCInfoScreenStudio.ViewModels;
 public sealed partial class MainViewModel
 {
     private readonly ThemeSessionController _themeSessions = new();
+    private ScreenMode _lastThemeMode = ScreenMode.InfoScreen;
     private bool _isHardwarePage;
     private bool _isDisposed;
     private Task<IReadOnlyDictionary<string, MetricValue>>? _hardwareInventoryTask;

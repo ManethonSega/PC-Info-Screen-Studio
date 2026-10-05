@@ -25,11 +25,11 @@
             <MenuItem Header="New theme" Command="{Binding NewCommand}" InputGestureText="Ctrl+N" ToolTip="Start a new theme for the current screen mode. Photo playlists are kept." />
             <MenuItem Header="Open theme…" Command="{Binding OpenCommand}" InputGestureText="Ctrl+O" ToolTip="Open a theme file for this screen mode." />
             <MenuItem Header="Save as…" Command="{Binding SaveAsCommand}" InputGestureText="Ctrl+Shift+S" ToolTip="Save the current theme under a different name." />
-            <Separator />
+            <Separator Style="{StaticResource ThemeMenuSeparatorStyle}" />
             <MenuItem Header="Duplicate selected theme" Command="{Binding DuplicateThemeCommand}" ToolTip="Copy the selected saved theme without loading it." />
             <MenuItem Header="Rename selected theme…" Command="{Binding RenameThemeCommand}" ToolTip="Rename the selected custom theme file." />
             <MenuItem Header="Delete selected theme…" Command="{Binding DeleteThemeCommand}" ToolTip="Delete the selected custom theme file after confirmation." />
-            <Separator />
+            <Separator Style="{StaticResource ThemeMenuSeparatorStyle}" />
             <MenuItem Header="Refresh library" Command="{Binding RefreshThemesCommand}" ToolTip="Find newly saved theme files for this mode." />
           </ContextMenu>
         </Button.ContextMenu>

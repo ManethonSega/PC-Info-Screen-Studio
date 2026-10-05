@@ -1,4 +1,5 @@
 using PCInfoScreenStudio.Models;
+using PCInfoScreenStudio.Services;
 
 namespace PCInfoScreenStudio.Controllers;
 
@@ -7,6 +8,7 @@ public sealed class ThemeSessionController
 {
     private readonly Dictionary<ScreenMode, string> _paths = [];
     private readonly HashSet<ScreenMode> _dirty = [];
+    private readonly Dictionary<ScreenMode, PhotoFrameSettings> _settings = [];
     public bool HasUnsavedChanges => _dirty.Count > 0;
     public bool IsDirty(ScreenMode mode) => _dirty.Contains(mode);
     public string? PathFor(ScreenMode mode) => _paths.GetValueOrDefault(mode);
@@ -24,5 +26,16 @@ public sealed class ThemeSessionController
             else _paths[mode] = newPath;
         }
     }
-    public void Reset() { _paths.Clear(); _dirty.Clear(); }
+    public void SwitchSettings(ScreenMode previous, ScreenMode next, PhotoFrameSettings current)
+    {
+        if (previous != ScreenMode.InfoScreen)
+        {
+            var saved = new PhotoFrameSettings();
+            ModeThemeService.ApplySettings(saved, current);
+            _settings[previous] = saved;
+        }
+        if (next != ScreenMode.InfoScreen && _settings.TryGetValue(next, out var target))
+            ModeThemeService.ApplySettings(current, target);
+    }
+    public void Reset() { _paths.Clear(); _dirty.Clear(); _settings.Clear(); }
 }
