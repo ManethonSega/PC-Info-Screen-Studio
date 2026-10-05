@@ -10,6 +10,8 @@ namespace PCInfoScreenStudio;
 public partial class App : Application
 {
     private bool _shuttingDown;
+    private SingleInstanceService? _instance;
+    private DispatcherTimer? _activationTimer;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -27,12 +29,30 @@ public partial class App : Application
 
         try
         {
+            if (e.Args.Length == 3 && e.Args[0] == WindowsStartupService.ConfigureArgument &&
+                e.Args[1] is "enable" or "disable")
+            {
+                new WindowsStartupService().Configure(e.Args[1] == "enable", e.Args[2]);
+                ShutdownSafely(0);
+                return;
+            }
+            if (e.Args.Contains(WindowsStartupService.StartupArgument) && !e.Args.Contains(WindowsStartupService.ScheduledArgument) &&
+                new AppSettingsService().Load().StartWithWindows && new WindowsStartupService().LaunchApprovedStartupTask())
+            {
+                ShutdownSafely(0);
+                return;
+            }
             if (SensorStartupService.RequestIfNeeded(new AppSettingsService().Load(), e.Args, out var sensorStartupError))
             {
                 ShutdownSafely(0);
                 return;
             }
-            MainWindow = new MainWindow();
+            _instance = new SingleInstanceService(e.Args.Contains("--wait-for-existing-instance"), !e.Args.Contains(WindowsStartupService.StartupArgument));
+            if (!_instance.IsPrimary) { ShutdownSafely(0); return; }
+            MainWindow = new MainWindow { StartInTray = e.Args.Contains(WindowsStartupService.StartupArgument) };
+            _activationTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _activationTimer.Tick += (_, _) => { if (_instance?.ConsumeActivation() == true && MainWindow is MainWindow window) window.RestoreFromTray(); };
+            _activationTimer.Start();
             MainWindow.Show();
             if (sensorStartupError is not null)
                 MessageBox.Show(MainWindow, sensorStartupError, "Sensor access", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -42,6 +62,20 @@ public partial class App : Application
             ShowFatalStartupError(ex);
             ShutdownSafely(1);
         }
+    }
+
+    protected override void OnSessionEnding(SessionEndingCancelEventArgs e)
+    {
+        try { if (MainWindow is MainWindow window) window.SaveSessionForWindowsShutdown(); }
+        catch (Exception ex) { WriteCrashLog("Could not save session at Windows shutdown", ex); }
+        base.OnSessionEnding(e);
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        _activationTimer?.Stop();
+        _instance?.Dispose();
+        base.OnExit(e);
     }
 
     private void RunSmokeTest()
@@ -90,6 +124,7 @@ public partial class App : Application
             }
 
             var window = new MainWindow();
+            window.MarkSessionSavedForExit();
             window.Measure(new Size(1480, 880));
             window.Arrange(new Rect(0, 0, 1480, 880));
             window.UpdateLayout();

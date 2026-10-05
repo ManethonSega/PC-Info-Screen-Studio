@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using PCInfoScreenStudio.Models;
+using PCInfoScreenStudio.Services;
 using PCInfoScreenStudio.ViewModels;
 using WinForms = System.Windows.Forms;
 
@@ -17,6 +18,10 @@ public partial class MainWindow : Window
     private readonly WinForms.NotifyIcon _trayIcon;
     private bool _exitRequested;
     private bool _disposed;
+    private bool _savingSession;
+    private bool _sessionSaved;
+    private Task? _sessionSaveTask;
+    public bool StartInTray { get; set; }
     private Point _photoDragStart;
     private PhotoFrameItem? _draggedPhoto;
 
@@ -133,11 +138,18 @@ public partial class MainWindow : Window
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
-        await _viewModel.RecoverIfAvailableAsync();
+        var restored = await _viewModel.RestoreLastSessionAsync();
+        if (!restored) await _viewModel.RecoverIfAvailableAsync();
+        if (StartInTray)
+        {
+            _viewModel.SetEditorActive(false);
+            Hide();
+        }
         _viewModel.StartAutoDisplayIfEnabled();
+        await _viewModel.InitializeWindowsStartupAsync();
     }
 
-    private void RestoreFromTray()
+    public void RestoreFromTray()
     {
         Dispatcher.Invoke(() =>
         {
@@ -220,11 +232,11 @@ public partial class MainWindow : Window
         }
     }
 
-    private void OnClosing(object? sender, CancelEventArgs e)
+    private async void OnClosing(object? sender, CancelEventArgs e)
     {
-        // The normal window close button keeps the display/runtime alive and
-        // moves the editor to the notification area. Use the tray menu's Exit
-        // command for an actual application shutdown.
+        if (_sessionSaved) { DisposeRuntime(); return; }
+        if (_savingSession) { e.Cancel = true; return; }
+        // Closing to the tray keeps the existing session running.
         if (!_exitRequested && _viewModel.CloseToTray)
         {
             e.Cancel = true;
@@ -232,24 +244,34 @@ public partial class MainWindow : Window
             Hide();
             return;
         }
-
-        if (_viewModel.HasUnsavedChanges)
+        e.Cancel = true;
+        _savingSession = true;
+        IsEnabled = false;
+        try
         {
-            var result = MessageBox.Show(
-                "This theme has unsaved changes. Exit and discard them?",
-                "Unsaved changes",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
-
-            if (result != MessageBoxResult.Yes)
-            {
-                _exitRequested = false;
-                e.Cancel = true;
-                return;
-            }
+            _sessionSaveTask = _viewModel.SaveLastSessionAsync();
+            await _sessionSaveTask;
+            _sessionSaved = true;
+            Close();
         }
+        catch (Exception ex)
+        {
+            _exitRequested = false;
+            IsEnabled = true;
+            MessageBox.Show(this, "Could not save the last session. The app will stay open so your work is preserved.\n\n" + ex.Message,
+                "Save session", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally { _savingSession = false; }
+    }
 
-        DisposeRuntime();
+    // Windows logoff does not wait for an async Closing event. Snapshot while the dispatcher is paused.
+    public void MarkSessionSavedForExit() => _sessionSaved = true;
+
+    public void SaveSessionForWindowsShutdown()
+    {
+        if (_disposed || _sessionSaved) return;
+        (_sessionSaveTask ?? _viewModel.SaveLastSessionAsync()).GetAwaiter().GetResult();
+        _sessionSaved = true;
     }
 
     private void DisposeRuntime()

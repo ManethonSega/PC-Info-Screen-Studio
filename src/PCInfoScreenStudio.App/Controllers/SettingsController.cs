@@ -48,6 +48,18 @@ public sealed class SettingsController : ObservableObject
         set => Update(_values.CloseToTray, value, v => _values.CloseToTray = v);
     }
 
+    public bool StartWithWindows
+    {
+        get => _values.StartWithWindows;
+        set => Update(_values.StartWithWindows, value, v => _values.StartWithWindows = v);
+    }
+
+    public string? LastDisplayPort
+    {
+        get => _values.LastDisplayPort;
+        set => Update(_values.LastDisplayPort, value, v => _values.LastDisplayPort = v);
+    }
+
     public bool AutoStartDisplay
     {
         get => _values.AutoStartDisplay;

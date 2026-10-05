@@ -28,6 +28,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly HardwareMetricsService _hardwareMetrics = new();
     private readonly WeatherMetricsService _weatherMetrics = new();
     private readonly ModeThemeService _modeThemeService = new();
+    private readonly SessionStateService _sessionService;
     private readonly DispatcherTimer _dataTimer;
     private readonly DispatcherTimer _animationTimer;
     private readonly DispatcherTimer _historyTimer;
@@ -62,9 +63,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public MainViewModel() : this(new SettingsController()) { }
 
-    public MainViewModel(SettingsController settings)
+    public MainViewModel(SettingsController settings, SessionStateService? sessionService = null)
     {
         _settings = settings;
+        _sessionService = sessionService ?? new SessionStateService();
         _weatherCity = _settings.WeatherCity;
         _workspace = _packageService.CreateNewWorkspace();
         _device = new DeviceController(() => Document, _settings);
@@ -1060,9 +1062,27 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (!AutoStartDisplay || _device.IsConnected || IsDeviceBusy)
             return;
 
-        DetectScreen();
-        if (!string.IsNullOrWhiteSpace(SelectedPort))
-            _ = ConnectOrDisconnectAsync();
+        _ = StartAutoDisplayAsync();
+    }
+
+    private async Task StartAutoDisplayAsync()
+    {
+        for (var attempt = 0; attempt < 6 && !_isDisposed && AutoStartDisplay; attempt++)
+        {
+            if (_device.IsConnected) return;
+            RefreshPorts();
+            var candidate = Ports.FirstOrDefault(p => p.PortName.Equals(_settings.LastDisplayPort, StringComparison.OrdinalIgnoreCase))
+                ?? Ports.FirstOrDefault(p => p.IsLikelyScreen);
+            if (candidate is not null && !IsDeviceBusy)
+            {
+                SelectedPort = candidate.PortName;
+                await _device.ConnectOrDisconnectAsync(automatic: true);
+                if (_device.IsConnected) return;
+            }
+            if (attempt < 5) await Task.Delay(TimeSpan.FromSeconds(3));
+        }
+        if (!_isDisposed && !_device.IsConnected && AutoStartDisplay)
+            DeviceStatus = "Automatic connection could not find or open the screen. Check the USB cable or connect from Settings.";
     }
 
     private Task TestScreenAsync() => _device.TestScreenAsync();
@@ -1698,7 +1718,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             MessageBoxImage.Information);
     }
 
-    private void RestartElevated(bool forceRestart = false)
+    private async void RestartElevated(bool forceRestart = false)
     {
         if (!OperatingSystem.IsWindows())
             return;
@@ -1713,32 +1733,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
-        if (Workspace.IsDirty)
-        {
-            var result = MessageBox.Show(
-                "This theme has unsaved changes. Restarting will discard them. Continue?",
-                "Restart PC Info Screen Studio",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
-
-            if (result != MessageBoxResult.Yes)
-                return;
-        }
-
         var executable = Environment.ProcessPath;
         if (string.IsNullOrWhiteSpace(executable))
             return;
 
         try
         {
-            Process.Start(new ProcessStartInfo(executable)
+            await SaveLastSessionAsync();
+            var startInfo = SensorStartupService.CreateStartInfo(executable, Environment.GetCommandLineArgs()[0], ["--wait-for-existing-instance"]);
+            using var process = Process.Start(startInfo);
+            if (process is not null)
             {
-                UseShellExecute = true,
-                Verb = "runas",
-                WorkingDirectory = AppContext.BaseDirectory
-            });
-
-            Application.Current.Shutdown();
+                if (Application.Current.MainWindow is MainWindow window) window.MarkSessionSavedForExit();
+                Application.Current.Shutdown();
+            }
         }
         catch (Win32Exception ex) when (ex.NativeErrorCode == 1223)
         {

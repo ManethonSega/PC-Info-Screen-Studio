@@ -37,5 +37,34 @@ public sealed class ThemeSessionController
         if (next != ScreenMode.InfoScreen && _settings.TryGetValue(next, out var target))
             ModeThemeService.ApplySettings(current, target);
     }
+    public ThemeSessionState Capture(ScreenMode activeMode, PhotoFrameSettings current)
+    {
+        if (activeMode != ScreenMode.InfoScreen)
+        {
+            var copy = new PhotoFrameSettings();
+            ModeThemeService.ApplySettings(copy, current);
+            _settings[activeMode] = copy;
+        }
+        return new ThemeSessionState
+        {
+            Paths = new Dictionary<ScreenMode, string>(_paths),
+            DirtyModes = _dirty.ToList(),
+            PhotoSettings = new Dictionary<ScreenMode, PhotoFrameSettings>(_settings)
+        };
+    }
+    public void Restore(ThemeSessionState state)
+    {
+        Reset();
+        foreach (var item in state.Paths) _paths[item.Key] = item.Value;
+        foreach (var mode in state.DirtyModes) _dirty.Add(mode);
+        foreach (var item in state.PhotoSettings) _settings[item.Key] = item.Value;
+    }
     public void Reset() { _paths.Clear(); _dirty.Clear(); _settings.Clear(); }
+}
+
+public sealed class ThemeSessionState
+{
+    public Dictionary<ScreenMode, string> Paths { get; set; } = [];
+    public List<ScreenMode> DirtyModes { get; set; } = [];
+    public Dictionary<ScreenMode, PhotoFrameSettings> PhotoSettings { get; set; } = [];
 }

@@ -10,6 +10,7 @@ public static class SensorStartupService
     public static bool ShouldRequestElevation(bool enabled, bool elevated, bool driverInstalled, IEnumerable<string> arguments)
         => enabled && !elevated && driverInstalled && !arguments.Any(argument =>
             argument.Equals(ElevationAttemptArgument, StringComparison.OrdinalIgnoreCase) ||
+            argument.Equals(WindowsStartupService.ScheduledArgument, StringComparison.OrdinalIgnoreCase) ||
             argument.Equals("--smoke-test", StringComparison.OrdinalIgnoreCase));
 
     public static ProcessStartInfo CreateStartInfo(string executable, string entryPoint, IEnumerable<string> arguments)

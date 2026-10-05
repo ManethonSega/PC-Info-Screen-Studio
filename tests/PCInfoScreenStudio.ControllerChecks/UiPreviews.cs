@@ -39,6 +39,8 @@ internal static class UiPreviews
             CaptureElement(root, 1560, 1040, Path.Combine(directory, "Hardware.png"));
             var settingsWindow = new PCInfoScreenStudio.SettingsWindow { DataContext = vm };
             CaptureElement((FrameworkElement)settingsWindow.Content, 720, 680, Path.Combine(directory, "Settings.png"));
+            CapturePanel((Border)settingsWindow.FindName("RuntimePanel"), vm, 660, 250,
+                Path.Combine(directory, "Windows-startup.png"));
             CapturePanel((Border)settingsWindow.FindName("HardwareSensorsPanel"), vm, 660, 230,
                 Path.Combine(directory, "Sensor-startup.png"));
             vm.ShowPage(false);

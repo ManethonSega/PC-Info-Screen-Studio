@@ -22,6 +22,8 @@ internal static class Program
         {
             CheckSettings(root);
             CheckSensorStartup();
+            CheckWindowsStartup();
+            CheckSessionResume(root);
             CheckEditor();
             CheckWidgetBackground(root);
             CheckPhotos(root);
@@ -31,7 +33,7 @@ internal static class Program
             CheckDashboard();
             CheckPageNavigation(root);
             if (args.Length == 2 && args[0] == "--capture-ui") UiPreviews.Capture(args[1]);
-            Console.WriteLine("PASS: preferences, editor, photos, device queue, mode themes, dashboard, and navigation checks.");
+            Console.WriteLine("PASS: preferences, startup task, session resume, editor, photos, device queue, mode themes, dashboard, and navigation checks.");
             return 0;
         }
         catch (Exception ex)
@@ -243,10 +245,146 @@ internal static class Program
         settings.LastPhotoIndex = 2;
         Assert(settings.RequestAdministratorAtStartup, "Sensor startup permission requests should be enabled by default.");
         settings.RequestAdministratorAtStartup = false;
+        settings.StartWithWindows = false;
+        settings.AutoStartDisplay = false;
         var reloaded = Settings(root, "preferences");
         Assert(!reloaded.CloseToTray && reloaded.CanvasZoom == .5 && reloaded.LastPhotoIndex == 2,
             "Preferences did not persist independently of the editor.");
+        Assert(!reloaded.StartWithWindows && !reloaded.AutoStartDisplay, "Startup and connection opt-outs must persist.");
+        File.WriteAllText(Path.Combine(root, "old-settings.json"), "{\"SettingsVersion\":3,\"WeatherCity\":\"Berlin\",\"AutoStartDisplay\":false}");
+        var migrated = new AppSettingsService(Path.Combine(root, "old-settings.json")).Load();
+        Assert(migrated.StartWithWindows && migrated.AutoStartDisplay && migrated.WeatherCity == "Berlin", "Startup migration must retain existing preferences.");
         Assert(!reloaded.RequestAdministratorAtStartup, "Disabling sensor startup elevation must persist.");
+    }
+
+    private static void CheckWindowsStartup()
+    {
+        var sid = WindowsStartupService.CurrentUserSid;
+        var executable = Environment.ProcessPath!;
+        var entry = Environment.GetCommandLineArgs()[0];
+        var xml = WindowsStartupService.BuildTaskXml(sid, executable, entry);
+        dynamic service = Activator.CreateInstance(Type.GetTypeFromProgID("Schedule.Service")!)!;
+        dynamic? folder = null;
+        var name = "PCInfoScreenStudio-check-" + Guid.NewGuid().ToString("N");
+        var registered = false;
+        try
+        {
+            service.Connect();
+            folder = service.GetFolder("\\");
+            dynamic task = folder.RegisterTask(name, xml, 6, sid, null, 3, null);
+            registered = true;
+            try
+            {
+                Assert(WindowsStartupService.MatchesTaskXml((string)task.Xml, sid, executable, entry),
+                    "Windows must accept the approved interactive startup task without adding an automatic trigger.");
+                Assert(!WindowsStartupService.MatchesTaskXml((string)task.Xml, sid, executable + "-moved", entry),
+                    "A task for an older portable location must not be launched.");
+                Assert((bool)task.Enabled, "The registered startup task must be enabled.");
+            }
+            finally { System.Runtime.InteropServices.Marshal.FinalReleaseComObject(task); }
+        }
+        finally
+        {
+            if (folder is not null)
+            {
+                if (registered) folder.DeleteTask(name, 0);
+                System.Runtime.InteropServices.Marshal.FinalReleaseComObject(folder);
+            }
+            System.Runtime.InteropServices.Marshal.FinalReleaseComObject(service);
+        }
+        var instanceName = "Local\\PCInfoScreenStudio-check-" + Guid.NewGuid().ToString("N");
+        using var primary = new SingleInstanceService(instanceName: instanceName);
+        Assert(primary.IsPrimary, "The first runtime must own the instance lock.");
+        Await(Task.Run(() => {
+            using var other = new SingleInstanceService(instanceName: instanceName);
+            Assert(!other.IsPrimary, "A second runtime must not connect to the same display.");
+        }));
+        Assert(primary.ConsumeActivation(), "Opening a second copy must show the running editor.");
+        Assert(!SensorStartupService.ShouldRequestElevation(true, false, true, [WindowsStartupService.ScheduledArgument]),
+            "The approved startup task must never prompt for UAC again at Windows sign-in.");
+    }
+
+    private static void CheckSessionResume(string root)
+    {
+        var folder = Path.Combine(root, "resume-photos");
+        Directory.CreateDirectory(folder);
+        var linked = Path.Combine(folder, "linked.jpg");
+        File.WriteAllText(linked, "linked photo stays on the PC");
+        var assets = Path.Combine(root, "resume-image.png");
+        using (var bitmap = new SKBitmap(2, 2))
+        using (var image = SKImage.FromBitmap(bitmap))
+        using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
+        using (var stream = File.Create(assets)) data.SaveTo(stream);
+        var directory = Path.Combine(root, "resume-session");
+        var sessions = new SessionStateService(directory);
+        var infoPath = Path.Combine(root, "chosen.t3theme");
+        var hybridPath = Path.Combine(root, "chosen.pchybrid");
+        var photoPath = Path.Combine(root, "chosen.pcphoto");
+        var modes = new ModeThemeService(Path.Combine(root, "resume-themes"));
+        using (var source = new ThemeWorkspace(new ThemeDocument(), Path.Combine(root, "resume-source")))
+        {
+            source.Document.Name = "Chosen theme";
+            source.Document.Widgets.Add(new WidgetModel { Name = "Saved CPU", X = 77, Y = 91 });
+            new AssetImportService().Import(source, assets, ThemeAssetKind.Image);
+            Await(new ThemePackageService().SaveAsync(source, infoPath));
+            source.Document.Mode = ScreenMode.PhotoFrame;
+            source.Document.PhotoFrame.WatchedFolder = folder;
+            source.Document.PhotoFrame.CaptionFontSize = 23;
+            modes.SaveToPath(source.Document, ScreenMode.PhotoFrame, photoPath);
+            source.Document.Mode = ScreenMode.Hybrid;
+            source.Document.PhotoFrame.CaptionFontSize = 31;
+            source.Document.HybridWidgets.Add(new WidgetModel { Name = "Overlay", X = 117, Y = 64, FontSize = 26 });
+            modes.SaveToPath(source.Document, ScreenMode.Hybrid, hybridPath);
+        }
+        foreach (var lastMode in new[] { ScreenMode.InfoScreen, ScreenMode.PhotoFrame, ScreenMode.Hybrid })
+        {
+            using (var vm = new MainViewModel(Settings(root, "resume-" + lastMode), sessions))
+            {
+                vm.SetEditorActive(false);
+                Await(vm.OpenThemeFileAsync(infoPath));
+                vm.Document.Mode = ScreenMode.PhotoFrame;
+                vm.LoadModeThemeFile(photoPath);
+                vm.Document.Mode = ScreenMode.Hybrid;
+                vm.LoadModeThemeFile(hybridPath);
+                vm.Document.HybridWidgets[0].FontSize = 27;
+                // Persist all changes as working state, including dirty indicators, rather than modifying saved themes.
+                vm.Document.Mode = lastMode;
+                Await(vm.SaveLastSessionAsync());
+            }
+            using var reopened = new MainViewModel(Settings(root, "resume-" + lastMode), sessions);
+            reopened.SetEditorActive(false);
+            var restore = reopened.RestoreLastSessionAsync();
+            Await(restore);
+            Assert(restore.Result && reopened.Document.Mode == lastMode && reopened.Document.Name == "Chosen theme",
+                "Reopening must restore the chosen mode and theme without a load dialog.");
+            Assert(reopened.Workspace.FilePath == infoPath && reopened.Document.Widgets[0].X == 77 && reopened.Document.Widgets[0].Y == 91,
+                "Session resume must retain the real theme save target and Info Screen layer positions.");
+            Assert(reopened.Document.HybridWidgets[0].X == 117 && reopened.Document.HybridWidgets[0].Y == 64 &&
+                reopened.Document.HybridWidgets[0].FontSize == 27,
+                "Hybrid overlays must survive closing and reopening exactly.");
+            Assert(reopened.Document.PhotoFrame.Photos.All(p => p.SourcePath.StartsWith(folder)), "Photos must remain linked to the original PC folder.");
+            var imported = reopened.Document.Assets.Single();
+            Assert(File.Exists(reopened.Workspace.GetAbsolutePath(imported)), "Imported assets must survive deletion of the old temporary workspace.");
+            reopened.Document.Mode = ScreenMode.PhotoFrame;
+            Assert(reopened.Document.PhotoFrame.CaptionFontSize == 23 && reopened.CurrentThemeName == "chosen",
+                "Photo Frame must retain its own settings and selected theme when resumed.");
+            reopened.Document.Mode = ScreenMode.Hybrid;
+            Assert(reopened.Document.PhotoFrame.CaptionFontSize == 31 && reopened.HasUnsavedChanges,
+                "Hybrid must retain independent settings and unsaved changes after resume.");
+            using var zip = System.IO.Compression.ZipFile.OpenRead(Path.Combine(directory, "last-session.t3theme"));
+            Assert(!zip.Entries.Any(e => e.Name == "linked.jpg"), "Resume storage must not embed linked photos.");
+        }
+        using var clean = new ThemeWorkspace(new ThemeDocument { Mode = ScreenMode.Hybrid }, Path.Combine(root, "resume-clean"));
+        var state = new ThemeSessionState { Paths = new() { [ScreenMode.Hybrid] = hybridPath } };
+        Await(sessions.SaveAsync(clean, new SessionState { Themes = state }));
+        var saved = sessions.LoadAsync(); Await(saved);
+        using (saved.Result!.Workspace) Assert(!saved.Result.Workspace.IsDirty, "A clean session must remain clean after resume.");
+        File.WriteAllText(Path.Combine(directory, "last-session.t3theme"), "corrupt");
+        using var fallback = new MainViewModel(Settings(root, "resume-corrupt"), sessions);
+        fallback.SetEditorActive(false);
+        var failed = fallback.RestoreLastSessionAsync(); Await(failed);
+        Assert(!failed.Result && fallback.Document.Widgets.Count > 0 && fallback.DeviceStatus.Contains("Could not restore"),
+            "An unreadable session must leave the starter editor usable and report the failure.");
     }
 
     private static void CheckSensorStartup()
@@ -400,6 +538,7 @@ internal static class Program
         controller.DetectScreen();
         Assert(controller.SelectedPort == "COM6", "Device discovery did not choose the screen.");
         Await(controller.ConnectOrDisconnectAsync());
+        Assert(Settings(root, "device").LastDisplayPort == "COM6", "The successfully connected screen port must persist for startup.");
         Assert(controller.IsConnected && controller.LivePreview && controller.DisplayActionLabel == "Stop display",
             "Connection state was not forwarded.");
         controller.DisplayProtocol = DisplayProtocolProfile.RevANativePortrait;

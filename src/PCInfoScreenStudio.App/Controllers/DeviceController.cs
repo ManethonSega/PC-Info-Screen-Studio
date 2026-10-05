@@ -32,6 +32,7 @@ public sealed class DeviceController : ObservableObject, IDisposable
         _settings = settings;
         _deviceService = device ?? new DeviceService();
         _discoverPorts = discoverPorts ?? new SerialDeviceDiscoveryService().Discover;
+        _selectedPort = settings.LastDisplayPort;
         _displayProtocol = settings.DisplayProtocol;
         _displayColorMode = settings.DisplayColorMode;
     }
@@ -144,7 +145,7 @@ public sealed class DeviceController : ObservableObject, IDisposable
             : "No screen could be identified automatically. Choose the USB serial device from the list.";
     }
 
-    public async Task ConnectOrDisconnectAsync()
+    public async Task ConnectOrDisconnectAsync(bool automatic = false)
     {
         if (_disposed || IsDeviceBusy) return;
 
@@ -195,6 +196,7 @@ public sealed class DeviceController : ObservableObject, IDisposable
                 DisplayColorMode,
                 deviceInfo);
 
+            _settings.LastDisplayPort = SelectedPort;
             LivePreview = true;
             DeviceStatus = BuildConnectionStatus();
             RaisePropertyChanged(nameof(DisplayActionLabel));
@@ -203,7 +205,7 @@ public sealed class DeviceController : ObservableObject, IDisposable
         catch (UnauthorizedAccessException)
         {
             DeviceStatus = "Connection failed: port is in use";
-            MessageBox.Show(
+            if (!automatic) MessageBox.Show(
                 $"{SelectedPort} is already in use by another program.\n\nClose the original screen software (including its tray icon), a serial monitor, or any other program using this COM port, then try again.",
                 "Could not connect display",
                 MessageBoxButton.OK,
@@ -211,8 +213,8 @@ public sealed class DeviceController : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            DeviceStatus = "Connection failed";
-            MessageBox.Show(ex.Message, "Could not connect display", MessageBoxButton.OK, MessageBoxImage.Error);
+            DeviceStatus = "Connection failed: " + ex.Message;
+            if (!automatic) MessageBox.Show(ex.Message, "Could not connect display", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
         {

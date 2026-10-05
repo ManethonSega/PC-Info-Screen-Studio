@@ -130,13 +130,19 @@ EXIF orientation is corrected when preparing photos. Per-photo crop, focal point
 
 The app combines Windows CPU/RAM, system-drive and network readings with hardware sensors from LibreHardwareMonitor. Optional HWiNFO shared-memory sources require HWiNFO to be running and configured separately. Sensor availability depends on your hardware and permissions; unavailable readings are shown as unavailable rather than invented zeroes.
 
-For additional low-level sensor access, open **Settings > HARDWARE SENSORS**. The portable publish includes the official, checksum-verified PawnIO prerequisite installer. Installing it is optional and requires explicit confirmation and Windows elevation. Once PawnIO is installed, **Request administrator access when the app starts** is enabled by default. Approve the Windows UAC prompt when opening the app to initialize full sensors automatically; you do not need to inspect or reinstall the driver every time. Declining the prompt opens the app with available sensors. Disable this startup behaviour under **Settings > HARDWARE SENSORS** if you prefer to request access manually.
+For additional low-level sensor access, open **Settings > HARDWARE SENSORS**. The portable publish includes the official, checksum-verified PawnIO prerequisite installer. Installing it is optional and requires explicit confirmation and Windows elevation. Once PawnIO is installed, **Request administrator access when the app starts** is enabled by default. For a manual launch, approve the Windows UAC prompt to initialize full sensors automatically; you do not need to inspect or reinstall the driver every time. Declining the prompt opens the app with available sensors. The approved Windows startup task supplies this account's permissions at sign-in without a repeated prompt. Disable manual-launch permission requests under **Settings > HARDWARE SENSORS** if you prefer to request access yourself.
 
 ![Hardware sensor settings with automatic administrator access enabled](docs/images/sensor-startup.png)
 
 For weather, select a Weather source in the properties panel, enter a city, and choose **Update**. Open-Meteo supplies weather/geocoding; the city is a local preference and conditions refresh approximately every ten minutes.
 
 ## Lightweight runtime
+
+**Start with Windows** and **Start display automatically with the app** are enabled by default under **Settings > RUNTIME**. On the first launch of this version, approve Windows setup once. The app adds an entry to Windows Startup Apps and uses an approved, per-user Task Scheduler task to obtain that account's available sensor permissions at sign-in. It stores no password and does not disable UAC. Full administrator sensor access requires an administrator Windows account. Manual launches can still request UAC approval.
+
+At Windows sign-in, the app starts in the tray, restores your last mode and working theme, and reconnects the last successful display port. It briefly retries while USB devices become available. Turn off either startup or automatic display connection in Settings when you prefer to launch or connect manually. Keep the complete portable app folder in a stable location; opening a moved copy updates its startup registration after Windows approval.
+
+Closing to the tray keeps the same session running. **Exit** saves a private resume snapshot, including Info Screen and Hybrid layers, each mode's loaded theme and photo settings, linked photos/folders, and unsaved edits. Windows logoff/restart also saves this snapshot. Opening the app again restores it automatically without overwriting any reusable theme file. Use **Save** under Theme options when you want to update that reusable theme. Linked photos stay on the PC.
 
 The system-tray option is in **Settings > RUNTIME**. When minimized or closed to the tray, editor-only preview work is suspended and preview resources are released while display output continues as needed. The tray menu provides mode switching and previous/pause/next photo controls.
 
