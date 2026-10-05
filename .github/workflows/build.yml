@@ -64,3 +64,4 @@ jobs:
           name: PCInfoScreenStudio-win-x64
           path: .\artifacts\win-x64\
           if-no-files-found: error
+          retention-days: 3
