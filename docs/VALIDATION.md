@@ -2,6 +2,8 @@
 
 This document describes what the release workflow verifies and what still needs a person using a physical screen. The exact successful workflow and source SHA are recorded in the portable package's `build-info.json`.
 
+Candidate validation passed on **5 October 2026** in [Windows run 37362118377](https://github.com/ManethonSega/PC-Info-Screen-Studio/actions/runs/37362118377), including the extracted portable ZIP. The release workflow repeats these checks for its tagged source.
+
 ## Automated Windows checks
 
 | Workflow | Evidence provided by the checks |

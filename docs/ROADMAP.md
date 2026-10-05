@@ -56,7 +56,7 @@ The next milestone is product polish, not another broad feature category. Priori
 
 ## Memory status
 
-The owner reports approximately **150 MB RAM usage as of 5 October 2026**, replacing the earlier approximately 1 GB observation. This is an observation on the owner's setup, not a published benchmark or a guarantee for all themes and albums. No additional memory changes are part of this documentation update.
+The owner reports approximately **150 MB RAM usage as of 5 October 2026**, replacing the earlier approximately 1 GB observation. This is an observation on the owner's setup, not a published benchmark or a guarantee for all themes and albums. No urgent memory rewrite is planned on the strength of that observation.
 
 ## Next: polish and maintainability
 
@@ -66,7 +66,8 @@ The owner reports approximately **150 MB RAM usage as of 5 October 2026**, repla
 - [x] Automated Save/Load, independent settings, linked folder, layer position and session-resume checks for all three modes.
 - [x] Actual WPF minimize, restore, close-to-tray and Exit checks, plus simulated reconnect failure and recovery.
 - [ ] Confirm these workflows on the physical screen and with a new user.
-- [ ] Verify tooltip, menu, selected-button, and caption contrast in the actual Windows UI.
+- [x] Check actual selected-item and tooltip colours on the Windows runner and review WPF interface captures.
+- [ ] Confirm hover, menu and caption readability on the owner's Windows configuration and physical display.
 - [x] Controlled dark-control templates, consistent sizes/headings, toolbar icons, clear labels, descriptive hover help and a dark tray menu; direct actions stay in place.
 
 ### 2. Reduce maintenance risk without changing the interface
@@ -87,9 +88,9 @@ Validation should be focused on these user workflows and physical-device behavio
 
 ### 4. Make distribution dependable
 
-- [ ] Publish a versioned GitHub Release with a permanent portable download and matching source.
+- [x] Publish 0.10.0-alpha.4 as a versioned GitHub Release with a permanent portable download and matching source.
 - [x] Compatibility and validation records distinguish automated checks from physical-device evidence.
-- [ ] Refresh the UI screenshots for the polish release before publication.
+- [x] Refresh the UI screenshots from the actual Windows WPF controls before publication.
 - [ ] Decide on an installer and file associations after the portable workflow is stable.
 - [ ] Evaluate signing and update delivery separately; neither exists today.
 

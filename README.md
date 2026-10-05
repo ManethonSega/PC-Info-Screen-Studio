@@ -2,7 +2,7 @@
 
 A visual Windows editor and runtime for 3.5-inch Turing/TURZX-style USB PC info screens. Create a sensor dashboard, use the screen as a photo frame, or combine photos with information overlays.
 
-> **Status:** `0.10.0-alpha.4`. Actively developed alpha. A Windows x64 portable alpha is being prepared with a permanent release download. Development builds are available through GitHub Actions. There is no installer, code signing or automatic updater.
+> **Status:** `0.10.0-alpha.4`. Actively developed alpha. A permanent Windows x64 [portable download](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/tag/v0.10.0-alpha.4) is available. Development builds are also available through GitHub Actions. There is no installer, code signing or automatic updater.
 
 The priorities are an intuitive interface, lightweight operation, and a clear preview of the physical screen.
 
@@ -38,7 +38,7 @@ Combine photos with clock, weather or sensor overlays. Hybrid has its own overla
 
 ### Theme actions
 
-Each mode has a **Themes** panel with visible **Load** and **Save** buttons. The **Theme actions** menu groups New, Open, Save as, Duplicate, Rename, Delete and Refresh, with keyboard shortcuts shown beside the main actions.
+Each mode has a **Themes** panel with visible **Load theme** and **Save theme** buttons. The **Theme actions** menu groups New, Open, Save as, Duplicate, Rename, Delete and Refresh, with keyboard shortcuts shown beside the main actions.
 
 ![Dark theme-actions menu with keyboard shortcuts and clearly disabled actions for built-in themes](docs/images/theme-actions.png)
 
@@ -50,6 +50,12 @@ Choose a global caption font in Photo Frame or Hybrid, add a **Shape** from Hybr
 | --- | --- | --- |
 | ![Global caption font, size, colour and outline controls](docs/images/caption-settings.png) | ![Hybrid Add controls including Shape](docs/images/hybrid-overlays.png) | ![Widget colours with a background-only transparency slider and percentage input](docs/images/widget-background.png) |
 
+### Readable dark controls
+
+Selected layers, dropdown choices, tooltips and checkboxes use explicit dark styling, with consistent spacing and visible keyboard focus. Direct Add buttons and sensor search keep their familiar positions.
+
+![Actual WPF selected items, checked controls, text input, tooltip and section header with readable dark styling](docs/images/control-states.png)
+
 ### Settings window
 
 Open **Settings** from the top bar to manage screen connection, runtime, sensor access and editor preferences. Hardware and Settings pages use an almost-black charcoal `#101216` background with white and silver text. **Use live sensor data** stays checked because live readings are always enabled.
@@ -60,18 +66,19 @@ Open **Settings** from the top bar to manage screen connection, runtime, sensor 
 
 Use **Editor** to build your screen and **Hardware** to view PC hardware names and live CPU, GPU, memory, storage, network and cooling readings. Hardware is an app page; your selected Info Screen, Photo Frame or Hybrid mode and physical display output continue unchanged. Unavailable sensors are labelled clearly.
 
-Theme actions are now in **Themes** on the left for each mode. Choose a theme and select **Load**, or use **Save** and **Theme actions** for New, Open, Save as, Duplicate, Rename, Delete and Refresh. Ctrl+N, Ctrl+O, Ctrl+S and Ctrl+Shift+S use the active mode's file format. Editor shortcuts are suspended while viewing Hardware.
+Theme actions are now in **Themes** on the left for each mode. Choose a theme and select **Load theme**, or use **Save theme** and **Theme actions** for New, Open, Save as, Duplicate, Rename, Delete and Refresh. Ctrl+N, Ctrl+O, Ctrl+S and Ctrl+Shift+S use the active mode's file format. Editor shortcuts are suspended while viewing Hardware.
 
 Photo Frame (`.pcphoto`) and Hybrid (`.pchybrid`) themes save settings in their separate folders; photos stay on the PC. Themes remember the selected photo folder and reload its photos when opened. Themes without a folder keep the current playlist. Info Screen uses `.t3theme` files. Use **Save playlist** to save photo links separately.
 
 ## Download and run
 
-1. Open the [Windows build workflow](https://github.com/ManethonSega/PC-Info-Screen-Studio/actions/workflows/build.yml).
-2. Select the newest **successful** run on `main`.
-3. Under **Artifacts**, download `PCInfoScreenStudio-win-x64`. GitHub may require you to sign in.
-4. Extract the entire ZIP to a folder, then run `PCInfoScreenStudio.exe`. Keep all extracted files together.
+1. Download [PCInfoScreenStudio-0.10.0-alpha.4-win-x64.zip](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/download/v0.10.0-alpha.4/PCInfoScreenStudio-0.10.0-alpha.4-win-x64.zip) from the [portable alpha release](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/tag/v0.10.0-alpha.4).
+2. Extract the **entire folder** to a permanent location, then run `PCInfoScreenStudio.exe`. Keep all extracted files together.
+3. Read `START-HERE.txt` for connection, startup and tray instructions. The build is self-contained; no separate .NET runtime installation is required.
 
-The build is self-contained: a separate .NET runtime installation is not required. Artifacts are retained for **3 days**, and the workflow cleans up older builds. These are temporary development downloads, not permanent release links. If no artifact is available, build from source or ask the maintainer for a fresh build.
+The release includes [SHA256SUMS.txt](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/download/v0.10.0-alpha.4/SHA256SUMS.txt), matching source archives and `build-info.json` with the exact source commit. This is an **unsigned alpha**, with [documented device limits](docs/COMPATIBILITY.md) and [validation results and remaining checks](docs/VALIDATION.md).
+
+For newer development builds, open the [Windows build workflow](https://github.com/ManethonSega/PC-Info-Screen-Studio/actions/workflows/build.yml), select the latest successful `main` run, then download `PCInfoScreenStudio-win-x64` under **Artifacts**. GitHub may require sign-in. These artifacts expire after **3 days**; the release download above is permanent.
 
 ## Connect your screen
 
