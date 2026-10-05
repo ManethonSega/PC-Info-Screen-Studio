@@ -144,6 +144,8 @@ At Windows sign-in, the app starts in the tray, restores your last mode and work
 
 Closing to the tray keeps the same session running. **Exit** saves a private resume snapshot, including Info Screen and Hybrid layers, each mode's loaded theme and photo settings, linked photos/folders, and unsaved edits. Windows logoff/restart also saves this snapshot. Opening the app again restores it automatically without overwriting any reusable theme file. Use **Save** under Theme options when you want to update that reusable theme. Linked photos stay on the PC.
 
+![Runtime settings with Windows startup and automatic display connection enabled](docs/images/windows-startup.png)
+
 The system-tray option is in **Settings > RUNTIME**. When minimized or closed to the tray, editor-only preview work is suspended and preview resources are released while display output continues as needed. The tray menu provides mode switching and previous/pause/next photo controls.
 
 Photo preparation uses a bounded display-sized cache. Memory usage varies with theme assets and workload; see the [roadmap](docs/ROADMAP.md) for the current owner-reported observation and remaining validation work.
