@@ -49,14 +49,18 @@ internal static class UiPreviews
             menu.ApplyTemplate();
             CaptureElement(menu, 360, 310, Path.Combine(directory, "Theme-actions.png"));
             vm.Document.Mode = ScreenMode.Hybrid;
+            FlushBindings();
             vm.AddWidgetCommand.Execute("Shape");
             vm.SelectedWidget!.BackgroundColor = "#FF20242B";
             vm.SelectedWidget.BackgroundTransparency = 40;
             vm.Document.PhotoFrame.CaptionFontFamily = "Orbitron";
+            FlushBindings();
             root.UpdateLayout();
             var album = Find<Expander>(root, e => Equals(e.Header, "ALBUM SETTINGS"))!;
             var overlays = Find<Expander>(root, e => Equals(e.Header, "HYBRID OVERLAYS"))!;
             var colours = Find<Expander>(root, e => Equals(e.Header, "COLOURS"))!;
+            if (colours.DataContext is not WidgetModel { Type: WidgetType.Shape, BackgroundTransparency: 40 })
+                throw new InvalidOperationException("Appearance preview did not bind the selected Shape and transparency.");
             CapturePanel(album, vm, 310, 590, Path.Combine(directory, "Caption-settings.png"));
             CapturePanel(overlays, vm, 310, 225, Path.Combine(directory, "Hybrid-overlays.png"));
             CapturePanel(colours, vm, 310, 210, Path.Combine(directory, "Widget-background.png"));
@@ -65,6 +69,10 @@ internal static class UiPreviews
         }
         finally { vm.Dispose(); }
     }
+
+    private static void FlushBindings()
+        => System.Windows.Threading.Dispatcher.CurrentDispatcher.Invoke(
+            new Action(() => { }), System.Windows.Threading.DispatcherPriority.ContextIdle);
 
     private static void CapturePanel(FrameworkElement element, MainViewModel vm, int width, int height, string path)
     {
