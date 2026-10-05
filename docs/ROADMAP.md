@@ -88,7 +88,7 @@ Validation should be focused on these user workflows and physical-device behavio
 
 ### 4. Make distribution dependable
 
-- [x] Publish 0.10.0-alpha.4 as a versioned GitHub Release with a permanent portable download and matching source.
+- [x] Publish 0.10.0-alpha.5 as a versioned GitHub Release with a permanent portable download and matching source.
 - [x] Compatibility and validation records distinguish automated checks from physical-device evidence.
 - [x] Refresh the UI screenshots from the actual Windows WPF controls before publication.
 - [ ] Decide on an installer and file associations after the portable workflow is stable.

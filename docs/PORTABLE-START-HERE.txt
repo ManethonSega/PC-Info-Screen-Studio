@@ -4,7 +4,8 @@ PC Info Screen Studio, portable alpha
 2. Run PCInfoScreenStudio.exe. No separate .NET installation is needed.
 3. Plug in your compatible USB serial screen, then choose Detect screen and Start display.
 4. Choose Info Screen, Photo Frame or Hybrid in SCREEN MODE.
-5. Use the direct Add buttons on the left. Search for sensors on the right.
+5. Add a widget on the left, then choose its Source on the right. SEARCH filters
+   that source list; Clear shows all sources. Searching does not add widgets.
 6. Choose Save theme to update your reusable theme file.
 
 Settings is in the top bar. Scroll to RUNTIME for:

@@ -2,12 +2,13 @@
 
 This document describes what the release workflow verifies and what still needs a person using a physical screen. The exact successful workflow and source SHA are recorded in the portable package's `build-info.json`.
 
-Candidate validation passed on **5 October 2026** in [Windows run 37362118377](https://github.com/ManethonSega/PC-Info-Screen-Studio/actions/runs/37362118377), including the extracted portable ZIP. The release workflow repeats these checks for its tagged source.
+Candidate validation passed on **5 October 2026** in [Windows run 37367471392](https://github.com/ManethonSega/PC-Info-Screen-Studio/actions/runs/37367471392), including the extracted portable ZIP. The release workflow repeats these checks for its tagged source.
 
 ## Automated Windows checks
 
 | Workflow | Evidence provided by the checks |
 | --- | --- |
+| Configure a selected widget | The actual search box filters the Source dropdown. GPU and multiword queries, empty results, Clear, advanced sensors and switching widgets preserve the current sensor until an explicit choice; Hybrid saves/reopens that choice. Search never adds widgets. |
 | Add, edit and save Info Screen | Direct Add command creates a widget; the application save path writes it into the reopened `.t3theme`. |
 | Save Photo Frame | The app saves global caption settings and retains the linked playlist. `.pcphoto` files exclude photos. |
 | Add and save Hybrid | The app saves an added shape and its exact position into `.pchybrid`. |
