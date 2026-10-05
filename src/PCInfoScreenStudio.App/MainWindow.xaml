@@ -57,13 +57,13 @@
         </StackPanel>
 
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
-          <Border Background="{StaticResource PageSurfaceBrush}" BorderBrush="{StaticResource PageSurfaceBorderBrush}" BorderThickness="1" CornerRadius="5" Padding="8,3" Margin="0,0,8,0">
+          <Border Background="{StaticResource PanelAltBrush}" BorderBrush="{StaticResource AccentBrush}" BorderThickness="1" CornerRadius="5" Padding="8,3" Margin="0,0,8,0">
             <StackPanel Orientation="Horizontal">
               <TextBlock Text="SCREEN MODE" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource PageTextBrush}" />
               <ComboBox Width="170" Height="32"
-                        Background="{StaticResource PageSurfaceBrush}"
+                        Background="{StaticResource PanelAltBrush}"
                         Foreground="{StaticResource PageTextBrush}"
-                        BorderBrush="{StaticResource PageSurfaceBorderBrush}"
+                        BorderBrush="{StaticResource AccentBrush}"
                         FontSize="14" FontWeight="SemiBold"
                         ItemsSource="{Binding ScreenModes}"
                         DisplayMemberPath="Label"
@@ -161,7 +161,7 @@
               <Expander Header="ADD PHOTOS" IsExpanded="True" Margin="0,6,0,0">
                 <UniformGrid Columns="2" Margin="0,5,0,0">
                   <Button Content="Add files" Command="{Binding AddPhotosCommand}" Padding="10,7" ToolTip="Select one or several photo files. They remain linked to this PC." />
-                  <Button Content="Add folder" Command="{Binding AddPhotoFolderCommand}" Padding="10,7" ToolTip="Add every supported photo in a folder and its subfolders." />
+                  <Button Content="Add folder" Command="{Binding AddPhotoFolderCommand}" Padding="10,7" ToolTip="Add photos from a folder and its subfolders. Saving this mode's theme remembers the folder and reloads its photos when opened." />
                 </UniformGrid>
               </Expander>
 

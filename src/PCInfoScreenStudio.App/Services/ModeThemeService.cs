@@ -66,7 +66,7 @@ public sealed class ModeThemeService
             Mode = mode,
             PhotoFrame = settings,
             HybridWidgets = mode == ScreenMode.Hybrid
-                ? document.HybridWidgets.Select(widget => widget.Clone()).ToList()
+                ? document.HybridWidgets.Select(Clone).ToList()
                 : []
         };
 
@@ -87,7 +87,7 @@ public sealed class ModeThemeService
         if (document.Mode == ScreenMode.Hybrid)
         {
             document.HybridWidgets.Clear();
-            foreach (var widget in preset.HybridWidgets) document.HybridWidgets.Add(widget.Clone());
+            foreach (var widget in preset.HybridWidgets) document.HybridWidgets.Add(Clone(widget));
         }
     }
 
@@ -146,6 +146,11 @@ public sealed class ModeThemeService
         => JsonSerializer.Deserialize<PhotoFrameSettings>(JsonSerializer.Serialize(source, Options), Options)
            ?? new PhotoFrameSettings();
 
+    // Saving/loading is an exact copy, unlike Duplicate, which offsets and renames widgets.
+    private static WidgetModel Clone(WidgetModel source)
+        => JsonSerializer.Deserialize<WidgetModel>(JsonSerializer.Serialize(source, Options), Options)
+           ?? throw new InvalidDataException("The overlay could not be copied.");
+
     private static string SanitizeName(string value)
     {
         foreach (var c in Path.GetInvalidFileNameChars()) value = value.Replace(c, '_');
@@ -153,4 +158,3 @@ public sealed class ModeThemeService
         return string.IsNullOrWhiteSpace(result) ? "Mode theme" : result;
     }
 }
-

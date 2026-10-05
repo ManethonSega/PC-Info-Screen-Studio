@@ -115,10 +115,12 @@ public sealed partial class MainViewModel
             if (preset.Mode != Document.Mode || Document.Mode == ScreenMode.InfoScreen)
                 throw new InvalidDataException("Switch to the matching screen mode before opening this settings theme.");
             if (!ConfirmDiscardIfNeeded()) return;
+            string? folderWarning;
             _suppressDirty = true;
             try
             {
                 ModeThemeService.Apply(Document, preset);
+                folderWarning = _photos.RestoreThemeFolder();
                 if (Document.Mode == ScreenMode.Hybrid)
                     SelectedWidget = Document.HybridWidgets.OrderBy(widget => widget.ZIndex).FirstOrDefault();
             }
@@ -129,7 +131,7 @@ public sealed partial class MainViewModel
             CaptureHistoryNow();
             ThemeChanged?.Invoke(this, EventArgs.Empty);
             if (LivePreview) RequestLiveFrame?.Invoke(this, EventArgs.Empty);
-            DeviceStatus = $"{CurrentThemeName} loaded";
+            DeviceStatus = folderWarning is null ? $"{CurrentThemeName} loaded" : $"{CurrentThemeName} loaded. {folderWarning}";
         }
         catch (Exception ex)
         { MessageBox.Show(ex.Message, "Could not open settings theme", MessageBoxButton.OK, MessageBoxImage.Warning); }

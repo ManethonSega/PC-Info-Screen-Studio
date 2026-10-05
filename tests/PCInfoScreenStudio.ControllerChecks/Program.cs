@@ -25,6 +25,7 @@ internal static class Program
             CheckPhotos(root);
             CheckDevice(root);
             CheckThemeModes(root);
+            CheckThemeFolderReload(root);
             CheckDashboard();
             CheckPageNavigation(root);
             if (args.Length == 2 && args[0] == "--capture-ui") UiPreviews.Capture(args[1]);
@@ -59,13 +60,28 @@ internal static class Program
         Assert(document.PhotoFrame.Photos.Count == 1 && ReferenceEquals(document.PhotoFrame.Photos[0], photo), "Applying a theme must retain the original linked playlist.");
         Assert(document.PhotoFrame.CaptionFontSize == 24, "Applying a theme must update global caption settings.");
         document.Mode = ScreenMode.Hybrid;
-        document.HybridWidgets.Add(new WidgetModel { Type = WidgetType.Text, Label = "Clock overlay" });
+        var overlay = new WidgetModel
+        {
+            Type = WidgetType.Text, Name = "Clock", Label = "Clock overlay", X = 117, Y = 63,
+            Width = 185, Height = 47, Rotation = 12, ZIndex = 4, IsLocked = true, FontSize = 23,
+            GroupId = Guid.NewGuid()
+        };
+        document.HybridWidgets.Add(overlay);
         var hybridPath = service.Save(document, ScreenMode.Hybrid, "Overlay");
         Assert(hybridPath.EndsWith(".pchybrid") && Path.GetDirectoryName(hybridPath)!.EndsWith("Hybrid Themes"), "Hybrid themes must use their own folder and extension.");
         var hybrid = service.Load(hybridPath);
         document.HybridWidgets.Clear();
         ModeThemeService.Apply(document, hybrid);
         Assert(document.HybridWidgets.Count == 1 && document.PhotoFrame.Photos.Count == 1, "Hybrid loading must restore overlays and retain photos.");
+        var restored = document.HybridWidgets[0];
+        Assert(restored.Id == overlay.Id && restored.Name == overlay.Name && restored.X == 117 && restored.Y == 63 &&
+            restored.Width == 185 && restored.Height == 47 && restored.Rotation == 12 && restored.ZIndex == 4 &&
+            restored.IsLocked && restored.GroupId == overlay.GroupId && restored.FontSize == 23,
+            "Hybrid save/load must preserve overlay identity, position, layer order, grouping, locking and size exactly.");
+        service.SaveToPath(document, ScreenMode.Hybrid, hybridPath);
+        ModeThemeService.Apply(document, service.Load(hybridPath));
+        Assert(document.HybridWidgets[0].X == 117 && document.HybridWidgets[0].Y == 63 && document.HybridWidgets[0].Name == "Clock",
+            "Repeated Hybrid save/load must not offset or rename overlays.");
         var rejected = false;
         try { ModeThemeService.Apply(document, preset); } catch (InvalidDataException) { rejected = true; }
         Assert(rejected, "A theme from the wrong mode must be rejected.");
@@ -83,6 +99,71 @@ internal static class Program
         Assert(current.CaptionFontSize == 24 && current.Photos.Count == 1, "Returning to a mode must restore its settings while retaining the shared playlist.");
         sessions.SwitchSettings(ScreenMode.PhotoFrame, ScreenMode.Hybrid, current);
         Assert(current.CaptionFontSize == 36, "Photo and Hybrid settings must remain independent in memory.");
+    }
+
+    private static void CheckThemeFolderReload(string root)
+    {
+        var folder = Path.Combine(root, "album");
+        var subfolder = Path.Combine(folder, "nested");
+        Directory.CreateDirectory(subfolder);
+        using var bitmap = new SKBitmap(1, 1);
+        bitmap.Erase(SKColors.Blue);
+        using var image = SKImage.FromBitmap(bitmap);
+        using var bytes = image.Encode(SKEncodedImageFormat.Png, 100);
+        File.WriteAllBytes(Path.Combine(folder, "one.png"), bytes.ToArray());
+        File.WriteAllBytes(Path.Combine(subfolder, "two.png"), bytes.ToArray());
+        File.WriteAllText(Path.Combine(folder, "ignore.txt"), "Not a photo");
+        using var source = new ThemeWorkspace(new ThemeDocument(), Path.Combine(root, "folder-source"));
+        using var photos = new PhotoPlaybackController(() => source, Settings(root, "folder-source"));
+        photos.AddPhotoFolder(folder);
+        Assert(source.Document.PhotoFrame.WatchedFolder == folder && !source.Document.PhotoFrame.WatchFolderEnabled,
+            "Add folder must remember the folder without enabling automatic watching.");
+        var service = new ModeThemeService(Path.Combine(root, "folder-themes"));
+        foreach (var mode in new[] { ScreenMode.PhotoFrame, ScreenMode.Hybrid })
+        {
+            source.Document.Mode = mode;
+            source.Document.HybridWidgets.Clear();
+            if (mode == ScreenMode.Hybrid)
+                source.Document.HybridWidgets.Add(new WidgetModel { Name = "Overlay", X = 89, Y = 132 });
+            var path = service.Save(source.Document, mode, mode.ToString());
+            using var vm = new MainViewModel(Settings(root, "folder-load-" + mode));
+            vm.SetEditorActive(false);
+            vm.Document.Mode = mode;
+            var infoWidgets = vm.Document.Widgets.ToArray();
+            vm.LoadModeThemeFile(path);
+            Assert(vm.Document.PhotoFrame.WatchedFolder == folder && vm.Document.PhotoFrame.Photos.Count == 2 &&
+                !vm.Document.PhotoFrame.WatchFolderEnabled && !vm.IsDirty,
+                "Opening a mode theme in a fresh app must restore its folder and photos even with watching off.");
+            Assert(vm.Document.Widgets.SequenceEqual(infoWidgets), "Loading photo settings must not alter Info Screen layers.");
+            if (mode == ScreenMode.Hybrid)
+                Assert(vm.Document.HybridWidgets[0].X == 89 && vm.Document.HybridWidgets[0].Y == 132,
+                    "Opening a Hybrid theme through the app must preserve overlay placement.");
+            vm.LoadModeThemeFile(path);
+            Assert(vm.Document.PhotoFrame.Photos.Count == 2 && !vm.IsDirty, "Reloading a folder theme must not duplicate photos or mark it dirty.");
+        }
+        var otherFolder = Path.Combine(root, "hybrid-album");
+        Directory.CreateDirectory(otherFolder);
+        File.WriteAllBytes(Path.Combine(otherFolder, "three.png"), bytes.ToArray());
+        source.Document.PhotoFrame.WatchedFolder = otherFolder;
+        var otherTheme = service.Save(source.Document, ScreenMode.Hybrid, "Other album");
+        using (var vm = new MainViewModel(Settings(root, "folder-switch")))
+        {
+            vm.SetEditorActive(false);
+            vm.Document.Mode = ScreenMode.PhotoFrame;
+            vm.LoadModeThemeFile(Path.Combine(service.DirectoryFor(ScreenMode.PhotoFrame), "PhotoFrame.pcphoto"));
+            vm.Document.Mode = ScreenMode.Hybrid;
+            vm.LoadModeThemeFile(otherTheme);
+            vm.Document.Mode = ScreenMode.PhotoFrame;
+            Assert(vm.Document.PhotoFrame.WatchedFolder == folder && vm.Document.PhotoFrame.Photos.Count == 2,
+                "Returning to Photo Frame must restore its own saved folder's photos.");
+            vm.Document.Mode = ScreenMode.Hybrid;
+            Assert(vm.Document.PhotoFrame.WatchedFolder == otherFolder && vm.Document.PhotoFrame.Photos.Count == 1 &&
+                vm.Document.HybridWidgets[0].X == 89 && vm.Document.HybridWidgets[0].Y == 132 && !vm.HasUnsavedChanges,
+                "Mode switching must retain Hybrid's own folder and exact layout without creating unsaved edits.");
+        }
+        source.Document.PhotoFrame.WatchedFolder = Path.Combine(root, "missing-album");
+        Assert(photos.RestoreThemeFolder() is not null && source.Document.PhotoFrame.Photos.Count == 0 && photos.SelectedPhoto is null,
+            "Missing folders must be reported without displaying photos from an unrelated album.");
     }
 
     private static void CheckDashboard()

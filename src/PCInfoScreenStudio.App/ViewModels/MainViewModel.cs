@@ -1354,7 +1354,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             var wasSuppressed = _suppressDirty;
             _suppressDirty = true;
-            try { _themeSessions.SwitchSettings(_lastThemeMode, Document.Mode, Document.PhotoFrame); }
+            try
+            {
+                var previousFolder = Document.PhotoFrame.WatchedFolder;
+                _themeSessions.SwitchSettings(_lastThemeMode, Document.Mode, Document.PhotoFrame);
+                if (Document.Mode != ScreenMode.InfoScreen &&
+                    !string.Equals(previousFolder, Document.PhotoFrame.WatchedFolder, StringComparison.OrdinalIgnoreCase))
+                {
+                    var warning = _photos.RestoreThemeFolder();
+                    if (warning is not null) DeviceStatus = warning;
+                }
+            }
             finally { _suppressDirty = wasSuppressed; }
             _lastThemeMode = Document.Mode;
             UpdateEffectiveScreenMode(force: true);

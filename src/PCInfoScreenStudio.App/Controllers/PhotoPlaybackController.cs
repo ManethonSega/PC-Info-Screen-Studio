@@ -72,7 +72,32 @@ public sealed class PhotoPlaybackController : ObservableObject, IDisposable
     {
         var folder = _dialogs.OpenFolder();
         if (string.IsNullOrWhiteSpace(folder)) return;
-        AddPhotoFiles(GetPhotoFiles(folder));
+        AddPhotoFolder(folder);
+    }
+
+    public void AddPhotoFolder(string folder)
+    {
+        Document.PhotoFrame.WatchedFolder = Path.GetFullPath(folder);
+        AddPhotoFiles(GetPhotoFiles(Document.PhotoFrame.WatchedFolder));
+        ConfigurePhotoFolderWatcher();
+    }
+
+    public string? RestoreThemeFolder()
+    {
+        var folder = Document.PhotoFrame.WatchedFolder;
+        string? warning = null;
+        if (!string.IsNullOrWhiteSpace(folder))
+        {
+            // Enumerate before replacing the playlist, so an inaccessible folder cannot erase it.
+            var files = GetPhotoFiles(folder).ToArray();
+            foreach (var photo in Document.PhotoFrame.Photos.ToArray())
+                Document.PhotoFrame.Photos.Remove(photo);
+            if (Directory.Exists(folder)) AddPhotoFiles(files);
+            else warning = "Photo folder unavailable. Choose its new location using Add folder.";
+        }
+        InitializePhotoFrameRuntime();
+        RaisePropertyChanged(nameof(PhotoPositionLabel));
+        return warning;
     }
 
     public void AddPhotoFiles(IEnumerable<string> files)
