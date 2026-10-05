@@ -183,4 +183,23 @@ This project is independent and is not affiliated with or endorsed by TURZX, Tur
 
 ## License
 
-MIT. See [`LICENSE`](LICENSE).
+Copyright (c) 2026 PCInfoScreenStudio contributors.
+
+PC Info Screen Studio is free software: you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version (`GPL-3.0-or-later`).
+
+It is distributed without any warranty. See [`LICENSE`](LICENSE) for the full
+terms. When distributing an executable or modified version, provide its
+corresponding source, including the build scripts, under the applicable GPL
+terms. Source downloads must correspond to the exact distributed build.
+
+Third-party code, libraries, fonts and the separate PawnIO prerequisite retain
+their own copyright notices and licenses. See
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and component-specific notices.
+The GPL does not automatically apply to users' photos or independently created
+theme assets.
+
+Versions supplied under MIT before this license change keep their previously
+granted rights. This change does not withdraw those rights.

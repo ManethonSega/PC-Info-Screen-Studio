@@ -1,5 +1,9 @@
 # Third-party notices
 
+The original PC Info Screen Studio application code is licensed under
+GPL-3.0-or-later. The third-party components listed below retain their own
+licenses and attribution requirements; they are not automatically relicensed.
+
 ## Tedd.TuringScreen
 
 This repository vendors source derived from **Tedd.TuringScreen** by Tedd.
@@ -44,7 +48,7 @@ Package version currently referenced: 0.9.6
 
 License: Mozilla Public License 2.0 (MPL-2.0)
 
-The LibreHardwareMonitor library remains under its own licence. PC Info Screen Studio does not relicense that dependency under MIT.
+The LibreHardwareMonitor library remains under its own licence. PC Info Screen Studio does not replace that dependency's MPL-2.0 license with its application license.
 
 ## Open-Meteo
 
@@ -68,7 +72,7 @@ PC Info Screen Studio bundles the following fonts from the Google Fonts project:
 
 Source: https://github.com/google/fonts
 
-These font families are distributed under the SIL Open Font License 1.1 (OFL-1.1). Their font files remain under the OFL and are not relicensed under the application's MIT licence.
+These font families are distributed under the SIL Open Font License 1.1 (OFL-1.1). Their font files remain under the OFL and are not relicensed under the application's GPL license.
 
 
 ## Revision-A compatibility references and adapted implementations
@@ -165,7 +169,7 @@ Source: https://github.com/mathoudebine/turing-smart-screen-python
 
 License: GPL-3.0
 
-This project is used as a protocol-behavior and hardware-compatibility reference. PC Info Screen Studio does not vendor or relicense GPL source from this project inside its MIT source tree.
+This project is used as a protocol-behavior and hardware-compatibility reference. No source code from this project is currently vendored. If implementations are adapted in future, preserve their exact upstream license and attribution and verify compatibility with the distributed application.
 
 
 ## Hwinfo.SharedMemory.Net
@@ -210,6 +214,23 @@ Windows release artifacts bundle the **unmodified official PawnIO 2.2.0 installe
 
 `1f519a22e47187f70a1379a48ca604981c4fcf694f4e65b734aaa74a9fba3032`
 
-PawnIO remains a separate driver component and is not incorporated into PC Info Screen Studio's MIT-licensed code. It is installed only after explicit user confirmation/UAC. Its GPL-2.0-or-later license text and source information are distributed alongside the installer under `Prerequisites`.
+PawnIO remains a separate driver component and is not incorporated into PC Info Screen Studio's application code. It is installed only after explicit user confirmation/UAC. Its GPL-2.0-or-later license text and source information are distributed alongside the installer under `Prerequisites`.
 
 If the bundled prerequisite is unavailable, PC Info Screen Studio can fall back to the official Windows Package Manager package `namazso.PawnIO`.
+
+## SkiaSharp
+
+PC Info Screen Studio references SkiaSharp 3.119.1.
+
+Source: https://github.com/mono/SkiaSharp
+
+License: MIT. Skia and its other bundled native components retain their own upstream notices.
+
+Copyright (c) 2015-2016 Xamarin, Inc.  
+Copyright (c) 2017-2018 Microsoft Corporation.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
