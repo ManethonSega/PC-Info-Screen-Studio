@@ -6,6 +6,42 @@ A visual Windows editor and runtime for 3.5-inch Turing/TURZX-style USB PC info 
 
 The priorities are an intuitive interface, lightweight operation, and a clear preview of the physical screen.
 
+[Download and run](#download-and-run) · [Connect your screen](#connect-your-screen) · [Choose your mode](#choose-your-mode)
+
+## Interface tour
+
+These previews show the app's controls and layout. Hardware readings are sample data; screen content is omitted from the editor previews.
+
+### Hardware overview
+
+See your PC's hardware names and CPU, GPU, memory, storage, network and cooling readings in one place. Switching to **Hardware** keeps your selected screen mode and display output running.
+
+![Hardware overview with clearly labelled CPU, GPU, RAM, storage, network and cooling cards](docs/images/hardware-overview.png)
+
+### Info Screen editor
+
+Add widgets and manage layers on the left, arrange them on the canvas, and search for sensors or adjust properties on the right. **Settings**, **Live view** and the screen-mode selector stay within reach in the top bar.
+
+![Info Screen editor with direct Add buttons and layers on the left, canvas in the centre, and sensor search and properties on the right](docs/images/info-screen-editor.png)
+
+### Photo Frame workspace
+
+Add photo files or a folder, arrange the playlist, and set shared timing, transitions, background and captions. The left panel shows photo controls for this mode.
+
+![Photo Frame workspace with photo import, playlist controls and shared slideshow settings](docs/images/photo-frame-workspace.png)
+
+### Hybrid workspace
+
+Combine photos with clock, weather or sensor overlays. Hybrid has its own overlay layers and settings theme; your photos stay on the PC.
+
+![Hybrid workspace combining photo controls on the left with overlay editing and sensor search on the right](docs/images/hybrid-workspace.png)
+
+### Theme actions
+
+Each mode has a **Themes** panel with visible **Load** and **Save** buttons. The **Theme actions** menu groups New, Open, Save as, Duplicate, Rename, Delete and Refresh, with keyboard shortcuts shown beside the main actions.
+
+![Dark theme-actions menu with keyboard shortcuts and clearly disabled actions for built-in themes](docs/images/theme-actions.png)
+
 ## Editor and Hardware pages
 
 Use **Editor** to build your screen and **Hardware** to view PC hardware names and live CPU, GPU, memory, storage, network and cooling readings. Hardware is an app page; your selected Info Screen, Photo Frame or Hybrid mode and physical display output continue unchanged. Unavailable sensors are labelled clearly.
@@ -55,7 +91,7 @@ Photo Frame and Hybrid themes do **not** embed photos or replace your current pl
 - Drag widgets on the canvas and edit their appearance and data source in the right-hand properties panel. Widget resizing does not change its explicit font-size setting.
 - Organize layers, hide or lock objects, use multi-selection and grouping, and align or distribute items. Grid snapping, smart guides, keyboard movement, undo/redo, and editor zoom are implemented.
 - Add images, animated GIFs, and custom fonts. The built-in fonts include Bungee, Fredoka, Monoton, and Orbitron.
-- Use **File > Save** or **Save as...** for a shareable `.t3theme` package with imported assets. The theme library supports generated thumbnails, loading, duplication, renaming, and deletion.
+- Use **Themes > Save** or **Theme actions > Save as...** for a shareable `.t3theme` package with imported assets. The theme library supports generated thumbnails, loading, duplication, renaming, and deletion.
 
 **Live view** hides editing controls for a clean preview. **Back to edit** returns to the editor. This is separate from starting or stopping physical display output.
 
@@ -136,4 +172,3 @@ theme assets.
 
 Versions supplied under MIT before this license change keep their previously
 granted rights. This change does not withdraw those rights.
-
