@@ -95,19 +95,24 @@ public sealed class SystemMetricsService
     {
         try
         {
-            var root = Path.GetPathRoot(Environment.SystemDirectory);
-            if (string.IsNullOrWhiteSpace(root)) return;
-            var drive = new DriveInfo(root);
-            if (!drive.IsReady || drive.TotalSize <= 0) return;
-
-            var used = drive.TotalSize - drive.AvailableFreeSpace;
-            output["Disk.Usage"] = new MetricValue(used * 100.0 / drive.TotalSize, Unit: "%");
-            output["Disk.FreeGB"] = new MetricValue(drive.AvailableFreeSpace / (1024d * 1024d * 1024d), Unit: " GB");
+            var systemRoot = Path.GetPathRoot(Environment.SystemDirectory);
+            foreach (var drive in DriveInfo.GetDrives().Where(d => d.DriveType == DriveType.Fixed))
+            {
+                try
+                {
+                    if (!drive.IsReady || drive.TotalSize <= 0) continue;
+                    var usage = new MetricValue((drive.TotalSize - drive.AvailableFreeSpace) * 100d / drive.TotalSize, Unit: "%");
+                    var free = new MetricValue(drive.AvailableFreeSpace / (1024d * 1024d * 1024d), Unit: " GB");
+                    var prefix = "Storage.Volume." + drive.Name.TrimEnd(Path.DirectorySeparatorChar);
+                    output[prefix + ".Usage"] = usage;
+                    output[prefix + ".FreeGB"] = free;
+                    if (drive.Name.Equals(systemRoot, StringComparison.OrdinalIgnoreCase))
+                    { output["Disk.Usage"] = usage; output["Disk.FreeGB"] = free; }
+                }
+                catch { /* A removed or locked volume must not suppress the other drives. */ }
+            }
         }
-        catch
-        {
-            // Disk may be unavailable during startup/removal; leave values absent.
-        }
+        catch { /* Leave unavailable readings absent. */ }
     }
 
     private void SampleNetwork(IDictionary<string, MetricValue> output)
@@ -116,6 +121,7 @@ public sealed class SystemMetricsService
         {
             long received = 0;
             long sent = 0;
+            var adapterNames = new List<string>();
             foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
             {
                 if (nic.OperationalStatus != OperationalStatus.Up ||
@@ -128,6 +134,7 @@ public sealed class SystemMetricsService
                     var stats = nic.GetIPv4Statistics();
                     received += stats.BytesReceived;
                     sent += stats.BytesSent;
+                    adapterNames.Add(nic.Description);
                 }
                 catch
                 {
@@ -135,6 +142,7 @@ public sealed class SystemMetricsService
                 }
             }
 
+            output["Network.AdapterNames"] = new MetricValue(Text: string.Join(" · ", adapterNames.Distinct()));
             var now = DateTime.UtcNow;
             if (_hasNetworkBaseline)
             {
@@ -252,3 +260,4 @@ public sealed class SystemMetricsService
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GlobalMemoryStatusEx([In, Out] MemoryStatusEx buffer);
 }
+

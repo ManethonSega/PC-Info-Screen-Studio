@@ -130,20 +130,38 @@
       <Setter Property="BorderBrush" Value="#4B5565" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="Padding" Value="4" />
+      <Setter Property="Template"><Setter.Value>
+        <ControlTemplate TargetType="ContextMenu">
+          <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}" CornerRadius="5">
+            <ScrollViewer CanContentScroll="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+              <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle" />
+            </ScrollViewer>
+          </Border>
+        </ControlTemplate>
+      </Setter.Value></Setter>
     </Style>
     <Style TargetType="MenuItem">
       <Setter Property="Background" Value="#1B1F26" />
       <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
-      <Setter Property="Padding" Value="10,6" />
-      <Style.Triggers>
-        <Trigger Property="IsHighlighted" Value="True">
-          <Setter Property="Background" Value="#2B3442" />
-          <Setter Property="Foreground" Value="#FFFFFF" />
-        </Trigger>
-        <Trigger Property="IsEnabled" Value="False">
-          <Setter Property="Foreground" Value="#737B87" />
-        </Trigger>
-      </Style.Triggers>
+      <Setter Property="Padding" Value="12,8" />
+      <Setter Property="Template"><Setter.Value>
+        <ControlTemplate TargetType="MenuItem">
+          <Border x:Name="MenuRow" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" CornerRadius="3">
+            <Grid>
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+              <ContentPresenter ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center" />
+              <TextBlock Grid.Column="1" Text="{TemplateBinding InputGestureText}" Foreground="{TemplateBinding Foreground}" Opacity="0.7" Margin="24,0,0,0" VerticalAlignment="Center" />
+            </Grid>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsHighlighted" Value="True"><Setter TargetName="MenuRow" Property="Background" Value="#34445F" /><Setter Property="Foreground" Value="#FFFFFF" /></Trigger>
+            <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="#89919D" /></Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value></Setter>
+    </Style>
+    <Style TargetType="Separator">
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Separator"><Border Height="1" Background="{StaticResource BorderBrush}" Margin="8,5" /></ControlTemplate></Setter.Value></Setter>
     </Style>
     <Style TargetType="TextBox">
       <Setter Property="Background" Value="#111419" />
@@ -259,3 +277,4 @@
     </Style>
   </Application.Resources>
 </Application>
+

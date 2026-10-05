@@ -46,6 +46,16 @@ public sealed class HardwareMetricsService : IDisposable
                     CollectHardware(hardware, hardware.HardwareType.ToString(), sensors);
 
                 var result = BuildMetrics(sensors);
+                foreach (var group in _computer.Hardware.GroupBy(h => h.HardwareType.ToString()))
+                {
+                    var key = group.Key == "Cpu" ? "Hardware.CPUName" : group.Key.StartsWith("Gpu", StringComparison.Ordinal) ? "Hardware.GPUName" : group.Key == "Storage" ? "Hardware.StorageNames" : null;
+                    if (key is not null)
+                    {
+                        var names = string.Join(" · ", group.Select(h => h.Name).Distinct());
+                        if (result.TryGetValue(key, out var previous)) names = previous.Text + " · " + names;
+                        result[key] = new MetricValue(Text: names);
+                    }
+                }
 
                 var hwInfoCount = 0;
                 var hwInfoActive = TryMergeHwInfo(result, out hwInfoCount);
@@ -720,3 +730,4 @@ public sealed class HardwareMetricsService : IDisposable
         string SensorType,
         float Value);
 }
+

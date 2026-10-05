@@ -5,14 +5,16 @@ using System.Windows.Threading;
 using PCInfoScreenStudio.Controllers;
 using PCInfoScreenStudio.Models;
 using PCInfoScreenStudio.Services;
+using PCInfoScreenStudio.ViewModels;
 using SkiaSharp;
 
 internal static class Program
 {
     [STAThread]
-    private static int Main()
+    private static int Main(string[] args)
     {
-        _ = new Application();
+        var app = new PCInfoScreenStudio.App();
+        app.InitializeComponent();
         SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
         var root = Path.Combine(Path.GetTempPath(), "PCInfoScreenStudio-controller-checks-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
@@ -22,7 +24,11 @@ internal static class Program
             CheckEditor();
             CheckPhotos(root);
             CheckDevice(root);
-            Console.WriteLine("PASS: preferences, editor operations, photo playback, and device queue checks.");
+            CheckThemeModes(root);
+            CheckDashboard();
+            CheckPageNavigation(root);
+            if (args.Length == 2 && args[0] == "--capture-ui") UiPreviews.Capture(args[1]);
+            Console.WriteLine("PASS: preferences, editor, photos, device queue, mode themes, dashboard, and navigation checks.");
             return 0;
         }
         catch (Exception ex)
@@ -35,6 +41,71 @@ internal static class Program
             ThemeRendererCleanup();
             Directory.Delete(root, recursive: true);
         }
+    }
+
+    private static void CheckThemeModes(string root)
+    {
+        var service = new ModeThemeService(Path.Combine(root, "themes"));
+        var document = new ThemeDocument { Mode = ScreenMode.PhotoFrame };
+        var photo = new PhotoFrameItem { DisplayName = "My photo", SourcePath = Path.Combine(root, "linked-only.png") };
+        document.PhotoFrame.Photos.Add(photo);
+        document.PhotoFrame.CaptionFontSize = 24;
+        var photoPath = service.Save(document, ScreenMode.PhotoFrame, "Evening");
+        Assert(photoPath.EndsWith(".pcphoto") && Path.GetDirectoryName(photoPath)!.EndsWith("Photo Frame Themes"), "Photo themes must use their own folder and extension.");
+        var preset = service.Load(photoPath);
+        Assert(preset.PhotoFrame.Photos.Count == 0 && !File.ReadAllText(photoPath).Contains("linked-only"), "Settings themes must never contain photos or playlist entries.");
+        document.PhotoFrame.CaptionFontSize = 12;
+        ModeThemeService.Apply(document, preset);
+        Assert(document.PhotoFrame.Photos.Count == 1 && ReferenceEquals(document.PhotoFrame.Photos[0], photo), "Applying a theme must retain the original linked playlist.");
+        Assert(document.PhotoFrame.CaptionFontSize == 24, "Applying a theme must update global caption settings.");
+        document.Mode = ScreenMode.Hybrid;
+        document.HybridWidgets.Add(new WidgetModel { Type = WidgetType.Text, Label = "Clock overlay" });
+        var hybridPath = service.Save(document, ScreenMode.Hybrid, "Overlay");
+        Assert(hybridPath.EndsWith(".pchybrid") && Path.GetDirectoryName(hybridPath)!.EndsWith("Hybrid Themes"), "Hybrid themes must use their own folder and extension.");
+        var hybrid = service.Load(hybridPath);
+        document.HybridWidgets.Clear();
+        ModeThemeService.Apply(document, hybrid);
+        Assert(document.HybridWidgets.Count == 1 && document.PhotoFrame.Photos.Count == 1, "Hybrid loading must restore overlays and retain photos.");
+        var rejected = false;
+        try { ModeThemeService.Apply(document, preset); } catch (InvalidDataException) { rejected = true; }
+        Assert(rejected, "A theme from the wrong mode must be rejected.");
+        var sessions = new ThemeSessionController();
+        sessions.Loaded(ScreenMode.PhotoFrame, photoPath);
+        sessions.MarkDirty(ScreenMode.InfoScreen);
+        sessions.Loaded(ScreenMode.Hybrid, hybridPath);
+        Assert(sessions.IsDirty(ScreenMode.InfoScreen) && sessions.HasUnsavedChanges, "Saving one mode must not discard another mode's unsaved state.");
+        Assert(sessions.PathFor(ScreenMode.PhotoFrame) == photoPath && sessions.PathFor(ScreenMode.Hybrid) == hybridPath, "Save must keep separate active filenames for each mode.");
+    }
+
+    private static void CheckDashboard()
+    {
+        var dashboard = new HardwareDashboardViewModel();
+        dashboard.SetInventory(new Dictionary<string, MetricValue> { ["Hardware.CPUName"] = new(Text: "Sample processor") });
+        Assert(dashboard.Cards[0].HardwareName == "Sample processor" && dashboard.Cards[0].Value == "Unavailable", "Hardware names should appear without inventing sensor values.");
+        dashboard.Update(new Dictionary<string, MetricValue> { ["CPU.Usage"] = new(0, Unit: "%"), ["GPU.Usage"] = new(double.NaN), ["RAM.TotalGB"] = new(32, Unit: "GB") });
+        Assert(dashboard.Cards[0].Value == "0 %" && dashboard.Cards[1].Value == "Unavailable", "A real zero must differ from a missing or invalid sensor reading.");
+        Assert(dashboard.Cards[2].HardwareName.Contains("32 GB"), "RAM capacity should appear on the dashboard.");
+        var firstRow = dashboard.Cards[0].Rows[0];
+        dashboard.Update(new Dictionary<string, MetricValue> { ["CPU.Usage"] = new(0, Unit: "%"), ["RAM.TotalGB"] = new(32, Unit: "GB") });
+        Assert(ReferenceEquals(firstRow, dashboard.Cards[0].Rows[0]), "Unchanged readings should not rebuild dashboard rows.");
+    }
+
+    private static void CheckPageNavigation(string root)
+    {
+        using var vm = new MainViewModel(Settings(root, "navigation"));
+        vm.SetEditorActive(false); // Avoid accessing physical sensors in this check.
+        vm.Document.Mode = ScreenMode.Hybrid;
+        vm.Document.HybridWidgets.Add(new WidgetModel { Type = WidgetType.Text, Label = "Unsaved overlay" });
+        var document = vm.Document;
+        var selected = vm.SelectedWidget;
+        var dirty = vm.IsDirty;
+        var liveData = vm.UseLiveData;
+        var liveMode = vm.IsLiveMode;
+        vm.ShowPage(true);
+        Assert(vm.IsHardwarePage && !vm.IsCanvasActive && !vm.DeleteWidgetCommand.CanExecute(null), "Hardware must suspend editor work and editing shortcuts.");
+        Assert(ReferenceEquals(document, vm.Document) && vm.Document.Mode == ScreenMode.Hybrid && vm.IsDirty == dirty && vm.UseLiveData == liveData && vm.IsLiveMode == liveMode, "Hardware navigation must preserve mode, theme, unsaved edits, and view preferences.");
+        vm.ShowPage(false);
+        Assert(vm.IsEditorPage && ReferenceEquals(selected, vm.SelectedWidget), "Returning to Editor must retain selection.");
     }
 
     private static SettingsController Settings(string root, string name)

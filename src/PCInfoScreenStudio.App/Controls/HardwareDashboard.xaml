@@ -1,0 +1,41 @@
+<UserControl x:Class="PCInfoScreenStudio.Controls.HardwareDashboard"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Margin="24,20,24,24">
+      <TextBlock Text="Your hardware" FontSize="28" FontWeight="SemiBold" />
+      <TextBlock Text="Live readings from this PC. Your screen keeps running while you are here." FontSize="14" Foreground="{StaticResource MutedTextBrush}" Margin="0,6,0,8" />
+      <TextBlock Text="{Binding UpdatedLabel}" FontSize="12" Foreground="{StaticResource MutedTextBrush}" Margin="0,0,0,14" />
+      <ItemsControl ItemsSource="{Binding Cards}">
+        <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="3" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Border Margin="6" Padding="20" Background="{StaticResource PanelBrush}" CornerRadius="10" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                  <TextBlock Text="{Binding Icon}" FontFamily="Segoe MDL2 Assets" FontSize="19" Foreground="{Binding Accent}" VerticalAlignment="Center" Margin="0,0,10,0" />
+                  <TextBlock Text="{Binding Title}" FontSize="17" FontWeight="SemiBold" />
+                </StackPanel>
+                <TextBlock Text="{Binding HardwareName}" FontSize="13" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" MinHeight="38" Margin="0,10,0,8" />
+                <TextBlock Text="{Binding Value}" FontSize="30" FontWeight="SemiBold" Foreground="{Binding Accent}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding ValueLabel}" FontSize="12" Foreground="{StaticResource MutedTextBrush}" Margin="0,3,0,15" />
+                <ItemsControl ItemsSource="{Binding Rows}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Grid Margin="0,5">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding Label}" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,12,0" />
+                        <TextBlock Grid.Column="1" Text="{Binding Value}" FontWeight="SemiBold" MaxWidth="205" TextWrapping="Wrap" TextAlignment="Right" />
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <TextBlock Text="Unavailable means a reading is not provided by your hardware or its current sensor access. You can review sensor access in Settings." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" FontSize="12" Margin="6,16,6,0" />
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

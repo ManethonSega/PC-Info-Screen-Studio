@@ -6,6 +6,14 @@ A visual Windows editor and runtime for 3.5-inch Turing/TURZX-style USB PC info 
 
 The priorities are an intuitive interface, lightweight operation, and a clear preview of the physical screen.
 
+## Editor and Hardware pages
+
+Use **Editor** to build your screen and **Hardware** to view PC hardware names and live CPU, GPU, memory, storage, network and cooling readings. Hardware is an app page; your selected Info Screen, Photo Frame or Hybrid mode and physical display output continue unchanged. Unavailable sensors are labelled clearly.
+
+Theme actions are now in **Themes** on the left for each mode. Choose a theme and select **Load**, or use **Save** and **Theme actions** for New, Open, Save as, Duplicate, Rename, Delete and Refresh. Ctrl+N, Ctrl+O, Ctrl+S and Ctrl+Shift+S use the active mode's file format. Editor shortcuts are suspended while viewing Hardware.
+
+Photo Frame (`.pcphoto`) and Hybrid (`.pchybrid`) themes save settings in their separate folders; photos stay on the PC and the current playlist is retained when loading a settings theme. Info Screen uses `.t3theme` files. Use **Save playlist** to save photo links separately.
+
 ## Download and run
 
 1. Open the [Windows build workflow](https://github.com/ManethonSega/PC-Info-Screen-Studio/actions/workflows/build.yml).
@@ -128,3 +136,4 @@ theme assets.
 
 Versions supplied under MIT before this license change keep their previously
 granted rights. This change does not withdraw those rights.
+

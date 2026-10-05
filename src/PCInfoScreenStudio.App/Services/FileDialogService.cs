@@ -1,4 +1,5 @@
 using Microsoft.Win32;
+using PCInfoScreenStudio.Models;
 
 namespace PCInfoScreenStudio.Services;
 
@@ -32,6 +33,25 @@ public sealed class FileDialogService
             DefaultExt = ".t3theme",
             InitialDirectory = initialDirectory
         };
+        return dialog.ShowDialog() == true ? dialog.FileName : null;
+    }
+
+    public string? OpenModeTheme(ScreenMode mode)
+    {
+        var directory = new ModeThemeService().DirectoryFor(mode);
+        Directory.CreateDirectory(directory);
+        var extension = ModeThemeService.ExtensionFor(mode);
+        var dialog = new OpenFileDialog { Title = "Open " + mode + " settings theme", Filter = $"Settings themes (*{extension})|*{extension}", InitialDirectory = directory };
+        return dialog.ShowDialog() == true ? dialog.FileName : null;
+    }
+
+    public string? SaveModeTheme(ScreenMode mode, string name)
+    {
+        var directory = new ModeThemeService().DirectoryFor(mode);
+        Directory.CreateDirectory(directory);
+        var extension = ModeThemeService.ExtensionFor(mode);
+        var dialog = new SaveFileDialog { Title = "Save " + mode + " settings theme", Filter = $"Settings themes (*{extension})|*{extension}", InitialDirectory = directory,
+            FileName = SanitizeFileName(name) + extension, DefaultExt = extension, AddExtension = true, OverwritePrompt = true };
         return dialog.ShowDialog() == true ? dialog.FileName : null;
     }
 
@@ -118,3 +138,4 @@ public sealed class FileDialogService
         return directory;
     }
 }
+

@@ -27,7 +27,14 @@ jobs:
         run: dotnet build .\PCInfoScreenStudio.slnx -c Release --no-restore
 
       - name: Check controller workflows without a physical display
-        run: dotnet run --project .\tests\PCInfoScreenStudio.ControllerChecks\PCInfoScreenStudio.ControllerChecks.csproj -c Release --no-build
+        run: dotnet run --project .\tests\PCInfoScreenStudio.ControllerChecks\PCInfoScreenStudio.ControllerChecks.csproj -c Release --no-build -- --capture-ui .\artifacts\ui-preview
+
+      - name: Upload interface previews for review
+        uses: actions/upload-artifact@v7
+        with:
+          name: PCInfoScreenStudio-ui-preview
+          path: .\artifacts\ui-preview\
+          retention-days: 3
 
       - name: Publish self-contained Windows x64 build
         run: dotnet publish .\src\PCInfoScreenStudio.App\PCInfoScreenStudio.App.csproj -c Release -r win-x64 --self-contained true -o .\artifacts\win-x64 -p:PublishSingleFile=false -p:PublishTrimmed=false

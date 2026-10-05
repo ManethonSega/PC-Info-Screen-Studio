@@ -64,7 +64,7 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
 
     private void OnEditorActivityChanged(object? sender, EventArgs e)
     {
-        if (_viewModel?.IsEditorActive == true)
+        if (_viewModel?.IsCanvasActive == true)
         {
             QueueRender(sendLive: false, forceSend: false);
             return;
@@ -95,7 +95,7 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
             _sendLivePending = false;
             _forceSendPending = false;
 
-            if (_viewModel?.IsEditorActive == true)
+            if (_viewModel?.IsCanvasActive == true)
                 UpdateGridOverlay();
             RenderPreview(shouldSend, shouldForce);
         });
@@ -109,11 +109,11 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
             return;
         }
 
-        if (!_viewModel.IsEditorActive && !sendLive)
+        if (!_viewModel.IsCanvasActive && !sendLive)
             return;
 
         using var bitmap = _renderer.Render(_viewModel.Workspace);
-        if (_viewModel.IsEditorActive)
+        if (_viewModel.IsCanvasActive)
             RenderSurface.Source = ToBitmapSource(bitmap);
 
         if (sendLive && (_viewModel.LivePreview || forceSend))
@@ -126,6 +126,7 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
         GridOverlay.Children.Clear();
 
         if (_viewModel is null ||
+            !_viewModel.IsCanvasActive ||
             _viewModel.IsLiveMode ||
             _viewModel.Document.Mode == ScreenMode.PhotoFrame ||
             !_viewModel.Document.EditorGridVisible)
@@ -198,6 +199,7 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
     private void OnCanvasMouseDown(object sender, MouseButtonEventArgs e)
     {
         if (_viewModel is null ||
+            !_viewModel.IsCanvasActive ||
             _viewModel.IsLiveMode ||
             _viewModel.Document.Mode == ScreenMode.PhotoFrame ||
             FindAncestor<DesignerItemControl>(e.OriginalSource as DependencyObject) is not null)
@@ -274,3 +276,4 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
         return source;
     }
 }
+

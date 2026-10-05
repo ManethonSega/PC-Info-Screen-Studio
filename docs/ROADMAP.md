@@ -97,3 +97,9 @@ Validation should be focused on these user workflows and physical-device behavio
 ## Deliberately outside the current photo workflow
 
 Scheduling, blurred-image backgrounds, continuous Ken Burns animation, and per-photo crop/focal-point/timing controls are not pending UI additions. They were removed to keep the application simpler and reduce display work. Photo Frame and Hybrid settings remain separate from Info Screen themes, and photos stay on the PC.
+
+### Layout cleanup
+
+- Editor/Hardware navigation separates live PC readings from screen design without stopping USB output.
+- One consistent Themes panel replaces the File menu across all three screen modes.
+- Mode-aware theme commands retain photo playlists and unsaved edits in other modes.

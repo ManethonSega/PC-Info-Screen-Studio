@@ -66,15 +66,6 @@ public partial class MainWindow : Window
     private void SetModeFromTray(ScreenMode mode)
         => Dispatcher.Invoke(() => _viewModel.Document.Mode = mode);
 
-    private void OnFileMenuClick(object sender, RoutedEventArgs e)
-    {
-        if (sender is not Button { ContextMenu: { } menu } button)
-            return;
-        menu.DataContext = _viewModel;
-        menu.PlacementTarget = button;
-        menu.IsOpen = true;
-    }
-
     private void OnSettingsClick(object sender, RoutedEventArgs e)
     {
         var window = new SettingsWindow
@@ -174,13 +165,14 @@ public partial class MainWindow : Window
 
     private async void OnDrop(object sender, System.Windows.DragEventArgs e)
     {
+        if (!_viewModel.IsEditorPage) return;
         if (e.Data.GetData(DataFormats.FileDrop) is not string[] files || files.Length == 0)
             return;
 
         foreach (var path in files)
         {
             var ext = Path.GetExtension(path).ToLowerInvariant();
-            if (ext == ".t3theme")
+            if (ext is ".t3theme" or ".pcphoto" or ".pchybrid")
             {
                 await _viewModel.OpenThemeFileAsync(path);
                 continue;
@@ -205,7 +197,10 @@ public partial class MainWindow : Window
             }
 
             if (ext is ".png" or ".jpg" or ".jpeg" or ".webp" or ".bmp")
-                _viewModel.ImportMediaFile(path, ThemeAssetKind.Image);
+            {
+                if (_viewModel.Document.Mode == ScreenMode.InfoScreen) _viewModel.ImportMediaFile(path, ThemeAssetKind.Image);
+                else _viewModel.AddPhotoFiles([path]);
+            }
         }
     }
 
@@ -222,7 +217,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (_viewModel.IsDirty)
+        if (_viewModel.HasUnsavedChanges)
         {
             var result = MessageBox.Show(
                 "This theme has unsaved changes. Exit and discard them?",
@@ -252,3 +247,4 @@ public partial class MainWindow : Window
         _viewModel.Dispose();
     }
 }
+

@@ -23,9 +23,9 @@ public sealed class ModeThemeService
         Converters = { new JsonStringEnumConverter() }
     };
 
-    private readonly string _appRoot = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-        "PC Info Screen Studio");
+    private readonly string _appRoot;
+    public ModeThemeService(string? appRoot = null)
+        => _appRoot = appRoot ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PC Info Screen Studio");
 
     public IReadOnlyList<ModeThemeLibraryItem> GetThemes(ScreenMode mode)
     {
@@ -45,6 +45,14 @@ public sealed class ModeThemeService
             throw new InvalidOperationException("Info Screen uses the main theme library.");
 
         var name = SanitizeName(requestedName);
+        return SaveToPath(document, mode, Path.Combine(DirectoryFor(mode), name + ExtensionFor(mode)));
+    }
+
+    public string SaveToPath(ThemeDocument document, ScreenMode mode, string path)
+    {
+        if (mode == ScreenMode.InfoScreen || !Path.GetExtension(path).Equals(ExtensionFor(mode), StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Choose the settings theme format for the active mode.");
+        var name = Path.GetFileNameWithoutExtension(path);
         var settings = Clone(document.PhotoFrame);
         settings.Photos.Clear();
         settings.EmbedImportedPhotos = false;
@@ -62,9 +70,7 @@ public sealed class ModeThemeService
                 : []
         };
 
-        var directory = DirectoryFor(mode);
-        Directory.CreateDirectory(directory);
-        var path = Path.Combine(directory, name + ExtensionFor(mode));
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         File.WriteAllText(path, JsonSerializer.Serialize(preset, Options));
         return path;
     }
@@ -73,15 +79,49 @@ public sealed class ModeThemeService
         => JsonSerializer.Deserialize<ModeThemePreset>(File.ReadAllText(path), Options)
            ?? throw new InvalidDataException("The mode theme could not be read.");
 
+    public static void Apply(ThemeDocument document, ModeThemePreset preset)
+    {
+        if (document.Mode == ScreenMode.InfoScreen || preset.Mode != document.Mode)
+            throw new InvalidDataException("This settings theme belongs to a different screen mode.");
+        ApplySettings(document.PhotoFrame, preset.PhotoFrame);
+        if (document.Mode == ScreenMode.Hybrid)
+        {
+            document.HybridWidgets.Clear();
+            foreach (var widget in preset.HybridWidgets) document.HybridWidgets.Add(widget.Clone());
+        }
+    }
+
+    public static void ApplySettings(PhotoFrameSettings target, PhotoFrameSettings source)
+    {
+        target.DefaultDurationSeconds = source.DefaultDurationSeconds;
+        target.TransitionDurationSeconds = source.TransitionDurationSeconds;
+        target.Transition = source.Transition == PhotoTransition.KenBurns ? PhotoTransition.Crossfade : source.Transition;
+        target.Fit = source.Fit;
+        target.Loop = source.Loop;
+        target.Shuffle = source.Shuffle;
+        target.EmbedImportedPhotos = false;
+        target.BackgroundMode = PhotoBackgroundMode.SolidColor;
+        target.BackgroundColor = source.BackgroundColor;
+        target.ShowCaptions = source.ShowCaptions;
+        target.CaptionFontSize = source.CaptionFontSize;
+        target.CaptionColor = source.CaptionColor;
+        target.CaptionOutlineColor = source.CaptionOutlineColor;
+        target.CaptionOutlineThickness = source.CaptionOutlineThickness;
+        target.CaptionMode = source.CaptionMode;
+        target.CustomCaption = source.CustomCaption;
+        target.WatchFolderEnabled = source.WatchFolderEnabled;
+        target.WatchedFolder = source.WatchedFolder;
+    }
+
     public void Delete(string path)
     {
         if (File.Exists(path)) File.Delete(path);
     }
 
-    private string DirectoryFor(ScreenMode mode)
+    public string DirectoryFor(ScreenMode mode)
         => Path.Combine(_appRoot, mode == ScreenMode.Hybrid ? "Hybrid Themes" : "Photo Frame Themes");
 
-    private static string ExtensionFor(ScreenMode mode)
+    public static string ExtensionFor(ScreenMode mode)
         => mode == ScreenMode.Hybrid ? ".pchybrid" : ".pcphoto";
 
     private void MigrateLegacyThemes(ScreenMode mode, string destinationDirectory)
@@ -113,3 +153,4 @@ public sealed class ModeThemeService
         return string.IsNullOrWhiteSpace(result) ? "Mode theme" : result;
     }
 }
+

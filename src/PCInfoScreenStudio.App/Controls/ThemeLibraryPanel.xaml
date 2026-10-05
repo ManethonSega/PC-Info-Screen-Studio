@@ -1,0 +1,48 @@
+<UserControl x:Class="PCInfoScreenStudio.Controls.ThemeLibraryPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:services="clr-namespace:PCInfoScreenStudio.Services">
+  <UserControl.Resources>
+    <DataTemplate DataType="{x:Type services:ThemeLibraryItem}">
+      <Grid Margin="0,2">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="64" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+        <Border Width="58" Height="38" Background="#090B0F" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+          <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" />
+        </Border>
+        <TextBlock Grid.Column="1" Text="{Binding DisplayName}" VerticalAlignment="Center" Margin="8,0,4,0" TextTrimming="CharacterEllipsis" />
+      </Grid>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type services:ModeThemeLibraryItem}">
+      <TextBlock Text="{Binding DisplayName}" Margin="4,6" TextTrimming="CharacterEllipsis" />
+    </DataTemplate>
+  </UserControl.Resources>
+  <StackPanel Margin="0,0,0,10">
+    <DockPanel Margin="4,5,2,7">
+      <Button DockPanel.Dock="Right" Content="Theme actions ▾" Click="OnActionsClick" Padding="8,4" Margin="0"
+              ToolTip="New, open, save as, duplicate, rename, delete or refresh themes for this mode.">
+        <Button.ContextMenu>
+          <ContextMenu Placement="Bottom">
+            <MenuItem Header="New theme" Command="{Binding NewCommand}" InputGestureText="Ctrl+N" ToolTip="Start a new theme for the current screen mode. Photo playlists are kept." />
+            <MenuItem Header="Open theme…" Command="{Binding OpenCommand}" InputGestureText="Ctrl+O" ToolTip="Open a theme file for this screen mode." />
+            <MenuItem Header="Save as…" Command="{Binding SaveAsCommand}" InputGestureText="Ctrl+Shift+S" ToolTip="Save the current theme under a different name." />
+            <Separator />
+            <MenuItem Header="Duplicate selected theme" Command="{Binding DuplicateThemeCommand}" ToolTip="Copy the selected saved theme without loading it." />
+            <MenuItem Header="Rename selected theme…" Command="{Binding RenameThemeCommand}" ToolTip="Rename the selected custom theme file." />
+            <MenuItem Header="Delete selected theme…" Command="{Binding DeleteThemeCommand}" ToolTip="Delete the selected custom theme file after confirmation." />
+            <Separator />
+            <MenuItem Header="Refresh library" Command="{Binding RefreshThemesCommand}" ToolTip="Find newly saved theme files for this mode." />
+          </ContextMenu>
+        </Button.ContextMenu>
+      </Button>
+      <TextBlock Text="THEMES" Style="{StaticResource SectionTitleStyle}" VerticalAlignment="Center" />
+    </DockPanel>
+    <TextBlock Text="{Binding CurrentThemeName}" FontSize="14" FontWeight="SemiBold" Margin="4,0,4,4" TextTrimming="CharacterEllipsis" />
+    <ComboBox ItemsSource="{Binding ActiveThemes}" SelectedItem="{Binding ActiveThemeSelection}" Margin="2,0,2,5"
+              ToolTip="Choose a theme for the current screen mode, then select Load." />
+    <UniformGrid Columns="2">
+      <Button Content="Load" Command="{Binding LoadThemeCommand}" ToolTip="Apply the selected theme. Photo and Hybrid themes keep your playlist." />
+      <Button Content="Save" Command="{Binding SaveCommand}" Style="{StaticResource PrimaryButtonStyle}" ToolTip="Save the current theme (Ctrl+S). Photo and Hybrid themes contain settings, not photos." />
+    </UniformGrid>
+    <TextBlock Text="{Binding ThemeSummary}" FontSize="11" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="4,5,4,0" />
+  </StackPanel>
+</UserControl>
