@@ -10,24 +10,24 @@ using PCInfoScreenStudio.Models;
 using PCInfoScreenStudio.Services;
 using PCInfoScreenStudio.Rendering;
 using PCInfoScreenStudio.Controls;
+using PCInfoScreenStudio.Controllers;
 
 namespace PCInfoScreenStudio.ViewModels;
 
 public sealed class MainViewModel : ObservableObject, IDisposable
 {
+    private readonly SettingsController _settings = new();
+    private readonly DeviceController _device;
+    private readonly EditorController _editor;
+    private readonly PhotoPlaybackController _photos;
     private readonly ThemePackageService _packageService = new();
     private readonly AssetImportService _assetService = new();
     private readonly FileDialogService _dialogs = new();
-    private readonly DeviceService _deviceService = new();
-    private readonly SerialDeviceDiscoveryService _serialDiscovery = new();
     private readonly ThemeLibraryService _themeLibrary = new();
     private readonly SystemMetricsService _systemMetrics = new();
     private readonly HardwareMetricsService _hardwareMetrics = new();
     private readonly WeatherMetricsService _weatherMetrics = new();
-    private readonly AppSettingsService _settingsService = new();
-    private readonly PhotoAlbumPresetService _photoAlbumPresetService = new();
     private readonly ModeThemeService _modeThemeService = new();
-    private readonly AppSettings _appSettings;
     private readonly DispatcherTimer _dataTimer;
     private readonly DispatcherTimer _animationTimer;
     private readonly DispatcherTimer _historyTimer;
@@ -40,37 +40,18 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         "Recovery",
         "recovery.t3theme");
     private ThemeWorkspace _workspace;
-    private WidgetModel? _selectedWidget;
-    private double? _alignmentGuideX;
-    private double? _alignmentGuideY;
-    private string? _selectedPort;
     private ThemeLibraryItem? _selectedTheme;
-    private string _deviceStatus = "Not connected";
     private string _weatherCity = string.Empty;
     private string _weatherStatus = "Weather city not configured.";
     private string _hardwareStatus = "Hardware sensors not initialized.";
-    private DisplayProtocolProfile _displayProtocol;
-    private DisplayColorMode _displayColorMode;
-    private bool _livePreview;
     private bool _useLiveData;
     private bool _suppressDirty;
-    private bool _isDeviceBusy;
     private bool _suppressHistory;
     private bool _recoveryBusy;
     private int _historyIndex = -1;
-    private readonly object _frameQueueSync = new();
-    private PendingDisplayFrame? _pendingFrame;
-    private bool _frameSenderRunning;
-    private FileSystemWatcher? _photoFolderWatcher;
-    private PhotoFrameItem? _selectedPhoto;
     private ModeThemeLibraryItem? _selectedModeTheme;
-    private bool _isPhotoPlaying;
-    private DateTimeOffset _photoStartedAt = DateTimeOffset.UtcNow;
-    private DateTimeOffset _photoTransitionStartedAt = DateTimeOffset.UtcNow;
-    private readonly Random _photoRandom = new();
     private readonly HashSet<string> _advancedSensorSources = new(StringComparer.OrdinalIgnoreCase);
     private int _dataSampleBusy;
-    private DateTimeOffset _suspendLiveDisplayUntil = DateTimeOffset.MinValue;
     private bool _isEditorActive = true;
     private bool _isFirstRunVisible;
     private bool _firstRunUseStarterTheme = true;
@@ -82,13 +63,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public MainViewModel()
     {
-        _appSettings = _settingsService.Load();
-        _weatherCity = _appSettings.WeatherCity;
-        _displayProtocol = _appSettings.DisplayProtocol;
-        _displayColorMode = _appSettings.DisplayColorMode;
-        _isPhotoPlaying = _appSettings.PhotoFramePlaying;
+        _weatherCity = _settings.WeatherCity;
         _workspace = _packageService.CreateNewWorkspace();
-        Ports = [];
+        _device = new DeviceController(() => Document, _settings);
+        _editor = new EditorController(() => Document);
+        _photos = new PhotoPlaybackController(() => Workspace, _settings);
+        AttachControllers();
         Themes = [];
         ModeThemes = [];
         FontAssets = [];
@@ -117,8 +97,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         RefreshPortsCommand = new RelayCommand(RefreshPorts);
         DetectScreenCommand = new RelayCommand(DetectScreen, () => !IsDeviceBusy);
         ConnectCommand = new RelayCommand(() => _ = ConnectOrDisconnectAsync(), () => !IsDeviceBusy);
-        TestScreenCommand = new RelayCommand(() => _ = TestScreenAsync(), () => _deviceService.IsConnected && !IsDeviceBusy);
-        BenchmarkCommand = new RelayCommand(() => _ = RunBenchmarkAsync(), () => _deviceService.IsConnected && !IsDeviceBusy);
+        TestScreenCommand = new RelayCommand(() => _ = TestScreenAsync(), () => _device.IsConnected && !IsDeviceBusy);
+        BenchmarkCommand = new RelayCommand(() => _ = RunBenchmarkAsync(), () => _device.IsConnected && !IsDeviceBusy);
         RefreshThemesCommand = new RelayCommand(RefreshThemes);
         LoadThemeCommand = new RelayCommand(() => _ = LoadSelectedThemeAsync(), () => SelectedTheme is not null);
         DuplicateThemeCommand = new RelayCommand(DuplicateSelectedTheme, () => SelectedTheme is { IsBuiltIn: false });
@@ -222,7 +202,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         RefreshPorts();
         RefreshThemes();
         RefreshModeThemes();
-        _isFirstRunVisible = !_appSettings.FirstRunCompleted;
+        _isFirstRunVisible = !_settings.FirstRunCompleted;
     }
 
     public event EventHandler? ThemeChanged;
@@ -233,7 +213,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public ThemeDocument Document => _workspace.Document;
     private IEnumerable<WidgetModel> RuntimeWidgets => Document.RuntimeMode == RuntimeScreenMode.Hybrid ? Document.HybridWidgets : Document.Widgets;
     private IEnumerable<WidgetModel> AllWidgets => Document.Widgets.Concat(Document.HybridWidgets);
-    public ObservableCollection<SerialPortOption> Ports { get; }
+    public ObservableCollection<SerialPortOption> Ports => _device.Ports;
     public ObservableCollection<ThemeLibraryItem> Themes { get; }
     public ObservableCollection<ModeThemeLibraryItem> ModeThemes { get; }
     public ObservableCollection<ThemeAsset> FontAssets { get; }
@@ -368,24 +348,20 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public WidgetModel? SelectedWidget
     {
-        get => _selectedWidget;
-        set => SelectWidget(value);
+        get => _editor.SelectedWidget;
+        set => _editor.SelectedWidget = value;
     }
 
-    public IReadOnlyList<WidgetModel> SelectedWidgets => Document.EditorWidgets.Where(w => w.IsSelected).ToArray();
+    public IReadOnlyList<WidgetModel> SelectedWidgets => _editor.SelectedWidgets;
     public int SelectedWidgetCount => SelectedWidgets.Count;
     public bool HasMultipleSelection => SelectedWidgetCount > 1;
-    public double? AlignmentGuideX => _alignmentGuideX;
-    public double? AlignmentGuideY => _alignmentGuideY;
+    public double? AlignmentGuideX => _editor.AlignmentGuideX;
+    public double? AlignmentGuideY => _editor.AlignmentGuideY;
 
     public PhotoFrameItem? SelectedPhoto
     {
-        get => _selectedPhoto;
-        set
-        {
-            if (!SetProperty(ref _selectedPhoto, value)) return;
-            RemovePhotoCommand.RaiseCanExecuteChanged();
-        }
+        get => _photos.SelectedPhoto;
+        set => _photos.SelectedPhoto = value;
     }
 
     public ModeThemeLibraryItem? SelectedModeTheme
@@ -425,15 +401,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     }
     public string EditorModeLabel => IsLiveMode ? "Back to edit" : "Live view";
 
-    public bool IsPhotoPlaying => _isPhotoPlaying;
-    public string PhotoPlaybackLabel => _isPhotoPlaying ? "Pause" : "Play";
-    public string PhotoPositionLabel => Document.PhotoFrame.Photos.Count == 0
-        ? "No photos"
-        : $"{Document.PhotoFrame.RuntimeCurrentIndex + 1} / {Document.PhotoFrame.Photos.Count}";
+    public bool IsPhotoPlaying => _photos.IsPhotoPlaying;
+    public string PhotoPlaybackLabel => _photos.PhotoPlaybackLabel;
+    public string PhotoPositionLabel => _photos.PhotoPositionLabel;
+
     public string? SelectedPort
     {
-        get => _selectedPort;
-        set => SetProperty(ref _selectedPort, value);
+        get => _device.SelectedPort;
+        set => _device.SelectedPort = value;
     }
 
     public ThemeLibraryItem? SelectedTheme
@@ -451,36 +426,20 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public string DeviceStatus
     {
-        get => _deviceStatus;
-        private set => SetProperty(ref _deviceStatus, value);
+        get => _device.DeviceStatus;
+        private set => _device.DeviceStatus = value;
     }
 
     public DisplayProtocolProfile DisplayProtocol
     {
-        get => _displayProtocol;
-        set
-        {
-            if (!SetProperty(ref _displayProtocol, value)) return;
-            _appSettings.DisplayProtocol = value;
-            _settingsService.Save(_appSettings);
-
-            if (_deviceService.IsConnected && !IsDeviceBusy)
-                _ = ApplyDisplayCompatibilityAsync();
-        }
+        get => _device.DisplayProtocol;
+        set => _device.DisplayProtocol = value;
     }
 
     public DisplayColorMode DisplayColorMode
     {
-        get => _displayColorMode;
-        set
-        {
-            if (!SetProperty(ref _displayColorMode, value)) return;
-            _appSettings.DisplayColorMode = value;
-            _settingsService.Save(_appSettings);
-
-            if (_deviceService.IsConnected && !IsDeviceBusy)
-                _ = ApplyDisplayCompatibilityAsync();
-        }
+        get => _device.DisplayColorMode;
+        set => _device.DisplayColorMode = value;
     }
 
     public string WeatherCity
@@ -507,12 +466,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public bool LivePreview
     {
-        get => _livePreview;
-        set
-        {
-            if (!SetProperty(ref _livePreview, value)) return;
-            if (value) RequestLiveFrame?.Invoke(this, EventArgs.Empty);
-        }
+        get => _device.LivePreview;
+        set => _device.LivePreview = value;
     }
 
     public bool UseLiveData
@@ -529,58 +484,29 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    public bool IsDeviceBusy
-    {
-        get => _isDeviceBusy;
-        private set
-        {
-            if (!SetProperty(ref _isDeviceBusy, value)) return;
-            ConnectCommand.RaiseCanExecuteChanged();
-            DetectScreenCommand.RaiseCanExecuteChanged();
-            TestScreenCommand.RaiseCanExecuteChanged();
-            BenchmarkCommand.RaiseCanExecuteChanged();
-            FirstRunConnectCommand.RaiseCanExecuteChanged();
-        }
-    }
+    public bool IsDeviceBusy => _device.IsDeviceBusy;
 
     public bool CloseToTray
     {
-        get => _appSettings.CloseToTray;
-        set
-        {
-            if (_appSettings.CloseToTray == value)
-                return;
-
-            _appSettings.CloseToTray = value;
-            _settingsService.Save(_appSettings);
-            RaisePropertyChanged();
-        }
+        get => _settings.CloseToTray;
+        set => _settings.CloseToTray = value;
     }
 
     public bool AutoStartDisplay
     {
-        get => _appSettings.AutoStartDisplay;
-        set
-        {
-            if (_appSettings.AutoStartDisplay == value)
-                return;
-
-            _appSettings.AutoStartDisplay = value;
-            _settingsService.Save(_appSettings);
-            RaisePropertyChanged();
-        }
+        get => _settings.AutoStartDisplay;
+        set => _settings.AutoStartDisplay = value;
     }
 
     public bool ShowAdvancedSensors
     {
-        get => _appSettings.ShowAdvancedSensors;
+        get => _settings.ShowAdvancedSensors;
         set
         {
-            if (_appSettings.ShowAdvancedSensors == value)
+            if (_settings.ShowAdvancedSensors == value)
                 return;
 
-            _appSettings.ShowAdvancedSensors = value;
-            _settingsService.Save(_appSettings);
+            _settings.ShowAdvancedSensors = value;
 
             if (value)
             {
@@ -600,50 +526,64 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public bool AdvancedDisplayExpanded
     {
-        get => _appSettings.AdvancedDisplayExpanded;
-        set
-        {
-            if (_appSettings.AdvancedDisplayExpanded == value)
-                return;
-
-            _appSettings.AdvancedDisplayExpanded = value;
-            _settingsService.Save(_appSettings);
-            RaisePropertyChanged();
-        }
+        get => _settings.AdvancedDisplayExpanded;
+        set => _settings.AdvancedDisplayExpanded = value;
     }
 
-    public bool PositionPanelExpanded { get => _appSettings.PositionPanelExpanded; set => SavePanelState(nameof(PositionPanelExpanded), _appSettings.PositionPanelExpanded, value, v => _appSettings.PositionPanelExpanded = v); }
-    public bool DataPanelExpanded { get => _appSettings.DataPanelExpanded; set => SavePanelState(nameof(DataPanelExpanded), _appSettings.DataPanelExpanded, value, v => _appSettings.DataPanelExpanded = v); }
-    public bool TypographyPanelExpanded { get => _appSettings.TypographyPanelExpanded; set => SavePanelState(nameof(TypographyPanelExpanded), _appSettings.TypographyPanelExpanded, value, v => _appSettings.TypographyPanelExpanded = v); }
-    public bool GraphPanelExpanded { get => _appSettings.GraphPanelExpanded; set => SavePanelState(nameof(GraphPanelExpanded), _appSettings.GraphPanelExpanded, value, v => _appSettings.GraphPanelExpanded = v); }
-    public bool GaugePanelExpanded { get => _appSettings.GaugePanelExpanded; set => SavePanelState(nameof(GaugePanelExpanded), _appSettings.GaugePanelExpanded, value, v => _appSettings.GaugePanelExpanded = v); }
-    public bool MediaPanelExpanded { get => _appSettings.MediaPanelExpanded; set => SavePanelState(nameof(MediaPanelExpanded), _appSettings.MediaPanelExpanded, value, v => _appSettings.MediaPanelExpanded = v); }
-    public bool ShapePanelExpanded { get => _appSettings.ShapePanelExpanded; set => SavePanelState(nameof(ShapePanelExpanded), _appSettings.ShapePanelExpanded, value, v => _appSettings.ShapePanelExpanded = v); }
-    public bool ColoursPanelExpanded { get => _appSettings.ColoursPanelExpanded; set => SavePanelState(nameof(ColoursPanelExpanded), _appSettings.ColoursPanelExpanded, value, v => _appSettings.ColoursPanelExpanded = v); }
-
-    private void SavePanelState(string propertyName, bool current, bool value, Action<bool> assign)
+    public bool PositionPanelExpanded
     {
-        if (current == value) return;
-        assign(value);
-        _settingsService.Save(_appSettings);
-        RaisePropertyChanged(propertyName);
+        get => _settings.PositionPanelExpanded;
+        set => _settings.PositionPanelExpanded = value;
     }
 
-    public string DisplayActionLabel => _deviceService.IsConnected ? "Stop display" : "Start display";
+    public bool DataPanelExpanded
+    {
+        get => _settings.DataPanelExpanded;
+        set => _settings.DataPanelExpanded = value;
+    }
+
+    public bool TypographyPanelExpanded
+    {
+        get => _settings.TypographyPanelExpanded;
+        set => _settings.TypographyPanelExpanded = value;
+    }
+
+    public bool GraphPanelExpanded
+    {
+        get => _settings.GraphPanelExpanded;
+        set => _settings.GraphPanelExpanded = value;
+    }
+
+    public bool GaugePanelExpanded
+    {
+        get => _settings.GaugePanelExpanded;
+        set => _settings.GaugePanelExpanded = value;
+    }
+
+    public bool MediaPanelExpanded
+    {
+        get => _settings.MediaPanelExpanded;
+        set => _settings.MediaPanelExpanded = value;
+    }
+
+    public bool ShapePanelExpanded
+    {
+        get => _settings.ShapePanelExpanded;
+        set => _settings.ShapePanelExpanded = value;
+    }
+
+    public bool ColoursPanelExpanded
+    {
+        get => _settings.ColoursPanelExpanded;
+        set => _settings.ColoursPanelExpanded = value;
+    }
+
+    public string DisplayActionLabel => _device.IsConnected ? "Stop display" : "Start display";
 
     public double CanvasZoom
     {
-        get => Math.Clamp(_appSettings.CanvasZoom, 0.5, 3.0);
-        set
-        {
-            var zoom = Math.Clamp(value, 0.5, 3.0);
-            if (Math.Abs(_appSettings.CanvasZoom - zoom) < .001)
-                return;
-
-            _appSettings.CanvasZoom = zoom;
-            _settingsService.Save(_appSettings);
-            RaisePropertyChanged();
-        }
+        get => _settings.CanvasZoom;
+        set => _settings.CanvasZoom = value;
     }
 
     public bool IsDirty => Workspace.IsDirty;
@@ -735,128 +675,19 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    public void SelectWidget(WidgetModel? widget, bool additive = false, bool toggle = false)
-    {
-        var targets = widget is null
-            ? Array.Empty<WidgetModel>()
-            : widget.GroupId is Guid groupId
-                ? Document.EditorWidgets.Where(w => w.GroupId == groupId).ToArray()
-                : [widget];
+    public void SelectWidget(WidgetModel? widget, bool additive = false, bool toggle = false) => _editor.SelectWidget(widget, additive, toggle);
 
-        if (!additive)
-        {
-            foreach (var item in Document.EditorWidgets)
-                item.IsSelected = false;
-        }
+    public IReadOnlyList<WidgetModel> GetMovementTargets(WidgetModel anchor) => _editor.GetMovementTargets(anchor);
 
-        if (targets.Length > 0)
-        {
-            var shouldSelect = !toggle || !targets.All(w => w.IsSelected);
-            foreach (var item in targets)
-                item.IsSelected = shouldSelect;
-        }
-
-        var primary = widget is not null && widget.IsSelected
-            ? widget
-            : Document.EditorWidgets.LastOrDefault(w => w.IsSelected);
-        var primaryChanged = _selectedWidget != primary;
-        _selectedWidget = primary;
-
-        if (primaryChanged)
-            RaisePropertyChanged(nameof(SelectedWidget));
-        RaisePropertyChanged(nameof(SelectedWidgets));
-        RaisePropertyChanged(nameof(SelectedWidgetCount));
-        RaisePropertyChanged(nameof(HasMultipleSelection));
-        RaiseCommandStates();
-    }
-
-    public IReadOnlyList<WidgetModel> GetMovementTargets(WidgetModel anchor)
-    {
-        if (!anchor.IsSelected)
-            SelectWidget(anchor);
-
-        return Document.EditorWidgets.Where(w => w.IsSelected && !w.IsLocked).ToArray();
-    }
-
-    public void SelectWidgets(IEnumerable<WidgetModel> widgets, bool additive)
-    {
-        var selected = widgets.ToArray();
-        var groupIds = selected.Where(w => w.GroupId is not null).Select(w => w.GroupId).ToHashSet();
-        var expanded = Document.EditorWidgets
-            .Where(w => selected.Contains(w) || (w.GroupId is not null && groupIds.Contains(w.GroupId)))
-            .ToArray();
-
-        if (!additive)
-            foreach (var item in Document.EditorWidgets)
-                item.IsSelected = false;
-
-        foreach (var item in expanded)
-            item.IsSelected = true;
-
-        _selectedWidget = expanded.LastOrDefault() ?? (additive ? Document.EditorWidgets.LastOrDefault(w => w.IsSelected) : null);
-        RaisePropertyChanged(nameof(SelectedWidget));
-        RaisePropertyChanged(nameof(SelectedWidgets));
-        RaisePropertyChanged(nameof(SelectedWidgetCount));
-        RaisePropertyChanged(nameof(HasMultipleSelection));
-        RaiseCommandStates();
-    }
+    public void SelectWidgets(IEnumerable<WidgetModel> widgets, bool additive) => _editor.SelectWidgets(widgets, additive);
 
     public (double X, double Y) ApplySmartAlignment(
         WidgetModel anchor,
         double x,
         double y,
-        IReadOnlyCollection<WidgetModel> movingWidgets)
-    {
-        const double threshold = 4;
-        var excluded = movingWidgets.Select(w => w.Id).ToHashSet();
-        var xTargets = new List<double> { 0, Document.CanvasWidth / 2d, Document.CanvasWidth };
-        var yTargets = new List<double> { 0, Document.CanvasHeight / 2d, Document.CanvasHeight };
+        IReadOnlyCollection<WidgetModel> movingWidgets) => _editor.ApplySmartAlignment(anchor, x, y, movingWidgets);
 
-        foreach (var other in Document.EditorWidgets.Where(w => w.IsVisible && !excluded.Contains(w.Id)))
-        {
-            xTargets.Add(other.X);
-            xTargets.Add(other.X + other.Width / 2d);
-            xTargets.Add(other.X + other.Width);
-            yTargets.Add(other.Y);
-            yTargets.Add(other.Y + other.Height / 2d);
-            yTargets.Add(other.Y + other.Height);
-        }
-
-        var snappedX = FindGuide(x, anchor.Width, xTargets, threshold);
-        var snappedY = FindGuide(y, anchor.Height, yTargets, threshold);
-        _alignmentGuideX = snappedX.Guide;
-        _alignmentGuideY = snappedY.Guide;
-        AlignmentGuidesChanged?.Invoke(this, EventArgs.Empty);
-        return (snappedX.Position, snappedY.Position);
-    }
-
-    public void ClearAlignmentGuides()
-    {
-        if (_alignmentGuideX is null && _alignmentGuideY is null) return;
-        _alignmentGuideX = null;
-        _alignmentGuideY = null;
-        AlignmentGuidesChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    private static (double Position, double? Guide) FindGuide(double position, double size, IEnumerable<double> targets, double threshold)
-    {
-        var points = new[] { position, position + size / 2d, position + size };
-        var bestDistance = double.MaxValue;
-        var bestOffset = 0d;
-        double? guide = null;
-
-        foreach (var target in targets)
-        foreach (var point in points)
-        {
-            var distance = Math.Abs(target - point);
-            if (distance > threshold || distance >= bestDistance) continue;
-            bestDistance = distance;
-            bestOffset = target - point;
-            guide = target;
-        }
-
-        return (position + bestOffset, guide);
-    }
+    public void ClearAlignmentGuides() => _editor.ClearAlignmentGuides();
 
     public void NotifyDesignerChange()
     {
@@ -864,61 +695,98 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         ThemeChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public void SendLiveFrame(SkiaSharp.SKBitmap bitmap, bool force = false)
+    public void SendLiveFrame(SkiaSharp.SKBitmap bitmap, bool force = false) => _device.SendLiveFrame(bitmap, force);
+
+    private void AttachControllers()
     {
-        if ((!LivePreview && !force) || !_deviceService.IsConnected) return;
-        if (DateTimeOffset.UtcNow < _suspendLiveDisplayUntil) return;
-
-        var next = new PendingDisplayFrame(bitmap.Copy(), Document.DeviceRotation);
-        lock (_frameQueueSync)
-        {
-            // USB transmission is slower than preview rendering. Keep only the
-            // newest waiting frame so the display never builds up animation lag.
-            _pendingFrame?.Bitmap.Dispose();
-            _pendingFrame = next;
-
-            if (_frameSenderRunning)
-                return;
-
-            _frameSenderRunning = true;
-        }
-
-        _ = DrainLiveFrameQueueAsync();
+        _device.PropertyChanged += OnDevicePropertyChanged;
+        _device.CommandStatesChanged += OnDeviceCommandStatesChanged;
+        _device.LiveFrameRequested += OnLiveFrameRequested;
+        _editor.PropertyChanged += OnEditorPropertyChanged;
+        _editor.CommandStatesChanged += OnEditorCommandStatesChanged;
+        _editor.AlignmentGuidesChanged += OnAlignmentGuidesChanged;
+        _editor.DocumentChanged += OnEditorDocumentChanged;
+        _photos.PropertyChanged += OnPhotoPlaybackPropertyChanged;
+        _photos.CommandStatesChanged += OnPhotoCommandStatesChanged;
+        _photos.DocumentChanged += OnPhotoDocumentChanged;
+        _photos.PreviewChanged += OnPhotoPreviewChanged;
+        _photos.LiveFrameRequested += OnPhotoLiveFrameRequested;
+        _photos.StatusReported += OnPhotoStatusReported;
+        _photos.SettingsReplacementRequested += ReplacePhotoFrameSettings;
+        _settings.PropertyChanged += OnSettingsPropertyChanged;
     }
 
-    private async Task DrainLiveFrameQueueAsync()
+    private void DetachControllers()
     {
-        while (true)
-        {
-            PendingDisplayFrame? frame;
-            lock (_frameQueueSync)
-            {
-                frame = _pendingFrame;
-                _pendingFrame = null;
+        _device.PropertyChanged -= OnDevicePropertyChanged;
+        _device.CommandStatesChanged -= OnDeviceCommandStatesChanged;
+        _device.LiveFrameRequested -= OnLiveFrameRequested;
+        _editor.PropertyChanged -= OnEditorPropertyChanged;
+        _editor.CommandStatesChanged -= OnEditorCommandStatesChanged;
+        _editor.AlignmentGuidesChanged -= OnAlignmentGuidesChanged;
+        _editor.DocumentChanged -= OnEditorDocumentChanged;
+        _photos.PropertyChanged -= OnPhotoPlaybackPropertyChanged;
+        _photos.CommandStatesChanged -= OnPhotoCommandStatesChanged;
+        _photos.DocumentChanged -= OnPhotoDocumentChanged;
+        _photos.PreviewChanged -= OnPhotoPreviewChanged;
+        _photos.LiveFrameRequested -= OnPhotoLiveFrameRequested;
+        _photos.StatusReported -= OnPhotoStatusReported;
+        _photos.SettingsReplacementRequested -= ReplacePhotoFrameSettings;
+        _settings.PropertyChanged -= OnSettingsPropertyChanged;
+    }
 
-                if (frame is null)
-                {
-                    _frameSenderRunning = false;
-                    return;
-                }
-            }
+    private void OnDevicePropertyChanged(object? sender, PropertyChangedEventArgs e)
+        => RaisePropertyChanged(e.PropertyName);
 
-            try
-            {
-                await _deviceService.DisplayAsync(frame.Bitmap, frame.Rotation);
-                await Application.Current.Dispatcher.InvokeAsync(() =>
-                    DeviceStatus = BuildConnectionStatus());
-            }
-            catch (Exception ex)
-            {
-                await Application.Current.Dispatcher.InvokeAsync(() =>
-                    DeviceStatus = "Display error: " + ex.Message);
-            }
-            finally
-            {
-                frame.Bitmap.Dispose();
-            }
-        }
+    private void OnDeviceCommandStatesChanged(object? sender, EventArgs e)
+    {
+        ConnectCommand?.RaiseCanExecuteChanged();
+        DetectScreenCommand?.RaiseCanExecuteChanged();
+        TestScreenCommand?.RaiseCanExecuteChanged();
+        BenchmarkCommand?.RaiseCanExecuteChanged();
+        FirstRunConnectCommand?.RaiseCanExecuteChanged();
+    }
+
+    private void OnLiveFrameRequested(object? sender, EventArgs e)
+        => RequestLiveFrame?.Invoke(this, EventArgs.Empty);
+
+    private void OnEditorPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        => RaisePropertyChanged(e.PropertyName);
+
+    private void OnEditorCommandStatesChanged(object? sender, EventArgs e) => RaiseCommandStates();
+
+    private void OnAlignmentGuidesChanged(object? sender, EventArgs e)
+        => AlignmentGuidesChanged?.Invoke(this, EventArgs.Empty);
+
+    private void OnEditorDocumentChanged(bool refresh)
+    {
+        if (refresh) MarkDirtyAndRefresh();
+        else MarkDirty();
+    }
+
+    private void OnPhotoPlaybackPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        => RaisePropertyChanged(e.PropertyName);
+
+    private void OnPhotoCommandStatesChanged(object? sender, EventArgs e) => RaisePhotoCommandStates();
+
+    private void OnPhotoDocumentChanged(object? sender, EventArgs e) => MarkDirtyAndRefresh();
+
+    private void OnPhotoPreviewChanged(object? sender, EventArgs e)
+        => ThemeChanged?.Invoke(this, EventArgs.Empty);
+
+    private void OnPhotoLiveFrameRequested(object? sender, EventArgs e)
+    {
+        if (LivePreview) RequestLiveFrame?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnPhotoStatusReported(string status) => DeviceStatus = status;
+
+    private void OnSettingsPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        // Device compatibility properties are forwarded by DeviceController.
+        if (e.PropertyName is not nameof(DisplayProtocol) and not nameof(DisplayColorMode)
+            and not nameof(ShowAdvancedSensors))
+            RaisePropertyChanged(e.PropertyName);
     }
 
     private void NewTheme()
@@ -982,37 +850,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         AddWidgetToCanvas(option.Type, option.DataSource);
     }
 
-    private void AddWidgetToCanvas(WidgetType type, string? dataSource)
-    {
-        var widget = NewWidget(type);
-        if (!string.IsNullOrWhiteSpace(dataSource))
-        {
-            widget.DataSource = dataSource;
-            ApplyDataSourceDefaults(widget);
-            widget.Name = FriendlyLabel(dataSource);
-        }
-        Document.EditorWidgets.Insert(0, widget);
-        NormalizeZIndices();
-        SelectedWidget = widget;
-        MarkDirtyAndRefresh();
-    }
+    private void AddWidgetToCanvas(WidgetType type, string? dataSource) => _editor.AddWidgetToCanvas(type, dataSource);
 
-    private WidgetModel NewWidget(WidgetType type)
-    {
-        var centerX = Math.Max(8, Document.CanvasWidth / 2.0 - 70);
-        var centerY = Math.Max(8, Document.CanvasHeight / 2.0 - 40);
-        return type switch
-        {
-            WidgetType.Text => new WidgetModel { Type = type, Name = "Text", Label = "Text", Width = 140, Height = 45, X = centerX, Y = centerY, FontSize = 24, Suffix = "" },
-            WidgetType.Value => new WidgetModel { Type = type, Name = "Value", Label = "CPU", DataSource = "CPU.Usage", Width = 130, Height = 70, X = centerX, Y = centerY, FontSize = 30 },
-            WidgetType.CircularGauge => new WidgetModel { Type = type, Name = "Circular gauge", Label = "CPU Usage", DataSource = "CPU.Usage", Width = 110, Height = 110, X = centerX, Y = centerY, FontSize = 26 },
-            WidgetType.AnalogClock => new WidgetModel { Type = type, Name = "Traditional clock", Label = "Clock", DataSource = "Clock.Time", Width = 120, Height = 120, X = centerX, Y = centerY, FontSize = 18, ShowLabel = false, ShowValue = false },
-            WidgetType.BarGauge => new WidgetModel { Type = type, Name = "Bar gauge", Label = "RAM Usage", DataSource = "RAM.Usage", Width = 180, Height = 62, X = centerX, Y = centerY, FontSize = 22, SegmentCount = 18 },
-            WidgetType.Graph => new WidgetModel { Type = type, Name = "Graph", Label = "GPU TEMP", DataSource = "GPU.Temperature", Width = 210, Height = 95, X = centerX, Y = centerY, FontSize = 22, Suffix = "°C", SimulatedValue = 52, Maximum = 100, GraphStyle = GraphStyle.Blocks },
-            WidgetType.Shape => new WidgetModel { Type = type, Name = "Shape", Width = 160, Height = 80, X = centerX, Y = centerY, BackgroundColor = "#301A1E26", AccentColor = "#FF67717F" },
-            _ => new WidgetModel { Type = type, Name = type.ToString(), Width = 200, Height = 120, X = centerX, Y = centerY }
-        };
-    }
+    private WidgetModel NewWidget(WidgetType type) => _editor.NewWidget(type);
 
     private void ImportMedia(ThemeAssetKind kind)
     {
@@ -1056,308 +896,39 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    private void AddPhotos()
-    {
-        var files = _dialogs.OpenImages();
-        if (files.Length > 0)
-            AddPhotoFiles(files);
-    }
+    private void AddPhotos() => _photos.AddPhotos();
 
-    private void AddPhotoFolder()
-    {
-        var folder = _dialogs.OpenFolder();
-        if (string.IsNullOrWhiteSpace(folder)) return;
-        AddPhotoFiles(GetPhotoFiles(folder));
-    }
+    private void AddPhotoFolder() => _photos.AddPhotoFolder();
 
-    public void AddPhotoFiles(IEnumerable<string> files)
-    {
-        var added = new List<PhotoFrameItem>();
-        foreach (var path in files.Where(IsSupportedPhoto).Distinct(StringComparer.OrdinalIgnoreCase))
-        {
-            try
-            {
-                var fullPath = Path.GetFullPath(path);
-                if (!File.Exists(fullPath)) continue;
-                if (Document.PhotoFrame.Photos.Any(p => p.AssetId is null && string.Equals(Path.GetFullPath(p.SourcePath), fullPath, StringComparison.OrdinalIgnoreCase)))
-                    continue;
+    public void AddPhotoFiles(IEnumerable<string> files) => _photos.AddPhotoFiles(files);
 
-                var item = new PhotoFrameItem { SourcePath = fullPath };
-                PhotoMetadataService.Populate(item, fullPath);
-                Document.PhotoFrame.Photos.Add(item);
-                added.Add(item);
-            }
-            catch (Exception ex)
-            {
-                DeviceStatus = $"Skipped photo: {Path.GetFileName(path)} ({ex.Message})";
-            }
-        }
+    private void RemoveSelectedPhoto() => _photos.RemoveSelectedPhoto();
 
-        if (added.Count == 0) return;
-        SelectedPhoto = added[0];
-        if (Document.PhotoFrame.Photos.Count == added.Count)
-            SetCurrentPhoto(0, manual: true);
-        MarkDirtyAndRefresh();
-        RaisePhotoCommandStates();
-    }
+    public void MovePhoto(PhotoFrameItem source, PhotoFrameItem target) => _photos.MovePhoto(source, target);
 
-    private void RemoveSelectedPhoto()
-    {
-        var photo = SelectedPhoto;
-        if (photo is null) return;
-        var current = Document.PhotoFrame.Photos.ElementAtOrDefault(Document.PhotoFrame.RuntimeCurrentIndex);
-        var index = Document.PhotoFrame.Photos.IndexOf(photo);
-        Document.PhotoFrame.Photos.Remove(photo);
-        if (photo.AssetId is Guid assetId && !Document.PhotoFrame.Photos.Any(p => p.AssetId == assetId) && !AllWidgets.Any(w => w.AssetId == assetId))
-        {
-            var asset = Document.Assets.FirstOrDefault(a => a.Id == assetId);
-            if (asset is not null) Document.Assets.Remove(asset);
-        }
-        SelectedPhoto = Document.PhotoFrame.Photos.Count == 0
-            ? null
-            : Document.PhotoFrame.Photos[Math.Min(index, Document.PhotoFrame.Photos.Count - 1)];
-        Document.PhotoFrame.RuntimeCurrentIndex = current is not null && !ReferenceEquals(current, photo)
-            ? Math.Max(0, Document.PhotoFrame.Photos.IndexOf(current))
-            : Math.Clamp(index, 0, Math.Max(0, Document.PhotoFrame.Photos.Count - 1));
-        Document.PhotoFrame.RuntimePreviousIndex = -1;
-        MarkDirtyAndRefresh();
-        RaisePhotoCommandStates();
-    }
+    public void PreviousPhoto() => _photos.PreviousPhoto();
 
-    public void MovePhoto(PhotoFrameItem source, PhotoFrameItem target)
-    {
-        var current = Document.PhotoFrame.Photos.ElementAtOrDefault(Document.PhotoFrame.RuntimeCurrentIndex);
-        var previous = Document.PhotoFrame.Photos.ElementAtOrDefault(Document.PhotoFrame.RuntimePreviousIndex);
-        var oldIndex = Document.PhotoFrame.Photos.IndexOf(source);
-        var newIndex = Document.PhotoFrame.Photos.IndexOf(target);
-        if (oldIndex < 0 || newIndex < 0 || oldIndex == newIndex) return;
-        Document.PhotoFrame.Photos.Move(oldIndex, newIndex);
-        Document.PhotoFrame.RuntimeCurrentIndex = current is null ? 0 : Document.PhotoFrame.Photos.IndexOf(current);
-        Document.PhotoFrame.RuntimePreviousIndex = previous is null ? -1 : Document.PhotoFrame.Photos.IndexOf(previous);
-        SelectedPhoto = source;
-        MarkDirtyAndRefresh();
-        RaisePropertyChanged(nameof(PhotoPositionLabel));
-    }
+    public void NextPhoto() => _photos.NextPhoto();
 
-    public void PreviousPhoto() => MovePhotoBy(-1);
-    public void NextPhoto() => MovePhotoBy(1);
+    public void TogglePhotoPlayback() => _photos.TogglePhotoPlayback();
 
-    private void MovePhotoBy(int direction)
-    {
-        var count = Document.PhotoFrame.Photos.Count;
-        if (count == 0) return;
-        var next = (Document.PhotoFrame.RuntimeCurrentIndex + direction + count) % count;
-        SetCurrentPhoto(next, manual: true);
-    }
+    private void SaveAlbumPreset() => _photos.SaveAlbumPreset();
 
-    public void TogglePhotoPlayback()
-    {
-        _isPhotoPlaying = !_isPhotoPlaying;
-        _appSettings.PhotoFramePlaying = _isPhotoPlaying;
-        _settingsService.Save(_appSettings);
-        _photoStartedAt = DateTimeOffset.UtcNow;
-        RaisePropertyChanged(nameof(IsPhotoPlaying));
-        RaisePropertyChanged(nameof(PhotoPlaybackLabel));
-        ThemeChanged?.Invoke(this, EventArgs.Empty);
-    }
+    private void LoadAlbumPreset() => _photos.LoadAlbumPreset();
 
-    private void SaveAlbumPreset()
-    {
-        var path = _dialogs.SaveAlbumPreset(Document.Name + " album");
-        if (path is null) return;
-        try
-        {
-            _photoAlbumPresetService.Save(Workspace, path);
-            DeviceStatus = "Album preset saved";
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show(ex.Message, "Could not save album preset", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
+    private void ChooseWatchedFolder() => _photos.ChooseWatchedFolder();
 
-    private void LoadAlbumPreset()
-    {
-        var path = _dialogs.OpenAlbumPreset();
-        if (path is null) return;
-        try
-        {
-            ReplacePhotoFrameSettings(_photoAlbumPresetService.Load(path));
-            DeviceStatus = "Album preset loaded";
-            MarkDirtyAndRefresh();
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show(ex.Message, "Could not load album preset", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
+    private static bool IsSupportedPhoto(string path) => PhotoPlaybackController.IsSupportedPhoto(path);
 
-    private void ChooseWatchedFolder()
-    {
-        var folder = _dialogs.OpenFolder();
-        if (folder is null) return;
-        Document.PhotoFrame.WatchedFolder = folder;
-        Document.PhotoFrame.WatchFolderEnabled = true;
-        AddPhotoFiles(GetPhotoFiles(folder));
-        ConfigurePhotoFolderWatcher();
-    }
+    private void InitializePhotoFrameRuntime() => _photos.InitializePhotoFrameRuntime();
 
-    private static IEnumerable<string> GetPhotoFiles(string folder)
-        => Directory.Exists(folder)
-            ? Directory.EnumerateFiles(folder, "*.*", SearchOption.AllDirectories).Where(IsSupportedPhoto).OrderBy(Path.GetFileName)
-            : [];
+    private bool UpdatePhotoPlayback() => _photos.UpdatePhotoPlayback();
 
-    private static bool IsSupportedPhoto(string path)
-        => Path.GetExtension(path).ToLowerInvariant() is ".png" or ".jpg" or ".jpeg" or ".webp" or ".bmp";
+    private void SetCurrentPhoto(int index, bool manual) => _photos.SetCurrentPhoto(index, manual);
 
-    private void InitializePhotoFrameRuntime()
-    {
-        var settings = Document.PhotoFrame;
-        settings.EmbedImportedPhotos = false;
-        settings.BackgroundMode = PhotoBackgroundMode.SolidColor;
-        if (settings.Transition == PhotoTransition.KenBurns)
-            settings.Transition = PhotoTransition.Crossfade;
-        settings.RuntimeCurrentIndex = Math.Clamp(_appSettings.LastPhotoIndex, 0, Math.Max(0, settings.Photos.Count - 1));
-        settings.RuntimePreviousIndex = -1;
-        settings.RuntimeTransitionProgress = 1;
-        settings.RuntimePhotoProgress = 0;
-        settings.RuntimeTransition = ResolveTransition();
-        _photoStartedAt = DateTimeOffset.UtcNow;
-        _photoTransitionStartedAt = _photoStartedAt;
-        SelectedPhoto = settings.Photos.ElementAtOrDefault(settings.RuntimeCurrentIndex);
-        UpdateEffectiveScreenMode(force: true);
-        ConfigurePhotoFolderWatcher();
-        PreloadUpcomingPhoto();
-        RaisePhotoCommandStates();
-    }
+    private bool UpdateEffectiveScreenMode(bool force = false) => _photos.UpdateEffectiveScreenMode(force);
 
-    private bool UpdatePhotoPlayback()
-    {
-        var settings = Document.PhotoFrame;
-        if (settings.Photos.Count == 0) return false;
-        var now = DateTimeOffset.UtcNow;
-        var duration = TimeSpan.FromSeconds(settings.DefaultDurationSeconds);
-        var elapsed = now - _photoStartedAt;
-
-        if (_isPhotoPlaying && elapsed >= duration)
-        {
-            if (!settings.Loop && !settings.Shuffle && settings.RuntimeCurrentIndex >= settings.Photos.Count - 1)
-            {
-                _isPhotoPlaying = false;
-                RaisePropertyChanged(nameof(IsPhotoPlaying));
-                RaisePropertyChanged(nameof(PhotoPlaybackLabel));
-            }
-            else
-            {
-                var next = settings.Shuffle && settings.Photos.Count > 1
-                    ? NextRandomPhoto(settings.RuntimeCurrentIndex, settings.Photos.Count)
-                    : (settings.RuntimeCurrentIndex + 1) % settings.Photos.Count;
-                SetCurrentPhoto(next, manual: false);
-                return true;
-            }
-        }
-
-        var transitionDuration = Math.Min(duration.TotalSeconds, settings.TransitionDurationSeconds);
-        settings.RuntimeTransitionProgress = transitionDuration <= 0
-            ? 1
-            : Math.Clamp((now - _photoTransitionStartedAt).TotalSeconds / transitionDuration, 0, 1);
-        settings.RuntimePhotoProgress = duration.TotalSeconds <= 0
-            ? 1
-            : Math.Clamp(elapsed.TotalSeconds / duration.TotalSeconds, 0, 1);
-        return settings.RuntimeTransitionProgress < 1;
-    }
-
-    private void SetCurrentPhoto(int index, bool manual)
-    {
-        var settings = Document.PhotoFrame;
-        if (settings.Photos.Count == 0) return;
-        index = Math.Clamp(index, 0, settings.Photos.Count - 1);
-        settings.RuntimePreviousIndex = settings.RuntimeCurrentIndex;
-        settings.RuntimeCurrentIndex = index;
-        settings.RuntimeTransition = ResolveTransition();
-        settings.RuntimeTransitionProgress = settings.RuntimeTransition == PhotoTransition.Instant ? 1 : 0;
-        settings.RuntimePhotoProgress = 0;
-        _photoStartedAt = DateTimeOffset.UtcNow;
-        _photoTransitionStartedAt = _photoStartedAt;
-        _appSettings.LastPhotoIndex = index;
-        _settingsService.Save(_appSettings);
-        SelectedPhoto = settings.Photos[index];
-        RaisePropertyChanged(nameof(PhotoPositionLabel));
-        ThemeChanged?.Invoke(this, EventArgs.Empty);
-        if (LivePreview) RequestLiveFrame?.Invoke(this, EventArgs.Empty);
-        PreloadUpcomingPhoto();
-    }
-
-    private PhotoTransition ResolveTransition()
-    {
-        var transition = Document.PhotoFrame.Transition;
-        if (transition == PhotoTransition.KenBurns) transition = PhotoTransition.Crossfade;
-        if (transition != PhotoTransition.Random) return transition;
-        var choices = new[] { PhotoTransition.Crossfade, PhotoTransition.Slide, PhotoTransition.Zoom, PhotoTransition.Instant };
-        return choices[_photoRandom.Next(choices.Length)];
-    }
-
-    private int NextRandomPhoto(int current, int count)
-    {
-        var next = _photoRandom.Next(count - 1);
-        return next >= current ? next + 1 : next;
-    }
-
-    private void PreloadUpcomingPhoto()
-    {
-        var settings = Document.PhotoFrame;
-        if (settings.Photos.Count == 0) return;
-        var next = settings.Shuffle && settings.Photos.Count > 1
-            ? NextRandomPhoto(settings.RuntimeCurrentIndex, settings.Photos.Count)
-            : (settings.RuntimeCurrentIndex + 1) % settings.Photos.Count;
-        var workspace = Workspace;
-        var item = settings.Photos[next];
-        _ = Task.Run(() =>
-        {
-            try { ThemeRenderer.PreloadPhoto(workspace, item); } catch { }
-        });
-    }
-
-    private bool UpdateEffectiveScreenMode(bool force = false)
-    {
-        var next = MapRuntimeMode(Document.Mode);
-        if (!force && Document.RuntimeMode == next) return false;
-        Document.RuntimeMode = next;
-        ThemeChanged?.Invoke(this, EventArgs.Empty);
-        if (LivePreview) RequestLiveFrame?.Invoke(this, EventArgs.Empty);
-        return true;
-    }
-
-    private static RuntimeScreenMode MapRuntimeMode(ScreenMode mode)
-        => mode switch
-        {
-            ScreenMode.PhotoFrame => RuntimeScreenMode.PhotoFrame,
-            ScreenMode.Hybrid => RuntimeScreenMode.Hybrid,
-            _ => RuntimeScreenMode.InfoScreen
-        };
-
-    private void ConfigurePhotoFolderWatcher()
-    {
-        _photoFolderWatcher?.Dispose();
-        _photoFolderWatcher = null;
-        var settings = Document.PhotoFrame;
-        if (!settings.WatchFolderEnabled || !Directory.Exists(settings.WatchedFolder)) return;
-
-        _photoFolderWatcher = new FileSystemWatcher(settings.WatchedFolder)
-        {
-            NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
-            IncludeSubdirectories = true,
-            EnableRaisingEvents = true
-        };
-        _photoFolderWatcher.Created += OnWatchedPhotoChanged;
-        _photoFolderWatcher.Renamed += OnWatchedPhotoChanged;
-    }
-
-    private void OnWatchedPhotoChanged(object sender, FileSystemEventArgs e)
-    {
-        if (!IsSupportedPhoto(e.FullPath)) return;
-        Application.Current.Dispatcher.BeginInvoke(() => AddPhotoFiles([e.FullPath]));
-    }
+    private void ConfigurePhotoFolderWatcher() => _photos.ConfigurePhotoFolderWatcher();
 
     private void ReplacePhotoFrameSettings(PhotoFrameSettings settings)
     {
@@ -1406,180 +977,23 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    private void DeleteSelected()
-    {
-        var selected = SelectedWidgets.ToArray();
-        if (selected.Length == 0) return;
-        SelectWidget(null);
-        foreach (var widget in selected)
-            Document.EditorWidgets.Remove(widget);
-        MarkDirty();
-    }
+    private void DeleteSelected() => _editor.DeleteSelected();
 
-    private void DuplicateSelected()
-    {
-        var selected = SelectedWidgets.OrderBy(w => Document.EditorWidgets.IndexOf(w)).ToArray();
-        if (selected.Length == 0) return;
+    private void DuplicateSelected() => _editor.DuplicateSelected();
 
-        var newGroupId = selected.Length > 1 ? Guid.NewGuid() : (Guid?)null;
-        var clones = selected.Select(w => w.Clone()).ToArray();
-        foreach (var clone in clones)
-        {
-            clone.GroupId = newGroupId;
-            Document.EditorWidgets.Insert(0, clone);
-        }
-        NormalizeZIndices();
-        SelectWidget(null);
-        foreach (var clone in clones)
-            clone.IsSelected = true;
-        _selectedWidget = clones.LastOrDefault();
-        RaisePropertyChanged(nameof(SelectedWidget));
-        RaisePropertyChanged(nameof(SelectedWidgets));
-        RaisePropertyChanged(nameof(SelectedWidgetCount));
-        RaisePropertyChanged(nameof(HasMultipleSelection));
-        RaiseCommandStates();
-        MarkDirtyAndRefresh();
-    }
+    private void NudgeSelected(object? parameter) => _editor.NudgeSelected(parameter);
 
-    private void NudgeSelected(object? parameter)
-    {
-        var anchor = SelectedWidget;
-        var widgets = SelectedWidgets.Where(w => !w.IsLocked).ToArray();
-        if (anchor is null || widgets.Length == 0 || parameter is not string instruction)
-            return;
+    private void AlignSelected(object? parameter) => _editor.AlignSelected(parameter);
 
-        var parts = instruction.Split(':');
-        var direction = parts[0];
-        var amount = parts.Length > 1 && double.TryParse(parts[1], out var parsed) ? parsed : 1d;
+    private void GroupSelected() => _editor.GroupSelected();
 
-        var dx = direction == "Left" ? -amount : direction == "Right" ? amount : 0;
-        var dy = direction == "Up" ? -amount : direction == "Down" ? amount : 0;
-        if (Document.SnapToGrid)
-        {
-            var spacing = Math.Clamp(Document.GridSize, 2, 100);
-            if (dx != 0)
-                dx = SnapCoordinate(anchor.X + dx, spacing) - anchor.X;
-            if (dy != 0)
-                dy = SnapCoordinate(anchor.Y + dy, spacing) - anchor.Y;
-        }
+    private void UngroupSelected() => _editor.UngroupSelected();
 
-        var minX = widgets.Min(w => w.X);
-        var maxX = widgets.Max(w => w.X + w.Width);
-        var minY = widgets.Min(w => w.Y);
-        var maxY = widgets.Max(w => w.Y + w.Height);
-        dx = Math.Clamp(dx, -minX, Document.CanvasWidth - maxX);
-        dy = Math.Clamp(dy, -minY, Document.CanvasHeight - maxY);
-        foreach (var widget in widgets)
-        {
-            widget.X += dx;
-            widget.Y += dy;
-        }
+    private void MoveLayer(int delta) => _editor.MoveLayer(delta);
 
-        MarkDirtyAndRefresh();
-    }
+    private void NormalizeZIndices() => _editor.NormalizeZIndices();
 
-    private void AlignSelected(object? parameter)
-    {
-        var widgets = SelectedWidgets.Where(w => !w.IsLocked).ToArray();
-        if (widgets.Length == 0 || parameter is not string alignment)
-            return;
-
-        if (widgets.Length == 1)
-        {
-            var widget = widgets[0];
-            switch (alignment)
-            {
-                case "Left": widget.X = 0; break;
-                case "Center": widget.X = Math.Max(0, (Document.CanvasWidth - widget.Width) / 2); break;
-                case "Right": widget.X = Math.Max(0, Document.CanvasWidth - widget.Width); break;
-                case "Top": widget.Y = 0; break;
-                case "Middle": widget.Y = Math.Max(0, (Document.CanvasHeight - widget.Height) / 2); break;
-                case "Bottom": widget.Y = Math.Max(0, Document.CanvasHeight - widget.Height); break;
-            }
-        }
-        else
-        {
-            var left = widgets.Min(w => w.X);
-            var right = widgets.Max(w => w.X + w.Width);
-            var top = widgets.Min(w => w.Y);
-            var bottom = widgets.Max(w => w.Y + w.Height);
-            foreach (var widget in widgets)
-            {
-                switch (alignment)
-                {
-                    case "Left": widget.X = left; break;
-                    case "Center": widget.X = (left + right - widget.Width) / 2; break;
-                    case "Right": widget.X = right - widget.Width; break;
-                    case "Top": widget.Y = top; break;
-                    case "Middle": widget.Y = (top + bottom - widget.Height) / 2; break;
-                    case "Bottom": widget.Y = bottom - widget.Height; break;
-                }
-            }
-        }
-
-        MarkDirtyAndRefresh();
-    }
-
-    private void GroupSelected()
-    {
-        var selected = SelectedWidgets.ToArray();
-        if (selected.Length < 2) return;
-        var groupId = Guid.NewGuid();
-        foreach (var widget in selected)
-            widget.GroupId = groupId;
-        MarkDirtyAndRefresh();
-        RaiseCommandStates();
-    }
-
-    private void UngroupSelected()
-    {
-        var selected = SelectedWidgets.ToArray();
-        if (selected.Length == 0) return;
-        foreach (var widget in selected)
-            widget.GroupId = null;
-        MarkDirtyAndRefresh();
-        RaiseCommandStates();
-    }
-
-    private static double SnapCoordinate(double value, double spacing)
-        => Math.Round(value / spacing, MidpointRounding.AwayFromZero) * spacing;
-
-    private void MoveLayer(int delta)
-    {
-        if (SelectedWidget is null) return;
-
-        var current = Document.EditorWidgets.IndexOf(SelectedWidget);
-        if (current < 0) return;
-
-        var target = Math.Clamp(current - delta, 0, Document.EditorWidgets.Count - 1);
-        if (target == current) return;
-
-        Document.EditorWidgets.Move(current, target);
-        NormalizeZIndices();
-        MarkDirtyAndRefresh();
-    }
-
-    private void NormalizeZIndices()
-    {
-        for (var i = 0; i < Document.EditorWidgets.Count; i++)
-            Document.EditorWidgets[i].ZIndex = Document.EditorWidgets.Count - 1 - i;
-    }
-
-    private void ToggleOrientation()
-    {
-        var oldW = Document.CanvasWidth;
-        var oldH = Document.CanvasHeight;
-        Document.Orientation = Document.Orientation == ThemeOrientation.Landscape ? ThemeOrientation.Portrait : ThemeOrientation.Landscape;
-        var scaleX = Document.CanvasWidth / (double)oldW;
-        var scaleY = Document.CanvasHeight / (double)oldH;
-        foreach (var w in AllWidgets)
-        {
-            w.X *= scaleX; w.Y *= scaleY;
-            w.Width = Math.Min(Document.CanvasWidth - w.X, w.Width * scaleX);
-            w.Height = Math.Min(Document.CanvasHeight - w.Y, w.Height * scaleY);
-        }
-        MarkDirtyAndRefresh();
-    }
+    private void ToggleOrientation() => _editor.ToggleOrientation();
 
     private void RotateDevice()
     {
@@ -1590,59 +1004,19 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             DeviceRotation.Degrees180 => DeviceRotation.Degrees270,
             _ => DeviceRotation.Degrees0
         };
-        if (_deviceService.IsConnected)
+        if (_device.IsConnected)
             _ = ApplyDeviceOrientationAsync();
 
         MarkDirtyAndRefresh();
     }
 
-    private void RefreshPorts()
-    {
-        var previous = SelectedPort;
-        Ports.Clear();
+    private void RefreshPorts() => _device.RefreshPorts();
 
-        foreach (var port in _serialDiscovery.Discover())
-            Ports.Add(port);
-
-        if (!string.IsNullOrWhiteSpace(previous) &&
-            Ports.Any(p => p.PortName.Equals(previous, StringComparison.OrdinalIgnoreCase)))
-        {
-            SelectedPort = previous;
-        }
-        else
-        {
-            SelectedPort = Ports.FirstOrDefault(p => p.IsLikelyScreen)?.PortName
-                ?? Ports.FirstOrDefault()?.PortName;
-        }
-    }
-
-    private void DetectScreen()
-    {
-        RefreshPorts();
-
-        var candidate = Ports.FirstOrDefault(p => p.IsLikelyScreen);
-        if (candidate is not null)
-        {
-            SelectedPort = candidate.PortName;
-            DeviceStatus = $"Likely screen detected: {candidate.DisplayName}";
-            return;
-        }
-
-        if (Ports.Count == 1)
-        {
-            SelectedPort = Ports[0].PortName;
-            DeviceStatus = $"One serial device found: {Ports[0].DisplayName}";
-            return;
-        }
-
-        DeviceStatus = Ports.Count == 0
-            ? "No serial screen/COM device detected."
-            : "No screen could be identified automatically. Choose the USB serial device from the list.";
-    }
+    private void DetectScreen() => _device.DetectScreen();
 
     private async Task DetectAndConnectFirstRunAsync()
     {
-        if (_deviceService.IsConnected)
+        if (_device.IsConnected)
         {
             FirstRunStatus = "Screen is connected. Choose a mode and finish setup.";
             return;
@@ -1657,7 +1031,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         FirstRunStatus = $"Screen found on {SelectedPort}. Connecting…";
         await ConnectOrDisconnectAsync();
-        FirstRunStatus = _deviceService.IsConnected
+        FirstRunStatus = _device.IsConnected
             ? "Screen connected. Choose a mode and finish setup."
             : "The screen could not be connected. You can finish setup and retry from Device Settings.";
     }
@@ -1669,100 +1043,23 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         else
             CreateBlankLayout();
 
-        _appSettings.FirstRunCompleted = true;
-        _settingsService.Save(_appSettings);
+        _settings.FirstRunCompleted = true;
         IsFirstRunVisible = false;
     }
 
     private void ShowSetupAssistant()
     {
-        FirstRunStatus = _deviceService.IsConnected
+        FirstRunStatus = _device.IsConnected
             ? "Screen is connected. Review the mode and starting layout."
             : "Connect your screen now, or finish setup and connect later.";
         IsFirstRunVisible = true;
     }
 
-    private async Task ConnectOrDisconnectAsync()
-    {
-        if (IsDeviceBusy) return;
-
-        if (_deviceService.IsConnected)
-        {
-            IsDeviceBusy = true;
-            DeviceStatus = "Stopping display...";
-            LivePreview = false;
-            try
-            {
-                await _deviceService.DisconnectAsync();
-                DeviceStatus = "Display stopped";
-            }
-            catch (Exception ex)
-            {
-                DeviceStatus = "Disconnect error: " + ex.Message;
-            }
-            finally
-            {
-                IsDeviceBusy = false;
-                RaisePropertyChanged(nameof(DisplayActionLabel));
-                BenchmarkCommand.RaiseCanExecuteChanged();
-            }
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(SelectedPort))
-            DetectScreen();
-
-        if (string.IsNullOrWhiteSpace(SelectedPort))
-        {
-            MessageBox.Show("No compatible serial display was found.", "Start display", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-
-        IsDeviceBusy = true;
-        DeviceStatus = $"Connecting to {SelectedPort}...";
-        try
-        {
-            var deviceInfo = Ports.FirstOrDefault(p =>
-                p.PortName.Equals(SelectedPort, StringComparison.OrdinalIgnoreCase));
-
-            await _deviceService.ConnectAsync(
-                SelectedPort,
-                Document.Orientation,
-                Document.DeviceRotation,
-                DisplayProtocol,
-                DisplayColorMode,
-                deviceInfo);
-
-            LivePreview = true;
-            DeviceStatus = BuildConnectionStatus();
-            RaisePropertyChanged(nameof(DisplayActionLabel));
-            RequestLiveFrame?.Invoke(this, EventArgs.Empty);
-        }
-        catch (UnauthorizedAccessException)
-        {
-            DeviceStatus = "Connection failed: port is in use";
-            MessageBox.Show(
-                $"{SelectedPort} is already in use by another program.\n\nClose the original screen software (including its tray icon), a serial monitor, or any other program using this COM port, then try again.",
-                "Could not connect display",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
-        }
-        catch (Exception ex)
-        {
-            DeviceStatus = "Connection failed";
-            MessageBox.Show(ex.Message, "Could not connect display", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-        finally
-        {
-            IsDeviceBusy = false;
-            RaisePropertyChanged(nameof(DisplayActionLabel));
-            BenchmarkCommand.RaiseCanExecuteChanged();
-        }
-    }
+    private Task ConnectOrDisconnectAsync() => _device.ConnectOrDisconnectAsync();
 
     public void StartAutoDisplayIfEnabled()
     {
-        if (!AutoStartDisplay || _deviceService.IsConnected || IsDeviceBusy)
+        if (!AutoStartDisplay || _device.IsConnected || IsDeviceBusy)
             return;
 
         DetectScreen();
@@ -1770,121 +1067,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             _ = ConnectOrDisconnectAsync();
     }
 
-    private async Task TestScreenAsync()
-    {
-        if (IsDeviceBusy) return;
+    private Task TestScreenAsync() => _device.TestScreenAsync();
 
-        IsDeviceBusy = true;
-        _suspendLiveDisplayUntil = DateTimeOffset.UtcNow.AddSeconds(8);
-        DeviceStatus = "Sending display color test...";
-        try
-        {
-            await _deviceService.TestPatternAsync();
-            DeviceStatus = "Color test visible for 8 seconds. Expected: red · green · blue · cyan · magenta · yellow.";
-            _ = ResumeLiveDisplayAfterDiagnosticAsync();
-        }
-        catch (Exception ex)
-        {
-            DeviceStatus = "Screen test failed";
-            MessageBox.Show(ex.Message, "Screen test failed", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-        finally
-        {
-            IsDeviceBusy = false;
-        }
-    }
+    private Task ApplyDisplayCompatibilityAsync() => _device.ApplyDisplayCompatibilityAsync();
 
-    private async Task ResumeLiveDisplayAfterDiagnosticAsync()
-    {
-        try
-        {
-            var delay = _suspendLiveDisplayUntil - DateTimeOffset.UtcNow;
-            if (delay > TimeSpan.Zero)
-                await Task.Delay(delay);
+    private Task ApplyDeviceOrientationAsync() => _device.ApplyDeviceOrientationAsync();
 
-            if (LivePreview && _deviceService.IsConnected)
-                await Application.Current.Dispatcher.InvokeAsync(() => RequestLiveFrame?.Invoke(this, EventArgs.Empty));
-        }
-        catch
-        {
-            // Diagnostic display restoration is best-effort.
-        }
-    }
-
-    private async Task ApplyDisplayCompatibilityAsync()
-    {
-        if (!_deviceService.IsConnected || IsDeviceBusy)
-            return;
-
-        IsDeviceBusy = true;
-        DeviceStatus = "Applying display compatibility settings...";
-        try
-        {
-            var deviceInfo = Ports.FirstOrDefault(p =>
-                string.Equals(p.PortName, _deviceService.ConnectedPort, StringComparison.OrdinalIgnoreCase));
-
-            await _deviceService.ApplyCompatibilityAsync(
-                DisplayProtocol,
-                DisplayColorMode,
-                deviceInfo,
-                Document.Orientation,
-                Document.DeviceRotation);
-
-            DeviceStatus = BuildConnectionStatus();
-
-            if (LivePreview)
-                RequestLiveFrame?.Invoke(this, EventArgs.Empty);
-        }
-        catch (Exception ex)
-        {
-            DeviceStatus = "Display compatibility error: " + ex.Message;
-        }
-        finally
-        {
-            IsDeviceBusy = false;
-        }
-    }
-
-    private async Task ApplyDeviceOrientationAsync()
-    {
-        try
-        {
-            await _deviceService.ApplyOrientationAsync(Document.Orientation, Document.DeviceRotation);
-            if (LivePreview)
-                RequestLiveFrame?.Invoke(this, EventArgs.Empty);
-        }
-        catch (Exception ex)
-        {
-            DeviceStatus = "Rotation error: " + ex.Message;
-        }
-    }
-
-    private string BuildConnectionStatus()
-        => $"Connected: {_deviceService.ConnectedModel ?? "screen"} on {_deviceService.ConnectedPort} " +
-           $"@ {_deviceService.ConnectedBaudRate ?? 0} baud · {_deviceService.ConnectedProtocol} · {_deviceService.ConnectedColorMode}";
-
-    private async Task RunBenchmarkAsync()
-    {
-        if (IsDeviceBusy) return;
-
-        IsDeviceBusy = true;
-        DeviceStatus = "Benchmarking display...";
-        try
-        {
-            await _deviceService.RunBenchmarkAsync();
-            DeviceStatus = $"Connected: {_deviceService.ConnectedPort}";
-            MessageBox.Show("The driver benchmark completed.", "Benchmark", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-        catch (Exception ex)
-        {
-            DeviceStatus = "Benchmark failed";
-            MessageBox.Show(ex.Message, "Benchmark failed", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-        finally
-        {
-            IsDeviceBusy = false;
-        }
-    }
+    private Task RunBenchmarkAsync() => _device.RunBenchmarkAsync();
 
     private void RefreshThemes()
     {
@@ -2223,7 +1412,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
         MarkDirtyAndRefresh();
 
-        if (_deviceService.IsConnected &&
+        if (_device.IsConnected &&
             e.PropertyName is nameof(ThemeDocument.Orientation) or nameof(ThemeDocument.DeviceRotation))
         {
             _ = ApplyDeviceOrientationAsync();
@@ -2275,174 +1464,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         MarkDirtyAndRefresh();
     }
 
-    private static void ApplyDataSourceDefaults(WidgetModel widget)
-    {
-        var source = widget.DataSource ?? string.Empty;
-        widget.Label = FriendlyLabel(source);
-        if (source.StartsWith("Clock.", StringComparison.OrdinalIgnoreCase) ||
-            source is "Weather.Condition" or "Weather.Location" or "Weather.DayNight" or
-                "Weather.TodayCondition" or "Weather.Sunrise" or "Weather.Sunset")
-        {
-            widget.Suffix = string.Empty;
-            return;
-        }
+    private static void ApplyDataSourceDefaults(WidgetModel widget) => EditorController.ApplyDataSourceDefaults(widget);
 
-        if (source.Equals("Weather.WindDirection", StringComparison.OrdinalIgnoreCase))
-        {
-            widget.Suffix = "°"; widget.Minimum = 0; widget.Maximum = 360; return;
-        }
+    private static string FriendlyLabel(string source) => EditorController.FriendlyLabel(source);
 
-        if (source.Equals("Weather.Wind", StringComparison.OrdinalIgnoreCase) ||
-            source.Equals("Weather.WindGust", StringComparison.OrdinalIgnoreCase))
-        {
-            widget.Suffix = " km/h"; widget.Minimum = 0; widget.Maximum = Math.Max(150, widget.Maximum); return;
-        }
-
-        if (source.Equals("Weather.Pressure", StringComparison.OrdinalIgnoreCase))
-        {
-            widget.Suffix = " hPa"; widget.Minimum = 900; widget.Maximum = 1100; return;
-        }
-
-        if (source.Equals("Weather.Precipitation", StringComparison.OrdinalIgnoreCase))
-        {
-            widget.Suffix = " mm"; widget.Minimum = 0; widget.Maximum = Math.Max(50, widget.Maximum); return;
-        }
-
-        if (source.Equals("Weather.Humidity", StringComparison.OrdinalIgnoreCase) ||
-            source.Equals("Weather.CloudCover", StringComparison.OrdinalIgnoreCase) ||
-            source.Equals("Weather.PrecipitationChance", StringComparison.OrdinalIgnoreCase))
-        {
-            widget.Suffix = "%"; widget.Minimum = 0; widget.Maximum = 100; return;
-        }
-
-        if (IsTemperatureSource(source))
-        {
-            widget.Suffix = RegionalFormatService.TemperatureSuffix;
-            widget.Minimum = RegionalFormatService.UsesFahrenheit ? 20 : -10;
-            widget.Maximum = RegionalFormatService.UsesFahrenheit ? 230 : 110;
-            return;
-        }
-        if (source.EndsWith("Usage", StringComparison.OrdinalIgnoreCase) || source.EndsWith("VRAM", StringComparison.OrdinalIgnoreCase))
-        {
-            widget.Suffix = "%"; widget.Minimum = 0; widget.Maximum = 100; return;
-        }
-        if (source is "GPU.VRAMUsed" or "GPU.VRAMTotal")
-        {
-            widget.Suffix = " MB"; widget.Minimum = 0; widget.Maximum = Math.Max(16384, widget.Maximum); return;
-        }
-        if (source.EndsWith("GB", StringComparison.OrdinalIgnoreCase))
-        {
-            widget.Suffix = " GB"; widget.Minimum = 0; widget.Maximum = Math.Max(64, widget.Maximum); return;
-        }
-        if (source.Contains("Network.", StringComparison.OrdinalIgnoreCase) || source.EndsWith("Read", StringComparison.OrdinalIgnoreCase) || source.EndsWith("Write", StringComparison.OrdinalIgnoreCase))
-        {
-            widget.Suffix = " MB/s"; widget.Minimum = 0; widget.Maximum = Math.Max(100, widget.Maximum); return;
-        }
-        if (source.Contains("FanRPM", StringComparison.OrdinalIgnoreCase) ||
-            source.Contains("PumpRPM", StringComparison.OrdinalIgnoreCase) ||
-            source.Contains("[Fan]", StringComparison.OrdinalIgnoreCase))
-        {
-            widget.Suffix = " RPM"; widget.Minimum = 0; widget.Maximum = Math.Max(5000, widget.Maximum); return;
-        }
-        if (source.EndsWith("Power", StringComparison.OrdinalIgnoreCase) ||
-            source.Contains("[Power]", StringComparison.OrdinalIgnoreCase))
-        {
-            widget.Suffix = " W"; widget.Minimum = 0; widget.Maximum = Math.Max(400, widget.Maximum); return;
-        }
-        if (source.EndsWith("Clock", StringComparison.OrdinalIgnoreCase) ||
-            source.Contains("[Clock]", StringComparison.OrdinalIgnoreCase))
-        {
-            widget.Suffix = " MHz"; widget.Minimum = 0; widget.Maximum = Math.Max(6000, widget.Maximum); return;
-        }
-        if (source.Contains("[Load]", StringComparison.OrdinalIgnoreCase) ||
-            source.Contains("[Usage]", StringComparison.OrdinalIgnoreCase))
-        {
-            widget.Suffix = "%"; widget.Minimum = 0; widget.Maximum = 100;
-        }
-    }
-
-    private static string FriendlyLabel(string source)
-    {
-        if (source.StartsWith("Sensor: ", StringComparison.OrdinalIgnoreCase))
-        {
-            var body = source["Sensor: ".Length..];
-            var parts = body.Split(" / ", StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length >= 3)
-            {
-                var sensor = parts[^1];
-                var bracket = sensor.LastIndexOf(" [", StringComparison.Ordinal);
-                return bracket > 0 ? sensor[..bracket] : sensor;
-            }
-
-            return body;
-        }
-
-        return source switch
-        {
-            "Preview.Value" => "Value",
-            "CPU.Usage" => "CPU Usage",
-            "CPU.Temperature" => "CPU Temp",
-            "CPU.Power" => "CPU Power",
-            "CPU.Clock" => "CPU Clock",
-            "GPU.Usage" => "GPU Usage",
-            "GPU.Temperature" => "GPU Temp",
-            "GPU.Hotspot" => "GPU Hotspot",
-            "GPU.VRAM" => "VRAM",
-            "GPU.VRAMUsed" => "VRAM Used",
-            "GPU.VRAMTotal" => "VRAM Total",
-            "GPU.Power" => "GPU Power",
-            "GPU.FanRPM" => "GPU Fan",
-            "RAM.Usage" => "RAM Usage",
-            "RAM.UsedGB" => "RAM Used",
-            "RAM.AvailableGB" => "RAM Available",
-            "RAM.TotalGB" => "RAM Total",
-            "Disk.Usage" => "Disk Usage",
-            "Disk.FreeGB" => "Disk Free",
-            "Disk.Temperature" => "Disk Temp",
-            "Disk.Read" => "Disk Read",
-            "Disk.Write" => "Disk Write",
-            "Network.Download" => "Download",
-            "Network.Upload" => "Upload",
-            "Cooling.FanRPM" => "Fan",
-            "Cooling.Fan1RPM" => "Fan 1",
-            "Cooling.Fan2RPM" => "Fan 2",
-            "Cooling.Fan3RPM" => "Fan 3",
-            "Cooling.Fan4RPM" => "Fan 4",
-            "Cooling.Fan5RPM" => "Fan 5",
-            "Cooling.Fan6RPM" => "Fan 6",
-            "Cooling.PumpRPM" => "Pump",
-            "Weather.Temperature" => "Temperature",
-            "Weather.FeelsLike" => "Feels Like",
-            "Weather.Humidity" => "Humidity",
-            "Weather.Wind" => "Wind",
-            "Weather.WindDirection" => "Wind Direction",
-            "Weather.WindGust" => "Wind Gust",
-            "Weather.Condition" => "Condition",
-            "Weather.Location" => "Location",
-            "Weather.Precipitation" => "Precipitation",
-            "Weather.PrecipitationChance" => "Rain Chance",
-            "Weather.CloudCover" => "Cloud Cover",
-            "Weather.Pressure" => "Pressure",
-            "Weather.DayNight" => "Day / Night",
-            "Weather.TodayHigh" => "Today's High",
-            "Weather.TodayLow" => "Today's Low",
-            "Weather.TodayCondition" => "Today's Weather",
-            "Weather.Sunrise" => "Sunrise",
-            "Weather.Sunset" => "Sunset",
-            "Clock.Time" => "Time",
-            "Clock.Date" => "Date",
-            "Clock.Day" => "Day",
-            _ => source.Replace('.', ' ')
-        };
-    }
-
-    private static bool IsTemperatureSource(string source)
-        => source.Contains("Temperature", StringComparison.OrdinalIgnoreCase) ||
-           source.Contains("Hotspot", StringComparison.OrdinalIgnoreCase) ||
-           (source.Contains("[Temperature]", StringComparison.OrdinalIgnoreCase) || source.Contains("[Temp]", StringComparison.OrdinalIgnoreCase)) ||
-           source.Equals("Weather.FeelsLike", StringComparison.OrdinalIgnoreCase) ||
-           source.Equals("Weather.TodayHigh", StringComparison.OrdinalIgnoreCase) ||
-           source.Equals("Weather.TodayLow", StringComparison.OrdinalIgnoreCase);
+    private static bool IsTemperatureSource(string source) => EditorController.IsTemperatureSource(source);
 
     private static MetricValue ApplyRegionalFormat(string source, MetricValue value)
     {
@@ -2560,8 +1586,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private async Task UpdateWeatherAsync()
     {
         WeatherCity = WeatherCity.Trim();
-        _appSettings.WeatherCity = WeatherCity;
-        _settingsService.Save(_appSettings);
+        _settings.WeatherCity = WeatherCity;
 
         if (string.IsNullOrWhiteSpace(WeatherCity))
         {
@@ -3008,8 +2033,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         return result == MessageBoxResult.Yes;
     }
 
-    private sealed record PendingDisplayFrame(SkiaSharp.SKBitmap Bitmap, DeviceRotation Rotation);
-
     public sealed record RotationOption(string Label, DeviceRotation Value);
     public sealed record ScreenModeOption(string Label, ScreenMode Value);
     public sealed record PhotoCaptionOption(string Label, PhotoCaptionMode Value);
@@ -3029,14 +2052,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         DeleteRecoveryFile();
         _weatherMetrics.Dispose();
         _hardwareMetrics.Dispose();
-        _photoFolderWatcher?.Dispose();
-        lock (_frameQueueSync)
-        {
-            _pendingFrame?.Bitmap.Dispose();
-            _pendingFrame = null;
-        }
+        DetachControllers();
+        _photos.Dispose();
         ThemeRenderer.ClearCaches();
-        _deviceService.Dispose();
+        _device.Dispose();
         DetachWorkspace(_workspace);
         _workspace.Dispose();
     }

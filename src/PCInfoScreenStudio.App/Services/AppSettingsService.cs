@@ -5,10 +5,15 @@ namespace PCInfoScreenStudio.Services;
 
 public sealed class AppSettingsService
 {
-    private readonly string _settingsPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "PCInfoScreenStudio",
-        "settings.json");
+    private readonly string _settingsPath;
+
+    public AppSettingsService(string? settingsPath = null)
+    {
+        _settingsPath = settingsPath ?? Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "PCInfoScreenStudio",
+            "settings.json");
+    }
 
     public AppSettings Load()
     {

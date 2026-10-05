@@ -66,7 +66,8 @@ The owner reports approximately **150 MB RAM usage as of 5 October 2026**, repla
 
 ### 2. Reduce maintenance risk without changing the interface
 
-- [ ] Split the large MainViewModel into focused editor, device, photo, and settings responsibilities.
+- [x] First gradual extraction: independent editor, device, photo-playback, and settings controllers, with unchanged UI bindings.
+- [ ] Continue extracting theme-library orchestration, metrics, undo snapshot application, and recovery from the remaining coordinator.
 - [ ] Extract reusable mode-specific UI sections from MainWindow.
 - [ ] Preserve commands, bindings, existing theme compatibility, and undo behaviour during refactoring.
 

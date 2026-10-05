@@ -1,86 +1,66 @@
 # Architecture
 
-## Design principle
+## Responsibility boundaries
 
-The editor preview and the physical screen must share the same renderer. PC Info Screen Studio therefore renders the complete logical theme into a SkiaSharp bitmap first, then either paints that bitmap in the WPF editor or converts it to RGB565 and sends it to the USB display.
+The first gradual refactoring pass keeps the existing WPF binding surface while moving operational state into independent controllers. None of the controllers depends on MainViewModel.
 
-```text
-ThemeDocument + assets + live data
-             |
-             v
-       ThemeRenderer
-             |
-        BGRA bitmap
-          /      \
-         v        v
- WPF preview    RGB565
-                  |
-                  v
-       Tedd.TuringScreen
-                  |
-                  v
-            USB CDC LCD
+| Component | Owns | Collaborators |
+| --- | --- | --- |
+| `MainViewModel` | Existing commands/binding names and cross-feature coordination | Controllers, current workspace, theme/data services |
+| `DeviceController` | Port discovery, connection state, diagnostics, compatibility, and latest-frame send queue | `IDisplayDevice`, settings, current-document accessor |
+| `PhotoPlaybackController` | Linked playlist, selected photo, timing, transitions, navigation, preloading, and folder watcher | Settings, current-workspace accessor, album/file services |
+| `EditorController` | Selection, grouping, movement, alignment guides, layers, duplication/deletion, and widget defaults | Current-document accessor |
+| `SettingsController` | Loaded preferences, change notifications, and preference persistence | `AppSettingsService` |
+| `DeviceService` | Serialized background device I/O and protocol integration | Vendored Tedd.TuringScreen driver |
+
+The coordinator forwards controller property-change notifications and translates controller events into existing command-state updates, dirty/history handling, preview refresh, and frame requests. The XAML and its public binding names are unchanged.
+
+Current workspace/document accessors are deliberately evaluated when an operation runs. Opening a theme, applying an undo snapshot, or switching mode must not leave a controller editing an old document.
+
+## Rendering and output
+
+The editor preview and physical screen share ThemeRenderer. The renderer produces a logical Skia bitmap; the device driver handles conversion, rotation, framebuffer differences, and transmission.
+
+```mermaid
+flowchart TD
+    Theme["Document, assets, live data"] --> Renderer["ThemeRenderer"]
+    Renderer --> Preview["WPF preview"]
+    Renderer --> Queue["DeviceController frame queue"]
+    Queue --> Device["DeviceService / USB display"]
 ```
 
-This prevents the common problem where the editor preview and physical screen render differently.
+The frame queue retains only the latest waiting frame, not an unbounded animation backlog. It owns bitmap copies and releases replaced, sent, and pending-on-disposal copies. DeviceService serializes hardware I/O through its existing gate.
 
-## Projects
+## Photos and lifecycle
 
-### PCInfoScreenStudio.App
+Photo Frame and Hybrid use linked PC files with separate mode-setting presets and playlists. Settings files do not embed photos. Runtime photo progress does not mark a document dirty; playlist and editable-setting changes do.
 
-WPF application containing:
+MainViewModel owns the UI timers and editor/tray lifecycle in this pass. PhotoPlaybackController owns playback timing and folder watching. It accepts an optional clock for deterministic playback checks. DeviceController accepts an IDisplayDevice and a discovery function, so connection and queue behaviour can be checked without USB hardware.
 
-- editor UI
-- theme/document models
-- package loading/saving
-- Skia renderer
-- media/font assets
-- device integration
-- future sensor and weather providers
+Controller subscriptions are explicitly removed during disposal. The photo watcher and pending device frames are released by their owning controller. The current workspace continues to own its extracted temporary assets.
 
-### Tedd.TuringScreen
+## Preferences and compatibility
 
-Vendored MIT-licensed hardware communication layer. It owns serial protocol commands, RGB565 framebuffer diffing, dirty-rectangle transmission and reconnect behavior.
+AppSettingsService preserves the existing settings JSON and migrations. Its optional settings-file path lets checks use an isolated temporary profile, not a user's real preferences. SettingsController does not know about widgets, sensors, or the USB protocol implementation.
 
-## Widget model
+Theme serialization, file extensions, mode folders, imported assets, UI labels, and renderer logic are unchanged by the refactor.
 
-A widget stores layout, styling and binding separately. For example, `GPU.Temperature` can be displayed by a value widget, circular gauge, segmented bar or graph without creating a GPU-specific visual class.
+## Automated workflow checks
 
-This separation is deliberate:
+`tests/PCInfoScreenStudio.ControllerChecks` is a dependency-free Windows console check harness. CI builds it and runs it before publishing.
 
-```text
-Data source: GPU.Temperature
-              |
-              +--> Value
-              +--> CircularGauge
-              +--> BarGauge
-              +--> Graph
+It checks preference persistence/notifications, editor selection/grouping/locking, grid movement, duplication/deletion, alignment guides, Hybrid isolation, current-document replacement, slideshow timing/pause/reorder/end-of-playlist behaviour, connection-state forwarding, and latest-frame queue replacement. The USB boundary uses a fake device; these checks do not prove physical-device compatibility or long-duration reliability.
+
+On Windows with the .NET 10 SDK:
+
+```powershell
+dotnet run --project tests/PCInfoScreenStudio.ControllerChecks/PCInfoScreenStudio.ControllerChecks.csproj -c Release
 ```
 
-## Theme workspace
+## Remaining gradual work
 
-An opened theme is extracted to a private temporary workspace. Assets are referenced by safe relative package paths. When saved, the document and assets are rebuilt into one `.t3theme` archive.
+MainViewModel is reduced from 3,043 lines to approximately 2,062 lines. Theme-library orchestration, live metric coordination, undo snapshot application, and recovery still remain there. Future passes should extract those separately, preserving the current user workflow rather than redesigning the UI during a structural change.
 
-Theme archives never execute code. The loader rejects traversal paths such as `../file`.
+## Projects and licensing
 
-## Media pipeline target
-
-The planned media importer is a pre-processing pipeline, not a per-frame runtime converter:
-
-```text
-User image / GIF / video
-          |
-     visual crop
-          |
- resize to target canvas
-          |
- remove audio (video)
-          |
- temporal/FPS optimization
-          |
- RGB565-aware change analysis
-          |
- optimized theme asset/cache
-```
-
-The application should do expensive media work once when importing or saving rather than repeatedly while the display is running.
+PCInfoScreenStudio.App contains the WPF UI, controllers, models, services, and shared renderer. Tedd.TuringScreen is the vendored MIT-licensed hardware layer; the application is GPL-3.0-or-later. See the root license and third-party notices.

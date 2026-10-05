@@ -6,7 +6,7 @@ using TuringScreenOrientation = Tedd.TuringScreen.ScreenOrientation;
 
 namespace PCInfoScreenStudio.Services;
 
-public sealed class DeviceService : IDisposable
+public sealed class DeviceService : IDisplayDevice
 {
     private readonly SemaphoreSlim _ioGate = new(1, 1);
     private readonly SerialDeviceDiscoveryService _serialDiscovery = new();
