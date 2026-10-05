@@ -6,6 +6,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  actions: write
+  contents: read
+
 jobs:
   windows:
     runs-on: windows-latest
@@ -45,7 +49,6 @@ jobs:
 
           Write-Host "Bundled verified PawnIO 2.2.0 installer: $actual"
 
-
       - name: Smoke test published application
         shell: pwsh
         run: |
@@ -58,6 +61,33 @@ jobs:
             throw "Published application smoke test failed with exit code $($process.ExitCode)."
           }
 
+      - name: Free artifact storage while preserving the newest build
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const artifacts = await github.paginate(
+              github.rest.actions.listArtifactsForRepo,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: 'PCInfoScreenStudio-win-x64',
+                per_page: 100
+              }
+            );
+
+            artifacts.sort(
+              (left, right) => new Date(right.created_at) - new Date(left.created_at)
+            );
+
+            for (const artifact of artifacts.slice(1)) {
+              await github.rest.actions.deleteArtifact({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                artifact_id: artifact.id
+              });
+              core.info(`Deleted old artifact ${artifact.id} from ${artifact.created_at}`);
+            }
+
       - name: Upload self-contained build
         uses: actions/upload-artifact@v7
         with:
@@ -65,3 +95,40 @@ jobs:
           path: .\artifacts\win-x64\
           if-no-files-found: error
           retention-days: 3
+
+      - name: Keep only the build from this workflow run
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const artifacts = await github.paginate(
+              github.rest.actions.listArtifactsForRepo,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: 'PCInfoScreenStudio-win-x64',
+                per_page: 100
+              }
+            );
+
+            const currentRunId = Number(context.runId);
+            const currentArtifact = artifacts.find(
+              artifact => Number(artifact.workflow_run?.id) === currentRunId
+            );
+
+            if (!currentArtifact) {
+              core.setFailed('The artifact uploaded by this workflow run could not be found.');
+              return;
+            }
+
+            for (const artifact of artifacts) {
+              if (artifact.id === currentArtifact.id) {
+                continue;
+              }
+
+              await github.rest.actions.deleteArtifact({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                artifact_id: artifact.id
+              });
+              core.info(`Deleted superseded artifact ${artifact.id} from ${artifact.created_at}`);
+            }
