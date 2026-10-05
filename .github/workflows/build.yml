@@ -80,12 +80,20 @@ jobs:
             );
 
             for (const artifact of artifacts.slice(1)) {
-              await github.rest.actions.deleteArtifact({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                artifact_id: artifact.id
-              });
-              core.info(`Deleted old artifact ${artifact.id} from ${artifact.created_at}`);
+              try {
+                await github.rest.actions.deleteArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id
+                });
+                core.info(`Deleted old artifact ${artifact.id} from ${artifact.created_at}`);
+              } catch (error) {
+                if (error.status === 404) {
+                  core.info(`Artifact ${artifact.id} was already removed`);
+                  continue;
+                }
+                throw error;
+              }
             }
 
       - name: Upload self-contained build
@@ -125,10 +133,18 @@ jobs:
                 continue;
               }
 
-              await github.rest.actions.deleteArtifact({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                artifact_id: artifact.id
-              });
-              core.info(`Deleted superseded artifact ${artifact.id} from ${artifact.created_at}`);
+              try {
+                await github.rest.actions.deleteArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id
+                });
+                core.info(`Deleted superseded artifact ${artifact.id} from ${artifact.created_at}`);
+              } catch (error) {
+                if (error.status === 404) {
+                  core.info(`Artifact ${artifact.id} was already removed`);
+                  continue;
+                }
+                throw error;
+              }
             }
