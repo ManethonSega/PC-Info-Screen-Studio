@@ -27,8 +27,15 @@ public partial class App : Application
 
         try
         {
+            if (SensorStartupService.RequestIfNeeded(new AppSettingsService().Load(), e.Args, out var sensorStartupError))
+            {
+                ShutdownSafely(0);
+                return;
+            }
             MainWindow = new MainWindow();
             MainWindow.Show();
+            if (sensorStartupError is not null)
+                MessageBox.Show(MainWindow, sensorStartupError, "Sensor access", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         catch (Exception ex)
         {

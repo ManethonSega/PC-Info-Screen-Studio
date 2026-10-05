@@ -462,6 +462,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool IsLowLevelSensorDriverInstalled => _hardwareMetrics.IsLowLevelDriverInstalled;
     public bool NeedsFullSensorAccess => !IsHardwareElevated || !IsLowLevelSensorDriverInstalled;
 
+    public bool RequestAdministratorAtStartup
+    {
+        get => _settings.RequestAdministratorAtStartup;
+        set => _settings.RequestAdministratorAtStartup = value;
+    }
+
     public bool LivePreview
     {
         get => _device.LivePreview;

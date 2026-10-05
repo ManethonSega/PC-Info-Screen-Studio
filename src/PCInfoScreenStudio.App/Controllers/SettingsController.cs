@@ -60,6 +60,12 @@ public sealed class SettingsController : ObservableObject
         set => Update(_values.ShowAdvancedSensors, value, v => _values.ShowAdvancedSensors = v);
     }
 
+    public bool RequestAdministratorAtStartup
+    {
+        get => _values.RequestAdministratorAtStartup;
+        set => Update(_values.RequestAdministratorAtStartup, value, v => _values.RequestAdministratorAtStartup = v);
+    }
+
     public bool AdvancedDisplayExpanded
     {
         get => _values.AdvancedDisplayExpanded;
@@ -146,4 +152,3 @@ public sealed class SettingsController : ObservableObject
         RaisePropertyChanged(propertyName);
     }
 }
-

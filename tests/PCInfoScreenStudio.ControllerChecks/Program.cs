@@ -21,6 +21,7 @@ internal static class Program
         try
         {
             CheckSettings(root);
+            CheckSensorStartup();
             CheckEditor();
             CheckWidgetBackground(root);
             CheckPhotos(root);
@@ -240,9 +241,35 @@ internal static class Program
         settings.CanvasZoom = 0;
         Assert(settings.CanvasZoom == .5, "Canvas zoom lower limit changed.");
         settings.LastPhotoIndex = 2;
+        Assert(settings.RequestAdministratorAtStartup, "Sensor startup permission requests should be enabled by default.");
+        settings.RequestAdministratorAtStartup = false;
         var reloaded = Settings(root, "preferences");
         Assert(!reloaded.CloseToTray && reloaded.CanvasZoom == .5 && reloaded.LastPhotoIndex == 2,
             "Preferences did not persist independently of the editor.");
+        Assert(!reloaded.RequestAdministratorAtStartup, "Disabling sensor startup elevation must persist.");
+    }
+
+    private static void CheckSensorStartup()
+    {
+        Assert(SensorStartupService.ShouldRequestElevation(true, false, true, []), "Installed low-level sensors should request administrator access at startup.");
+        Assert(!SensorStartupService.ShouldRequestElevation(false, false, true, []) &&
+            !SensorStartupService.ShouldRequestElevation(true, true, true, []) &&
+            !SensorStartupService.ShouldRequestElevation(true, false, false, []),
+            "Opt-out, an already elevated app or an absent driver must not request elevation.");
+        Assert(!SensorStartupService.ShouldRequestElevation(true, false, true, [SensorStartupService.ElevationAttemptArgument]) &&
+            !SensorStartupService.ShouldRequestElevation(true, false, true, ["--smoke-test"]),
+            "Restarted processes must not loop on UAC, and CI smoke tests must stay noninteractive.");
+        const string theme = @"C:\Photos with spaces\family album.pchybrid";
+        var start = SensorStartupService.CreateStartInfo(@"C:\Studio\PCInfoScreenStudio.exe", "unused", [theme]);
+        Assert(start.UseShellExecute && start.Verb == "runas" && start.ArgumentList.SequenceEqual(new[] { theme, SensorStartupService.ElevationAttemptArgument }),
+            "Startup must retain arguments, including filenames with spaces, when requesting elevation.");
+        var hosted = SensorStartupService.CreateStartInfo(@"C:\dotnet\dotnet.exe", @"C:\Studio\PCInfoScreenStudio.dll", [theme]);
+        Assert(hosted.ArgumentList[0].EndsWith("PCInfoScreenStudio.dll") && hosted.ArgumentList[1] == theme, "Development launches must retain their entry assembly.");
+        Assert(SensorStartupService.TryLaunch(start, _ => true, out var error) && error is null, "A successful administrator launch must hand off to the new process.");
+        Assert(!SensorStartupService.TryLaunch(start, _ => throw new System.ComponentModel.Win32Exception(1223), out error) && error is null,
+            "Declining UAC must keep the current app open without another permission popup.");
+        Assert(!SensorStartupService.TryLaunch(start, _ => false, out error) && error is not null,
+            "An unsuccessful launch must retain the current app and report the problem.");
     }
 
     private static void CheckEditor()

@@ -79,6 +79,7 @@ public sealed class AppSettings
     public bool CloseToTray { get; set; } = true;
     public bool AutoStartDisplay { get; set; }
     public bool ShowAdvancedSensors { get; set; }
+    public bool RequestAdministratorAtStartup { get; set; } = true;
     public bool AdvancedDisplayExpanded { get; set; } = true;
     public bool PositionPanelExpanded { get; set; } = true;
     public bool DataPanelExpanded { get; set; } = true;
