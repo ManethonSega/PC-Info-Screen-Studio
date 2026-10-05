@@ -221,7 +221,7 @@
       <Setter Property="Template"><Setter.Value>
         <ControlTemplate TargetType="TextBox">
           <Border x:Name="InputBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
-                  BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                  BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4">
             <ScrollViewer x:Name="PART_ContentHost" />
           </Border>
           <ControlTemplate.Triggers>
@@ -429,13 +429,15 @@
           <Track x:Name="PART_Track" Orientation="{TemplateBinding Orientation}" IsDirectionReversed="True"
                  Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}" Value="{TemplateBinding Value}" ViewportSize="{TemplateBinding ViewportSize}">
             <Track.DecreaseRepeatButton><RepeatButton x:Name="PageBefore" Command="{x:Static ScrollBar.PageUpCommand}" Style="{StaticResource ScrollPageStyle}" /></Track.DecreaseRepeatButton>
-            <Track.Thumb><Thumb Style="{StaticResource ScrollThumbStyle}" /></Track.Thumb>
+            <Track.Thumb><Thumb x:Name="ScrollThumb" Style="{StaticResource ScrollThumbStyle}" /></Track.Thumb>
             <Track.IncreaseRepeatButton><RepeatButton x:Name="PageAfter" Command="{x:Static ScrollBar.PageDownCommand}" Style="{StaticResource ScrollPageStyle}" /></Track.IncreaseRepeatButton>
           </Track>
         </Border>
         <ControlTemplate.Triggers>
           <Trigger Property="Orientation" Value="Horizontal">
             <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False" />
+            <Setter TargetName="ScrollThumb" Property="MinHeight" Value="8" />
+            <Setter TargetName="ScrollThumb" Property="MinWidth" Value="18" />
             <Setter TargetName="PageBefore" Property="Command" Value="{x:Static ScrollBar.PageLeftCommand}" />
             <Setter TargetName="PageAfter" Property="Command" Value="{x:Static ScrollBar.PageRightCommand}" />
           </Trigger>
