@@ -132,6 +132,8 @@ The app combines Windows CPU/RAM, system-drive and network readings with hardwar
 
 For additional low-level sensor access, open **Settings > HARDWARE SENSORS**. The portable publish includes the official, checksum-verified PawnIO prerequisite installer. Installing it is optional and requires explicit confirmation and Windows elevation. Once PawnIO is installed, **Request administrator access when the app starts** is enabled by default. Approve the Windows UAC prompt when opening the app to initialize full sensors automatically; you do not need to inspect or reinstall the driver every time. Declining the prompt opens the app with available sensors. Disable this startup behaviour under **Settings > HARDWARE SENSORS** if you prefer to request access manually.
 
+![Hardware sensor settings with automatic administrator access enabled](docs/images/sensor-startup.png)
+
 For weather, select a Weather source in the properties panel, enter a city, and choose **Update**. Open-Meteo supplies weather/geocoding; the city is a local preference and conditions refresh approximately every ten minutes.
 
 ## Lightweight runtime
