@@ -81,11 +81,18 @@ internal static class UiPreviews
         var context = element.DataContext;
         var inheritedContext = element.ReadLocalValue(FrameworkElement.DataContextProperty) == DependencyProperty.UnsetValue;
         parent.Children.Remove(element);
-        element.SetCurrentValue(FrameworkElement.DataContextProperty, context);
+        element.DataContext = context;
         var host = new Window { DataContext = vm };
         var background = new Border { Background = (Brush)Application.Current.Resources["PanelBrush"], Child = element };
         host.Content = background;
-        try { CaptureElement(background, width, height, path); }
+        try
+        {
+            FlushBindings();
+            CaptureElement(background, width, height, path);
+            if (context is WidgetModel widget && Find<Slider>(element) is { } slider &&
+                slider.Value != widget.BackgroundTransparency)
+                throw new InvalidOperationException("The captured background percentage did not match the widget.");
+        }
         finally
         {
             background.Child = null;
