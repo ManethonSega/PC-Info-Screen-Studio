@@ -57,11 +57,34 @@ internal static class UiPreviews
             var album = Find<Expander>(root, e => Equals(e.Header, "ALBUM SETTINGS"))!;
             var overlays = Find<Expander>(root, e => Equals(e.Header, "HYBRID OVERLAYS"))!;
             var colours = Find<Expander>(root, e => Equals(e.Header, "COLOURS"))!;
-            CaptureElement(album, 310, 590, Path.Combine(directory, "Caption-settings.png"));
-            CaptureElement(overlays, 310, 225, Path.Combine(directory, "Hybrid-overlays.png"));
-            CaptureElement(colours, 310, 210, Path.Combine(directory, "Widget-background.png"));
+            CapturePanel(album, vm, 310, 590, Path.Combine(directory, "Caption-settings.png"));
+            CapturePanel(overlays, vm, 310, 225, Path.Combine(directory, "Hybrid-overlays.png"));
+            CapturePanel(colours, vm, 310, 210, Path.Combine(directory, "Widget-background.png"));
+            // Exercise native startup sizing, including monitor/DPI detection, without showing the editor.
+            _ = new System.Windows.Interop.WindowInteropHelper(window).EnsureHandle();
         }
         finally { vm.Dispose(); }
+    }
+
+    private static void CapturePanel(FrameworkElement element, MainViewModel vm, int width, int height, string path)
+    {
+        var parent = (Panel)VisualTreeHelper.GetParent(element);
+        var index = parent.Children.IndexOf(element);
+        var context = element.DataContext;
+        var inheritedContext = element.ReadLocalValue(FrameworkElement.DataContextProperty) == DependencyProperty.UnsetValue;
+        parent.Children.Remove(element);
+        element.SetCurrentValue(FrameworkElement.DataContextProperty, context);
+        var host = new Window { DataContext = vm };
+        var background = new Border { Background = (Brush)Application.Current.Resources["PanelBrush"], Child = element };
+        host.Content = background;
+        try { CaptureElement(background, width, height, path); }
+        finally
+        {
+            background.Child = null;
+            host.Content = null;
+            parent.Children.Insert(index, element);
+            if (inheritedContext) element.ClearValue(FrameworkElement.DataContextProperty);
+        }
     }
 
     private static void CaptureElement(FrameworkElement element, int width, int height, string path)
