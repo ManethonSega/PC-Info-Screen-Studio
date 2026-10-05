@@ -1,6 +1,6 @@
 # Roadmap
 
-Current source version: **0.10.0-alpha.3**.
+Current source version: **0.10.0-alpha.4**.
 
 The next milestone is product polish, not another broad feature category. Priorities remain **easy to use, lightweight, intuitive, and visually clear**. Checked items below describe implemented functionality, not a claim that every device or workload has been validated.
 
@@ -35,7 +35,8 @@ The next milestone is product polish, not another broad feature category. Priori
 - [x] Missing caption metadata leaves the caption blank.
 - [x] Folder watching and reusable linked `.pcalbum` playlists.
 - [x] Separate `.pcphoto` / `.pchybrid` settings folders, without embedded photos.
-- [x] Independent Hybrid overlay widgets and remembered slideshow position.
+- [x] Independent Hybrid overlay widgets, exact saved positions, caption font selection and remembered slideshow position.
+- [x] Background-only widget transparency from 0 to 100%.
 
 ### Data, runtime, and distribution
 
@@ -45,6 +46,8 @@ The next milestone is product polish, not another broad feature category. Priori
 - [x] Revision-A detection, compatibility options, and physical display diagnostics.
 - [x] Background device I/O.
 - [x] Tray operation with editor suspension, released preview resources, and photo controls.
+- [x] Windows Startup Apps registration with a one-time approved per-user task, automatic display reconnection, and workspace/mode restoration.
+- [x] Hardware overview page with live metrics and hardware names.
 - [x] Bounded prepared-photo cache.
 - [x] Self-contained Windows x64 publishing and CI build/publish/startup smoke checks.
 - [x] Short-lived build artifacts: 3-day retention and old-artifact cleanup.
@@ -60,9 +63,11 @@ The owner reports approximately **150 MB RAM usage as of 5 October 2026**, repla
 ### 1. Stabilize the existing workflows
 
 - [ ] Check the complete connect, add, edit, save, reopen, and tray workflow with a new user.
-- [ ] Check Photo Frame and Hybrid theme/playlist behaviour independently.
+- [x] Automated Save/Load, independent settings, linked folder, layer position and session-resume checks for all three modes.
+- [x] Actual WPF minimize, restore, close-to-tray and Exit checks, plus simulated reconnect failure and recovery.
+- [ ] Confirm these workflows on the physical screen and with a new user.
 - [ ] Verify tooltip, menu, selected-button, and caption contrast in the actual Windows UI.
-- [ ] Improve spacing, typography, icon consistency, and descriptive hover help without hiding direct actions.
+- [x] Controlled dark-control templates, consistent sizes/headings, toolbar icons, clear labels, descriptive hover help and a dark tray menu; direct actions stay in place.
 
 ### 2. Reduce maintenance risk without changing the interface
 
@@ -83,14 +88,14 @@ Validation should be focused on these user workflows and physical-device behavio
 ### 4. Make distribution dependable
 
 - [ ] Publish a versioned GitHub Release with a permanent portable download and matching source.
-- [ ] Refresh screenshots and deeper technical documentation to match the current interface.
+- [x] Compatibility and validation records distinguish automated checks from physical-device evidence.
+- [ ] Refresh the UI screenshots for the polish release before publication.
 - [ ] Decide on an installer and file associations after the portable workflow is stable.
 - [ ] Evaluate signing and update delivery separately; neither exists today.
 
 ## Deferred, not implemented
 
 - Full video decoding/playback; the current import shows a placeholder.
-- General Windows-startup registration and automatic loading of the last saved theme.
 - Broader display-model compatibility until verified on physical hardware.
 - Automatic updates, signed builds, and installer packaging.
 

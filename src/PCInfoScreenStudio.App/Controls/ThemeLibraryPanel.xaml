@@ -40,8 +40,8 @@
     <ComboBox ItemsSource="{Binding ActiveThemes}" SelectedItem="{Binding ActiveThemeSelection}" Margin="2,0,2,5"
               ToolTip="Choose a theme for the current screen mode, then select Load." />
     <UniformGrid Columns="2">
-      <Button Content="Load" Command="{Binding LoadThemeCommand}" ToolTip="Apply the selected theme. Photo and Hybrid themes keep your playlist." />
-      <Button Content="Save" Command="{Binding SaveCommand}" Style="{StaticResource PrimaryButtonStyle}" ToolTip="Save the current theme (Ctrl+S). Photo and Hybrid themes contain settings, not photos." />
+      <Button Content="Load theme" Command="{Binding LoadThemeCommand}" ToolTip="Apply the selected theme. Photo and Hybrid themes keep your playlist." />
+      <Button Content="Save theme" Command="{Binding SaveCommand}" Style="{StaticResource PrimaryButtonStyle}" ToolTip="Save the current theme (Ctrl+S). Photo and Hybrid themes contain settings, not photos." />
     </UniformGrid>
     <TextBlock Text="{Binding ThemeSummary}" FontSize="11" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="4,5,4,0" />
   </StackPanel>

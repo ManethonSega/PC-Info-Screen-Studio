@@ -15,6 +15,7 @@ internal static class Program
     {
         var app = new PCInfoScreenStudio.App();
         app.InitializeComponent();
+        app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
         SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
         var root = Path.Combine(Path.GetTempPath(), "PCInfoScreenStudio-controller-checks-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
@@ -32,6 +33,8 @@ internal static class Program
             CheckThemeFolderReload(root);
             CheckDashboard();
             CheckPageNavigation(root);
+            WorkflowChecks.Check(root, Await, PumpUntil);
+            UiStateChecks.Check();
             if (args.Length == 2 && args[0] == "--capture-ui") UiPreviews.Capture(args[1]);
             Console.WriteLine("PASS: preferences, startup task, session resume, editor, photos, device queue, mode themes, dashboard, and navigation checks.");
             return 0;
@@ -558,6 +561,12 @@ internal static class Program
         Await(controller.ConnectOrDisconnectAsync());
         Assert(!controller.IsConnected && !controller.LivePreview && controller.DisplayActionLabel == "Start display",
             "Disconnect state was not forwarded.");
+        hardware.FailNextConnection = true;
+        Await(controller.ConnectOrDisconnectAsync(automatic: true));
+        Assert(!controller.IsConnected && controller.DeviceStatus.Contains("Connection failed"), "An automatic reconnect failure must be reported without an interactive dialog.");
+        Await(controller.ConnectOrDisconnectAsync(automatic: true));
+        Assert(controller.IsConnected && controller.LivePreview, "Reconnecting after a temporary port failure must restart live output.");
+        Await(controller.ConnectOrDisconnectAsync());
         controller.Dispose();
         controller.SendLiveFrame(bitmap, force: true);
         Assert(hardware.Disposed && hardware.Frames.Count == 2, "Disposed device accepted a new frame.");
@@ -598,6 +607,7 @@ internal static class Program
         public DisplayProtocolProfile ConnectedProtocol => DisplayProtocolProfile.Auto;
         public DisplayColorMode ConnectedColorMode => DisplayColorMode.Auto;
         public bool BlockFirstFrame { get; set; }
+        public bool FailNextConnection { get; set; }
         public bool Disposed { get; private set; }
         public int CompatibilityCalls { get; private set; }
         public List<DeviceRotation> Frames { get; } = [];
@@ -605,6 +615,7 @@ internal static class Program
             DisplayProtocolProfile requestedProtocol, DisplayColorMode requestedColorMode,
             SerialPortOption? deviceInfo = null, CancellationToken cancellationToken = default)
         {
+            if (FailNextConnection) { FailNextConnection = false; throw new IOException("Test port temporarily unavailable."); }
             IsConnected = true;
             return Task.CompletedTask;
         }

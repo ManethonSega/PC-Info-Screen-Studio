@@ -1,0 +1,36 @@
+PC Info Screen Studio, portable alpha
+
+1. Extract this entire folder to a permanent location on your PC.
+2. Run PCInfoScreenStudio.exe. No separate .NET installation is needed.
+3. Plug in your compatible USB serial screen, then choose Detect screen and Start display.
+4. Choose Info Screen, Photo Frame or Hybrid in SCREEN MODE.
+5. Use the direct Add buttons on the left. Search for sensors on the right.
+6. Choose Save theme to update your reusable theme file.
+
+Settings is in the top bar. Scroll to RUNTIME for:
+- Start with Windows: adds a Windows Startup Apps entry and requests one-time approval
+  for a per-user scheduled task. The app starts in the tray when you sign in.
+- Start display automatically with the app: reconnects your last successful screen.
+- Keep running in the tray when closed: closing the window leaves output running.
+
+If full hardware sensors are unavailable, open Settings > HARDWARE SENSORS.
+PawnIO installation is optional and needs explicit confirmation. The verified
+prerequisite is bundled in Prerequisites. Administrator sensor access requires an
+administrator Windows account. Manual launches may still show Windows UAC.
+
+Double-click the tray icon to show the editor. Choose Exit in its menu to stop.
+Exit and Windows logoff save a private resume snapshot. Reopening restores the
+last mode, themes, layers, linked photos and working edits. Save theme is still
+needed to update a reusable theme. Original photos stay on your PC.
+
+Keep all files in this folder together. Opening the app from a moved folder may
+need approval to update its Windows startup task. Automatic updating is not included.
+
+This is an unsigned alpha, not a finished consumer release. Video import shows
+a placeholder; full video playback is not available. Device support is focused
+on Revision-A 480 x 320 USB serial displays. See DEVICE-COMPATIBILITY.md and
+VALIDATION.md for evidence and remaining physical-device checks.
+
+Source and releases: https://github.com/ManethonSega/PC-Info-Screen-Studio
+Licence: GPL-3.0-or-later. Third-party licences remain in the package.
+Exact source revision and build workflow are in build-info.json.

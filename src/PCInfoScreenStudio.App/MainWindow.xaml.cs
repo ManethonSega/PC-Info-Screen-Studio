@@ -14,33 +14,45 @@ namespace PCInfoScreenStudio;
 
 public partial class MainWindow : Window
 {
-    private readonly MainViewModel _viewModel = new();
+    private readonly MainViewModel _viewModel;
     private readonly WinForms.NotifyIcon _trayIcon;
     private bool _exitRequested;
     private bool _disposed;
     private bool _savingSession;
+    private bool _startupLoaded;
     private bool _sessionSaved;
     private Task? _sessionSaveTask;
     public bool StartInTray { get; set; }
     private Point _photoDragStart;
     private PhotoFrameItem? _draggedPhoto;
 
-    public MainWindow()
+    public MainWindow() : this(new MainViewModel()) { }
+
+    public MainWindow(MainViewModel viewModel)
     {
+        _viewModel = viewModel;
         InitializeComponent();
         DataContext = _viewModel;
 
-        var trayMenu = new WinForms.ContextMenuStrip();
+        var trayMenu = new WinForms.ContextMenuStrip
+        {
+            Renderer = new TrayMenuRenderer(),
+            BackColor = System.Drawing.Color.FromArgb(23, 26, 31),
+            ForeColor = System.Drawing.Color.FromArgb(240, 242, 245),
+            ShowItemToolTips = true
+        };
         trayMenu.Items.Add("Show PC Info Screen Studio", null, (_, _) => RestoreFromTray());
         var modeMenu = new WinForms.ToolStripMenuItem("Mode");
         modeMenu.DropDownItems.Add("Info Screen", null, (_, _) => SetModeFromTray(ScreenMode.InfoScreen));
         modeMenu.DropDownItems.Add("Photo Frame", null, (_, _) => SetModeFromTray(ScreenMode.PhotoFrame));
         modeMenu.DropDownItems.Add("Hybrid", null, (_, _) => SetModeFromTray(ScreenMode.Hybrid));
+        modeMenu.DropDown.Renderer = trayMenu.Renderer;
         trayMenu.Items.Add(modeMenu);
         var photoMenu = new WinForms.ToolStripMenuItem("Photo frame");
         photoMenu.DropDownItems.Add("Previous photo", null, (_, _) => Dispatcher.Invoke(_viewModel.PreviousPhoto));
         photoMenu.DropDownItems.Add("Play / Pause", null, (_, _) => Dispatcher.Invoke(_viewModel.TogglePhotoPlayback));
         photoMenu.DropDownItems.Add("Next photo", null, (_, _) => Dispatcher.Invoke(_viewModel.NextPhoto));
+        photoMenu.DropDown.Renderer = trayMenu.Renderer;
         trayMenu.Items.Add(photoMenu);
         trayMenu.Items.Add(new WinForms.ToolStripSeparator());
         trayMenu.Items.Add("Exit", null, (_, _) => ExitFromTray());
@@ -138,6 +150,8 @@ public partial class MainWindow : Window
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
+        if (_startupLoaded) return;
+        _startupLoaded = true;
         IsEnabled = false;
         _viewModel.SetEditorActive(false);
         if (StartInTray) Hide();
@@ -179,7 +193,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ExitFromTray()
+    public void ExitFromTray()
     {
         Dispatcher.Invoke(() =>
         {

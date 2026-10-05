@@ -14,6 +14,7 @@ internal static class UiPreviews
     public static void Capture(string directory)
     {
         Directory.CreateDirectory(directory);
+        CaptureElement(UiStateChecks.Gallery(), 660, 460, Path.Combine(directory, "Control-states.png"));
         var window = new PCInfoScreenStudio.MainWindow();
         var vm = (MainViewModel)window.DataContext;
         vm.SetEditorActive(false);
@@ -65,9 +66,9 @@ internal static class UiPreviews
             var colours = Find<Expander>(root, e => Equals(e.Header, "COLOURS"))!;
             if (colours.DataContext is not WidgetModel { Type: WidgetType.Shape, BackgroundTransparency: 40 })
                 throw new InvalidOperationException("Appearance preview did not bind the selected Shape and transparency.");
-            CapturePanel(album, vm, 310, 590, Path.Combine(directory, "Caption-settings.png"));
-            CapturePanel(overlays, vm, 310, 225, Path.Combine(directory, "Hybrid-overlays.png"));
-            CapturePanel(colours, vm, 310, 210, Path.Combine(directory, "Widget-background.png"));
+            CapturePanel(album, vm, 310, 690, Path.Combine(directory, "Caption-settings.png"));
+            CapturePanel(overlays, vm, 310, 290, Path.Combine(directory, "Hybrid-overlays.png"));
+            CapturePanel(colours, vm, 310, 260, Path.Combine(directory, "Widget-background.png"));
             // Exercise native startup sizing, including monitor/DPI detection, without showing the editor.
             _ = new System.Windows.Interop.WindowInteropHelper(window).EnsureHandle();
         }

@@ -8,7 +8,7 @@
       <ColumnDefinition Width="Auto" />
     </Grid.ColumnDefinitions>
 
-    <Button Grid.Column="0" Click="OnClick" Padding="6,4" HorizontalContentAlignment="Stretch">
+    <Button Grid.Column="0" Click="OnClick" Padding="6,4" HorizontalContentAlignment="Stretch" ToolTip="Choose a colour. Background transparency is adjusted separately in the widget properties.">
       <Grid>
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="28" />
@@ -28,10 +28,10 @@
     </Button>
 
     <Button Grid.Column="1"
-            Content="None"
+            Content="Clear"
             Click="OnTransparentClick"
             Padding="6,4"
             Margin="4,0,0,0"
-            ToolTip="Set this colour to fully transparent" />
+            ToolTip="Make this colour fully transparent. Widget backgrounds keep their saved RGB colour so transparency can be reduced again." />
   </Grid>
 </UserControl>

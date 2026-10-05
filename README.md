@@ -2,7 +2,7 @@
 
 A visual Windows editor and runtime for 3.5-inch Turing/TURZX-style USB PC info screens. Create a sensor dashboard, use the screen as a photo frame, or combine photos with information overlays.
 
-> **Status:** `0.10.0-alpha.3`. Actively developed alpha. Windows x64 portable builds are available through GitHub Actions; there is not yet a formal release, installer, code signing, or automatic updater.
+> **Status:** `0.10.0-alpha.4`. Actively developed alpha. A Windows x64 portable alpha is being prepared with a permanent release download. Development builds are available through GitHub Actions. There is no installer, code signing or automatic updater.
 
 The priorities are an intuitive interface, lightweight operation, and a clear preview of the physical screen.
 
@@ -157,7 +157,8 @@ Photo preparation uses a bounded display-sized cache. Memory usage varies with t
 - Physical animation speed depends on USB display bandwidth.
 - Photo presets and linked Hybrid assets can depend on local paths.
 - Successful builds and startup smoke checks do not establish long-duration hardware reliability.
-- There is no signed installer, automatic updater, or formal GitHub release yet.
+- There is no signed installer or automatic updater.
+- Physical-device testing and first-time user validation remain limited. See the [device catalogue](docs/COMPATIBILITY.md) and [validation record](docs/VALIDATION.md).
 
 ## Build from source
 

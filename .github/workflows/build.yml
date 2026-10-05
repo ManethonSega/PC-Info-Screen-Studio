@@ -8,7 +8,7 @@ on:
 
 permissions:
   actions: write
-  contents: read
+  contents: write
 
 jobs:
   windows:
@@ -70,6 +70,10 @@ jobs:
             }
             throw "Published application smoke test failed with exit code $($process.ExitCode)."
           }
+
+      - name: Package and verify portable alpha ZIP
+        shell: pwsh
+        run: ./scripts/New-PortablePackage.ps1 -SourceCommit "${{ github.sha }}" -WorkflowUrl "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       - name: Free artifact storage while preserving the newest build
         uses: actions/github-script@v8
@@ -158,3 +162,22 @@ jobs:
                 throw error;
               }
             }
+
+      - name: Publish requested portable alpha release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Release v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          [xml]$project = Get-Content ./src/PCInfoScreenStudio.App/PCInfoScreenStudio.App.csproj -Raw
+          $version = [string]$project.Project.PropertyGroup.Version
+          $tag = "v$version"
+          $title = "PC Info Screen Studio $version (portable alpha)"
+          $zip = "./artifacts/release/PCInfoScreenStudio-$version-win-x64.zip"
+          $checksums = "./artifacts/release/SHA256SUMS.txt"
+          $notes = "./docs/releases/$version.md"
+          if (!(Test-Path $zip) -or !(Test-Path $checksums) -or !(Test-Path $notes)) { throw 'Reviewed release files are missing.' }
+          gh release view $tag --repo "${{ github.repository }}" --json tagName 2>$null | Out-Null
+          if ($LASTEXITCODE -eq 0) { throw "Release $tag already exists. Existing releases are not overwritten." }
+          gh release create $tag $zip $checksums --repo "${{ github.repository }}" --target "${{ github.sha }}" --title $title --notes-file $notes --prerelease
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub release publication failed.' }

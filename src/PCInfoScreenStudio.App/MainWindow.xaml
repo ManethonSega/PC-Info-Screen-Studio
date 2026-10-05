@@ -50,10 +50,10 @@
               </Button>
             </StackPanel>
           </Border>
-          <Button Visibility="{Binding EditorPageVisibility}" Content="Undo" Command="{Binding UndoCommand}" ToolTip="Undo (Ctrl+Z)" />
-          <Button Visibility="{Binding EditorPageVisibility}" Content="Redo" Command="{Binding RedoCommand}" ToolTip="Redo (Ctrl+Y)" />
-          <Button Content="Settings" Click="OnSettingsClick" Padding="14,6" ToolTip="Open screen, runtime, sensor, and editor settings." />
-          <Button Visibility="{Binding EditorPageVisibility}" Content="{Binding EditorModeLabel}" Command="{Binding ToggleEditorModeCommand}" Padding="14,6" ToolTip="Switch between the full editor and a clean live preview." />
+          <Button Visibility="{Binding EditorPageVisibility}" Command="{Binding UndoCommand}" ToolTip="Undo the last edit (Ctrl+Z)."><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE7A7;" Style="{StaticResource ToolbarIconStyle}" /><TextBlock Text="Undo" /></StackPanel></Button>
+          <Button Visibility="{Binding EditorPageVisibility}" Command="{Binding RedoCommand}" ToolTip="Reapply an undone edit (Ctrl+Y)."><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE7A6;" Style="{StaticResource ToolbarIconStyle}" /><TextBlock Text="Redo" /></StackPanel></Button>
+          <Button Click="OnSettingsClick" Padding="14,6" ToolTip="Open connection, Windows startup, runtime, sensor access and editor preferences."><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE713;" Style="{StaticResource ToolbarIconStyle}" /><TextBlock Text="Settings" /></StackPanel></Button>
+          <Button Visibility="{Binding EditorPageVisibility}" Command="{Binding ToggleEditorModeCommand}" Padding="14,6" ToolTip="Switch between editing controls and a clean preview; display output continues."><StackPanel Orientation="Horizontal"><TextBlock Text="{Binding EditorModeIcon}" Style="{StaticResource ToolbarIconStyle}" /><TextBlock Text="{Binding EditorModeLabel}" /></StackPanel></Button>
         </StackPanel>
 
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
@@ -76,7 +76,7 @@
                   Command="{Binding ConnectCommand}"
                   Style="{StaticResource PrimaryButtonStyle}"
                   Padding="18,6"
-                  ToolTip="Automatically detect, connect, send the theme and start live updates" />
+                  ToolTip="{Binding DisplayActionToolTip}" />
         </StackPanel>
       </DockPanel>
     </Border>
@@ -189,10 +189,10 @@
               </ListBox>
 
               <UniformGrid Columns="4">
-                <Button Content="Prev" Command="{Binding PreviousPhotoCommand}" ToolTip="Show the previous photo." />
+                <Button Content="Previous" Padding="6,5" Command="{Binding PreviousPhotoCommand}" ToolTip="Show the previous photo." />
                 <Button Content="{Binding PhotoPlaybackLabel}" Command="{Binding TogglePhotoPlaybackCommand}" ToolTip="Pause or resume automatic playback." />
                 <Button Content="Next" Command="{Binding NextPhotoCommand}" ToolTip="Show the next photo." />
-                <Button Content="Remove" Command="{Binding RemovePhotoCommand}" ToolTip="Remove the selected photo from this playlist." />
+                <Button Content="Remove" Command="{Binding RemovePhotoCommand}" ToolTip="Remove this photo from the playlist. The original file stays on your PC." />
               </UniformGrid>
               <TextBlock Text="{Binding PhotoPositionLabel}" HorizontalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
 
@@ -201,7 +201,7 @@
                   <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                     <StackPanel Margin="0,0,4,0"><TextBlock Text="Photo duration (s)" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding Document.PhotoFrame.DefaultDurationSeconds, UpdateSourceTrigger=LostFocus}" ToolTip="How long every photo remains visible." /></StackPanel>
-                    <StackPanel Grid.Column="1" Margin="4,0,0,0"><TextBlock Text="Transition (s)" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding Document.PhotoFrame.TransitionDurationSeconds, UpdateSourceTrigger=LostFocus}" ToolTip="Duration of the transition between photos." /></StackPanel>
+                    <StackPanel Grid.Column="1" Margin="4,0,0,0"><TextBlock Text="Transition time (s)" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding Document.PhotoFrame.TransitionDurationSeconds, UpdateSourceTrigger=LostFocus}" ToolTip="Duration of the transition between photos." /></StackPanel>
                   </Grid>
                   <TextBlock Text="Transition" Foreground="{StaticResource MutedTextBrush}" Margin="0,5,0,0" />
                   <ComboBox ItemsSource="{Binding PhotoTransitions}" SelectedItem="{Binding Document.PhotoFrame.Transition}" ToolTip="Animation is used only while changing from one photo to the next." />
@@ -265,7 +265,7 @@
 
               <Expander Header="HYBRID OVERLAYS" IsExpanded="True" Margin="0,6,0,0">
                 <Expander.Style>
-                  <Style TargetType="Expander">
+                  <Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}">
                     <Setter Property="Visibility" Value="Collapsed" />
                     <Style.Triggers>
                       <DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.Hybrid}"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
@@ -325,7 +325,7 @@
               <RowDefinition Height="*" />
               <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
-            <TextBlock Text="LAYERS" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="4,0,0,7" />
+            <TextBlock Text="LAYERS" Style="{StaticResource SectionTitleStyle}" Margin="4,0,0,7" />
             <ListBox Grid.Row="1" Height="300" MinHeight="180" ItemsSource="{Binding Document.EditorWidgets}" SelectedItem="{Binding SelectedWidget}" Background="#101318" BorderBrush="{StaticResource BorderBrush}">
               <ListBox.ItemContainerStyle>
                 <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
@@ -416,7 +416,7 @@
               </StackPanel.Style>
               <CheckBox Content="Grid" IsChecked="{Binding Document.EditorGridVisible}" Margin="4,0,8,0" ToolTip="Show or hide the editor grid. It is not included in the display output." />
               <CheckBox Content="Snap" IsChecked="{Binding Document.SnapToGrid}" Margin="0,0,8,0" ToolTip="Snap dragging, resizing, and arrow-key movement to the configured grid spacing." />
-              <TextBlock Text="Size" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" Margin="0,0,4,0" />
+              <TextBlock Text="Grid px" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" Margin="0,0,4,0" />
               <TextBox Width="42" Text="{Binding Document.GridSize, UpdateSourceTrigger=LostFocus}" ToolTip="Grid spacing in screen pixels" />
             </StackPanel>
             <TextBlock Text="Zoom" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" Margin="10,0,4,0" />
@@ -450,7 +450,7 @@
             <TextBox Text="{Binding AddSearchText, UpdateSourceTrigger=PropertyChanged}"
                      ToolTip="Search by widget or source, for example CPU temperature, GPU usage, RAM, or clock."
                      Margin="2,0,2,4" />
-            <TextBlock Text="Type a widget or data source, then click a result once to add it." FontSize="10" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="3,0,3,4" />
+            <TextBlock Text="Search CPU temperature, GPU usage or clock, then click to add." FontSize="11" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="3,0,3,4" />
             <ItemsControl ItemsSource="{Binding FilteredAddCatalog}" Margin="0,0,0,8">
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
@@ -522,7 +522,7 @@
                               IsExpanded="{Binding DataContext.DataPanelExpanded, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
                               Margin="0,8,0,0">
                       <Expander.Style>
-                        <Style TargetType="Expander">
+                        <Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}">
                           <Setter Property="Visibility" Value="Collapsed" />
                           <Style.Triggers>
                             <DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.Text}"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
@@ -628,7 +628,7 @@
                               IsExpanded="{Binding DataContext.TypographyPanelExpanded, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
                               Margin="0,8,0,0">
                       <Expander.Style>
-                        <Style TargetType="Expander">
+                        <Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}">
                           <Setter Property="Visibility" Value="Visible" />
                           <Style.Triggers>
                             <DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.Image}"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
@@ -669,7 +669,7 @@
                               IsExpanded="{Binding DataContext.GraphPanelExpanded, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
                               Margin="0,8,0,0">
                       <Expander.Style>
-                        <Style TargetType="Expander">
+                        <Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}">
                           <Setter Property="Visibility" Value="Collapsed" />
                           <Style.Triggers><DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.Graph}"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers>
                         </Style>
@@ -691,7 +691,7 @@
                               IsExpanded="{Binding DataContext.GaugePanelExpanded, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
                               Margin="0,8,0,0">
                       <Expander.Style>
-                        <Style TargetType="Expander">
+                        <Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}">
                           <Setter Property="Visibility" Value="Collapsed" />
                           <Style.Triggers>
                             <DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.CircularGauge}"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
@@ -713,7 +713,7 @@
                               IsExpanded="{Binding DataContext.MediaPanelExpanded, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
                               Margin="0,8,0,0">
                       <Expander.Style>
-                        <Style TargetType="Expander">
+                        <Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}">
                           <Setter Property="Visibility" Value="Collapsed" />
                           <Style.Triggers>
                             <DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.Image}"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
@@ -740,7 +740,7 @@
                               IsExpanded="{Binding DataContext.ShapePanelExpanded, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"
                               Margin="0,8,0,0">
                       <Expander.Style>
-                        <Style TargetType="Expander"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.Shape}"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style>
+                        <Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.Shape}"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style>
                       </Expander.Style>
                       <StackPanel Margin="0,5,0,0">
                       <ComboBox ItemsSource="{Binding DataContext.ShapeStyles, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding ShapeStyle}" ToolTip="Choose the shape geometry." />

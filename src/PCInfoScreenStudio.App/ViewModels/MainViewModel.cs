@@ -395,9 +395,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             RaisePropertyChanged(nameof(EditorTopBarHeight));
             RaisePropertyChanged(nameof(EditorBottomBarHeight));
             RaisePropertyChanged(nameof(EditorModeLabel));
+            RaisePropertyChanged(nameof(EditorModeIcon));
             ThemeChanged?.Invoke(this, EventArgs.Empty);
         }
     }
+    public string EditorModeIcon => IsLiveMode ? "\uE70F" : "\uE768";
+    public string DisplayActionToolTip => IsDeviceBusy ? DeviceStatus : _device.IsConnected
+        ? "Stop sending updates to the physical screen. Your theme stays open in the editor."
+        : "Detect and connect your screen, send the current theme, and start live updates.";
     public string EditorModeLabel => IsLiveMode ? "Back to edit" : "Live view";
 
     public bool IsPhotoPlaying => _photos.IsPhotoPlaying;
@@ -736,6 +741,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void OnDeviceCommandStatesChanged(object? sender, EventArgs e)
     {
+        RaisePropertyChanged(nameof(DisplayActionToolTip));
         ConnectCommand?.RaiseCanExecuteChanged();
         DetectScreenCommand?.RaiseCanExecuteChanged();
         TestScreenCommand?.RaiseCanExecuteChanged();
@@ -817,6 +823,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             MessageBox.Show(ex.Message, "Could not open theme", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
+
+    public Task SaveCurrentThemeAsync() => SaveAsync(false);
 
     private async Task SaveAsync(bool saveAs)
     {

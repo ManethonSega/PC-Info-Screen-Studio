@@ -31,9 +31,9 @@
             <TextBlock Text="{Binding DeviceStatus}" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,8" />
             <ComboBox ItemsSource="{Binding Ports}" DisplayMemberPath="DisplayName" SelectedValuePath="PortName" SelectedValue="{Binding SelectedPort}" ToolTip="Detected USB serial devices." />
             <UniformGrid Columns="3" Margin="0,5,0,8">
-              <Button Content="Detect screen" Command="{Binding DetectScreenCommand}" />
-              <Button Content="Refresh ports" Command="{Binding RefreshPortsCommand}" />
-              <Button Content="{Binding DisplayActionLabel}" Command="{Binding ConnectCommand}" Style="{StaticResource PrimaryButtonStyle}" />
+              <Button Content="Detect screen" Command="{Binding DetectScreenCommand}" ToolTip="Find a likely compatible USB serial screen. You can choose the port above if detection is uncertain." />
+              <Button Content="Refresh ports" Command="{Binding RefreshPortsCommand}" ToolTip="Refresh the USB serial device list after plugging in or reconnecting your screen." />
+              <Button Content="{Binding DisplayActionLabel}" Command="{Binding ConnectCommand}" Style="{StaticResource PrimaryButtonStyle}" ToolTip="{Binding DisplayActionToolTip}" />
             </UniformGrid>
 
             <Grid>
@@ -46,15 +46,15 @@
               </StackPanel>
               <StackPanel Grid.Column="1" Margin="6,0,0,0">
                 <TextBlock Text="Physical screen rotation" Foreground="{StaticResource MutedTextBrush}" />
-                <ComboBox ItemsSource="{Binding RotationOptions}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Document.DeviceRotation}" Margin="2" />
+                <ComboBox ItemsSource="{Binding RotationOptions}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Document.DeviceRotation}" Margin="2" ToolTip="Rotate the physical display output without rotating individual widgets." />
               </StackPanel>
             </Grid>
 
             <TextBlock Text="USB protocol" Foreground="{StaticResource MutedTextBrush}" Margin="0,8,0,2" />
-            <ComboBox ItemsSource="{Binding DisplayProtocolOptions}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding DisplayProtocol}" />
+            <ComboBox ItemsSource="{Binding DisplayProtocolOptions}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding DisplayProtocol}" ToolTip="Leave on Auto unless your confirmed screen requires another USB protocol." />
             <TextBlock Text="Display colour compatibility" Foreground="{StaticResource MutedTextBrush}" Margin="0,8,0,2" />
-            <ComboBox ItemsSource="{Binding DisplayColorOptions}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding DisplayColorMode}" />
-            <Button Content="Run display colour test" Command="{Binding TestScreenCommand}" HorizontalAlignment="Left" Margin="2,8,2,2" />
+            <ComboBox ItemsSource="{Binding DisplayColorOptions}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding DisplayColorMode}" ToolTip="Leave on Auto. Change only if colours on the physical screen differ from the preview." />
+            <Button Content="Run display colour test" Command="{Binding TestScreenCommand}" HorizontalAlignment="Left" Margin="2,8,2,2" ToolTip="Send test colours to the connected screen to diagnose colour or rotation problems." />
           </StackPanel>
         </Border>
 
@@ -69,9 +69,9 @@
                       ToolTipService.ShowOnDisabled="True" ToolTip="Live sensor data is always enabled. Sensor availability depends on your hardware and access permissions.">
               <TextBlock Text="Use live sensor data" Foreground="{StaticResource PageMutedTextBrush}" />
             </CheckBox>
-            <CheckBox Content="Send editor changes immediately" IsChecked="{Binding LivePreview}" />
-            <CheckBox Content="Start display automatically with the app" IsChecked="{Binding AutoStartDisplay}" />
-            <CheckBox Content="Keep the lightweight runtime in the system tray" IsChecked="{Binding CloseToTray}" />
+            <CheckBox Content="Send live updates to the connected screen" IsChecked="{Binding LivePreview}" ToolTip="Keep the connected screen up to date with readings, photos and editor changes." />
+            <CheckBox Content="Start display automatically with the app" IsChecked="{Binding AutoStartDisplay}" ToolTip="Restore your workspace, reconnect the last successful screen port, and retry briefly while USB devices become ready." />
+            <CheckBox Content="Keep running in the tray when closed" IsChecked="{Binding CloseToTray}" ToolTip="Closing the window keeps display output running. Use Exit in the tray menu to save the session and stop the app." />
           </StackPanel>
         </Border>
 
@@ -83,8 +83,8 @@
                       ToolTip="When PawnIO is installed, request Windows administrator permission on launch for full sensors. Takes effect next time you open the app." />
             <TextBlock Text="Full hardware sensors may need administrator access. When Windows startup is enabled, its approved task supplies this access at sign-in. Opening the app manually may still request approval. If you decline, available sensors still work."
                        Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" FontSize="11" Margin="3,3,3,8" />
-            <CheckBox Content="Show advanced hardware sensors in data-source lists" IsChecked="{Binding ShowAdvancedSensors}" />
-            <Button Content="Install or inspect full sensor access" Command="{Binding EnableFullSensorsCommand}" HorizontalAlignment="Left" Margin="2,7,2,2" />
+            <CheckBox Content="Show advanced hardware sensors in data-source lists" IsChecked="{Binding ShowAdvancedSensors}" ToolTip="Include raw hardware sensor entries. Keep this off for a simpler source list." />
+            <Button Content="Install or inspect full sensor access" Command="{Binding EnableFullSensorsCommand}" HorizontalAlignment="Left" Margin="2,7,2,2" ToolTip="Check full sensor access or install the bundled PawnIO prerequisite after confirmation." />
           </StackPanel>
         </Border>
 
@@ -92,8 +92,8 @@
         <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="5" Padding="14">
           <StackPanel>
             <TextBlock Text="Canvas zoom" Foreground="{StaticResource MutedTextBrush}" />
-            <Slider Minimum="0.5" Maximum="3" SmallChange="0.1" LargeChange="0.5" Value="{Binding CanvasZoom}" />
-            <Button Content="Run setup assistant again" Command="{Binding ShowSetupAssistantCommand}" HorizontalAlignment="Left" Margin="2,8,2,2" />
+            <Slider Minimum="0.5" Maximum="3" SmallChange="0.1" LargeChange="0.5" Value="{Binding CanvasZoom}" ToolTip="Change editor magnification. The physical screen resolution stays unchanged." />
+            <Button Content="Run setup assistant again" Command="{Binding ShowSetupAssistantCommand}" HorizontalAlignment="Left" Margin="2,8,2,2" ToolTip="Reopen the guided screen connection and starter-theme assistant." />
           </StackPanel>
         </Border>
       </StackPanel>
