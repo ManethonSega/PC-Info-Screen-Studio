@@ -26,6 +26,15 @@ public partial class ColorPickerButton : System.Windows.Controls.UserControl
         set => SetValue(HexColorProperty, value);
     }
 
+    public static readonly DependencyProperty PreserveAlphaProperty = DependencyProperty.Register(
+        nameof(PreserveAlpha), typeof(bool), typeof(ColorPickerButton), new PropertyMetadata(false));
+
+    public bool PreserveAlpha
+    {
+        get => (bool)GetValue(PreserveAlphaProperty);
+        set => SetValue(PreserveAlphaProperty, value);
+    }
+
     private static void OnColorChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         => ((ColorPickerButton)d).UpdateSwatch(e.NewValue?.ToString());
 
@@ -49,11 +58,15 @@ public partial class ColorPickerButton : System.Windows.Controls.UserControl
             return;
 
         var c = dialog.Color;
-        ApplyHexColor($"#FF{c.R:X2}{c.G:X2}{c.B:X2}");
+        var alpha = PreserveAlpha ? current.A : (byte)255;
+        ApplyHexColor($"#{alpha:X2}{c.R:X2}{c.G:X2}{c.B:X2}");
     }
 
     private void OnTransparentClick(object sender, RoutedEventArgs e)
-        => ApplyHexColor("#00000000");
+    {
+        var color = Parse(HexColor);
+        ApplyHexColor(PreserveAlpha ? $"#00{color.R:X2}{color.G:X2}{color.B:X2}" : "#00000000");
+    }
 
     private void ApplyHexColor(string value)
     {

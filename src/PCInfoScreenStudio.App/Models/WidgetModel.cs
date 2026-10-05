@@ -104,7 +104,35 @@ public sealed class WidgetModel : ObservableObject
     public bool FontItalic { get => _fontItalic; set => SetProperty(ref _fontItalic, value); }
 
     public string ForegroundColor { get => _foregroundColor; set => SetProperty(ref _foregroundColor, value); }
-    public string BackgroundColor { get => _backgroundColor; set => SetProperty(ref _backgroundColor, value); }
+    public string BackgroundColor
+    {
+        get => _backgroundColor;
+        set
+        {
+            if (SetProperty(ref _backgroundColor, value)) RaisePropertyChanged(nameof(BackgroundTransparency));
+        }
+    }
+
+    // The colour's existing alpha channel is the persisted background transparency.
+    // This keeps old themes compatible and leaves foreground/accent colours untouched.
+    [JsonIgnore]
+    public double BackgroundTransparency
+    {
+        get => Math.Round(100d * (1 - BackgroundMediaColor().A / 255d));
+        set
+        {
+            if (!double.IsFinite(value)) return;
+            var color = BackgroundMediaColor();
+            var alpha = (byte)Math.Round(255 * (1 - Math.Clamp(value, 0, 100) / 100));
+            BackgroundColor = $"#{alpha:X2}{color.R:X2}{color.G:X2}{color.B:X2}";
+        }
+    }
+
+    private System.Windows.Media.Color BackgroundMediaColor()
+    {
+        try { return (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(BackgroundColor); }
+        catch { return System.Windows.Media.Colors.Transparent; }
+    }
     public string AccentColor { get => _accentColor; set => SetProperty(ref _accentColor, value); }
     public string SecondaryColor { get => _secondaryColor; set => SetProperty(ref _secondaryColor, value); }
     public double Opacity { get => _opacity; set => SetProperty(ref _opacity, Math.Clamp(value, 0, 1)); }

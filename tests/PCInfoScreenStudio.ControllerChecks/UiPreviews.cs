@@ -24,7 +24,7 @@ internal static class UiPreviews
             foreach (var mode in new[] { ScreenMode.InfoScreen, ScreenMode.PhotoFrame, ScreenMode.Hybrid })
             {
                 vm.Document.Mode = mode;
-                CaptureElement(root, 1480, 810, Path.Combine(directory, mode + ".png"));
+                CaptureElement(root, 1560, 1040, Path.Combine(directory, mode + ".png"));
             }
             vm.ShowPage(true);
             vm.HardwareDashboard.Update(new Dictionary<string, MetricValue>
@@ -36,7 +36,7 @@ internal static class UiPreviews
                 ["Hardware.StorageNames"] = new(Text: "Sample solid-state drive"), ["Disk.Usage"] = new(38, Unit: "%"), ["Disk.FreeGB"] = new(620, Unit: "GB"),
                 ["Network.AdapterNames"] = new(Text: "Sample Ethernet adapter"), ["Network.Download"] = new(2.3, Unit: "MB/s"), ["Network.Upload"] = new(0.4, Unit: "MB/s")
             });
-            CaptureElement(root, 1480, 810, Path.Combine(directory, "Hardware.png"));
+            CaptureElement(root, 1560, 1040, Path.Combine(directory, "Hardware.png"));
             var settingsWindow = new PCInfoScreenStudio.SettingsWindow { DataContext = vm };
             CaptureElement((FrameworkElement)settingsWindow.Content, 720, 680, Path.Combine(directory, "Settings.png"));
             vm.ShowPage(false);
@@ -48,6 +48,18 @@ internal static class UiPreviews
             menu.DataContext = vm;
             menu.ApplyTemplate();
             CaptureElement(menu, 360, 310, Path.Combine(directory, "Theme-actions.png"));
+            vm.Document.Mode = ScreenMode.Hybrid;
+            vm.AddWidgetCommand.Execute("Shape");
+            vm.SelectedWidget!.BackgroundColor = "#FF20242B";
+            vm.SelectedWidget.BackgroundTransparency = 40;
+            vm.Document.PhotoFrame.CaptionFontFamily = "Orbitron";
+            root.UpdateLayout();
+            var album = Find<Expander>(root, e => Equals(e.Header, "ALBUM SETTINGS"))!;
+            var overlays = Find<Expander>(root, e => Equals(e.Header, "HYBRID OVERLAYS"))!;
+            var colours = Find<Expander>(root, e => Equals(e.Header, "COLOURS"))!;
+            CaptureElement(album, 310, 590, Path.Combine(directory, "Caption-settings.png"));
+            CaptureElement(overlays, 310, 225, Path.Combine(directory, "Hybrid-overlays.png"));
+            CaptureElement(colours, 310, 210, Path.Combine(directory, "Widget-background.png"));
         }
         finally { vm.Dispose(); }
     }

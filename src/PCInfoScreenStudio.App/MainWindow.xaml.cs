@@ -66,6 +66,21 @@ public partial class MainWindow : Window
     private void SetModeFromTray(ScreenMode mode)
         => Dispatcher.Invoke(() => _viewModel.Document.Mode = mode);
 
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        var handle = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+        var area = WinForms.Screen.FromHandle(handle).WorkingArea;
+        var dpi = VisualTreeHelper.GetDpi(this);
+        // WPF sizes are in logical pixels; the monitor work area uses physical pixels.
+        var availableWidth = Math.Max(1, area.Width / dpi.DpiScaleX - 24);
+        var availableHeight = Math.Max(1, area.Height / dpi.DpiScaleY - 24);
+        MinWidth = Math.Min(MinWidth, availableWidth);
+        MinHeight = Math.Min(MinHeight, availableHeight);
+        Width = Math.Min(Width, availableWidth);
+        Height = Math.Min(Height, availableHeight);
+    }
+
     private void OnSettingsClick(object sender, RoutedEventArgs e)
     {
         var window = new SettingsWindow
@@ -248,4 +263,3 @@ public partial class MainWindow : Window
         _viewModel.Dispose();
     }
 }
-

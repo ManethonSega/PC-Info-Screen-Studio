@@ -16,6 +16,7 @@ public sealed class PhotoFrameSettings : ObservableObject
     private string _backgroundColor = "#FF090B0F";
     private bool _showCaptions = true;
     private double _captionFontSize = 18;
+    private string _captionFontFamily = "Segoe UI";
     private string _captionColor = "#FFF7F8FA";
     private string _captionOutlineColor = "#FF000000";
     private double _captionOutlineThickness = 1.5;
@@ -36,6 +37,7 @@ public sealed class PhotoFrameSettings : ObservableObject
     public string BackgroundColor { get => _backgroundColor; set => SetProperty(ref _backgroundColor, value); }
     public bool ShowCaptions { get => _showCaptions; set => SetProperty(ref _showCaptions, value); }
     public double CaptionFontSize { get => _captionFontSize; set => SetProperty(ref _captionFontSize, Math.Clamp(value, 6, 100)); }
+    public string CaptionFontFamily { get => _captionFontFamily; set => SetProperty(ref _captionFontFamily, value); }
     public string CaptionColor { get => _captionColor; set => SetProperty(ref _captionColor, value); }
     public string CaptionOutlineColor { get => _captionOutlineColor; set => SetProperty(ref _captionOutlineColor, value); }
     public double CaptionOutlineThickness { get => _captionOutlineThickness; set => SetProperty(ref _captionOutlineThickness, Math.Clamp(value, 0, 10)); }

@@ -1428,7 +1428,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
     private void OnWidgetPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(WidgetModel.IsSelected) or nameof(WidgetModel.RuntimeValue) or nameof(WidgetModel.RuntimeText) or nameof(WidgetModel.RuntimeUnit)) return;
+        if (e.PropertyName is nameof(WidgetModel.IsSelected) or nameof(WidgetModel.RuntimeValue) or nameof(WidgetModel.RuntimeText) or nameof(WidgetModel.RuntimeUnit) or nameof(WidgetModel.BackgroundTransparency)) return;
         if (e.PropertyName == nameof(WidgetModel.DataSource) && sender is WidgetModel widget)
             ApplyDataSourceDefaults(widget);
         MarkDirtyAndRefresh();

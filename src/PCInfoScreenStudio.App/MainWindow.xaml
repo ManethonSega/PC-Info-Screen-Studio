@@ -6,7 +6,7 @@
         Style="{StaticResource {x:Type Window}}"
         Title="{Binding WindowTitle}"
         Icon="{StaticResource AppIconImage}"
-        Width="1480" Height="880" MinWidth="1080" MinHeight="680"
+        Width="1560" Height="1080" MinWidth="1080" MinHeight="680"
         WindowStartupLocation="CenterScreen"
         Loaded="OnLoaded"
         Closing="OnClosing" StateChanged="OnWindowStateChanged" AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop">
@@ -234,6 +234,10 @@
                     <TextBlock Text="Custom caption text" Foreground="{StaticResource MutedTextBrush}" />
                     <TextBox Text="{Binding Document.PhotoFrame.CustomCaption, UpdateSourceTrigger=PropertyChanged}" ToolTip="One caption used for every photo." />
                   </StackPanel>
+                  <TextBlock Text="Caption font" Foreground="{StaticResource MutedTextBrush}" Margin="0,6,0,0" />
+                  <ComboBox ItemsSource="{Binding FontChoices}" IsEditable="True"
+                            Text="{Binding Document.PhotoFrame.CaptionFontFamily, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                            ToolTip="Choose the caption font for all photos. Includes built-in fonts and fonts installed on this PC." />
                   <Grid Margin="0,4,0,0">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                     <StackPanel Margin="0,0,4,0">
@@ -277,6 +281,7 @@
                     <Button Content="Clock" Command="{Binding AddWidgetCommand}" CommandParameter="AnalogClock" ToolTip="Add a clock overlay." />
                     <Button Content="Bar" Command="{Binding AddWidgetCommand}" CommandParameter="BarGauge" ToolTip="Add a bar overlay." />
                     <Button Content="Graph" Command="{Binding AddWidgetCommand}" CommandParameter="Graph" ToolTip="Add a history graph overlay." />
+                    <Button Content="Shape" Command="{Binding AddWidgetCommand}" CommandParameter="Shape" ToolTip="Add a rectangle, rounded rectangle, ellipse or line overlay." />
                   </UniformGrid>
                 </StackPanel>
               </Expander>
@@ -755,8 +760,18 @@
                     </Grid>
                     <Grid Margin="0,5,0,0">
                       <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                      <StackPanel Margin="0,0,5,0"><TextBlock Text="Background" Foreground="{StaticResource MutedTextBrush}" /><controls:ColorPickerButton HexColor="{Binding BackgroundColor}" /></StackPanel>
+                      <StackPanel Margin="0,0,5,0"><TextBlock Text="Background" Foreground="{StaticResource MutedTextBrush}" /><controls:ColorPickerButton HexColor="{Binding BackgroundColor}" PreserveAlpha="True" ToolTip="Choose the widget background colour. Use Background transparency below to make it visible or transparent." /></StackPanel>
                       <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="Track / grid" Foreground="{StaticResource MutedTextBrush}" /><controls:ColorPickerButton HexColor="{Binding SecondaryColor}" /></StackPanel>
+                    </Grid>
+                    <TextBlock Text="Background transparency (%)" Foreground="{StaticResource MutedTextBrush}" Margin="0,8,0,2" />
+                    <Grid>
+                      <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="55" /></Grid.ColumnDefinitions>
+                      <Slider Minimum="0" Maximum="100" TickFrequency="1" IsSnapToTickEnabled="True"
+                              Value="{Binding BackgroundTransparency, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                              VerticalAlignment="Center" Margin="0,0,8,0"
+                              ToolTip="0% is solid; 100% is invisible. Only the widget background changes." />
+                      <TextBox Grid.Column="1" Text="{Binding BackgroundTransparency, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=F0}"
+                               ToolTip="Background transparency from 0 to 100%. Text, images, gauges and outlines stay unchanged." />
                     </Grid>
                       </StackPanel>
                     </Expander>

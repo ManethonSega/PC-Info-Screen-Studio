@@ -22,6 +22,7 @@ internal static class Program
         {
             CheckSettings(root);
             CheckEditor();
+            CheckWidgetBackground(root);
             CheckPhotos(root);
             CheckDevice(root);
             CheckThemeModes(root);
@@ -51,6 +52,7 @@ internal static class Program
         var photo = new PhotoFrameItem { DisplayName = "My photo", SourcePath = Path.Combine(root, "linked-only.png") };
         document.PhotoFrame.Photos.Add(photo);
         document.PhotoFrame.CaptionFontSize = 24;
+        document.PhotoFrame.CaptionFontFamily = "Orbitron";
         var photoPath = service.Save(document, ScreenMode.PhotoFrame, "Evening");
         Assert(photoPath.EndsWith(".pcphoto") && Path.GetDirectoryName(photoPath)!.EndsWith("Photo Frame Themes"), "Photo themes must use their own folder and extension.");
         var preset = service.Load(photoPath);
@@ -59,6 +61,7 @@ internal static class Program
         ModeThemeService.Apply(document, preset);
         Assert(document.PhotoFrame.Photos.Count == 1 && ReferenceEquals(document.PhotoFrame.Photos[0], photo), "Applying a theme must retain the original linked playlist.");
         Assert(document.PhotoFrame.CaptionFontSize == 24, "Applying a theme must update global caption settings.");
+        Assert(document.PhotoFrame.CaptionFontFamily == "Orbitron", "Caption font choice must survive photo theme save/load.");
         document.Mode = ScreenMode.Hybrid;
         var overlay = new WidgetModel
         {
@@ -71,8 +74,10 @@ internal static class Program
         Assert(hybridPath.EndsWith(".pchybrid") && Path.GetDirectoryName(hybridPath)!.EndsWith("Hybrid Themes"), "Hybrid themes must use their own folder and extension.");
         var hybrid = service.Load(hybridPath);
         document.HybridWidgets.Clear();
+        document.PhotoFrame.CaptionFontFamily = "Consolas";
         ModeThemeService.Apply(document, hybrid);
         Assert(document.HybridWidgets.Count == 1 && document.PhotoFrame.Photos.Count == 1, "Hybrid loading must restore overlays and retain photos.");
+        Assert(document.PhotoFrame.CaptionFontFamily == "Orbitron", "Hybrid theme loading must restore the saved caption font.");
         var restored = document.HybridWidgets[0];
         Assert(restored.Id == overlay.Id && restored.Name == overlay.Name && restored.X == 117 && restored.Y == 63 &&
             restored.Width == 185 && restored.Height == 47 && restored.Rotation == 12 && restored.ZIndex == 4 &&
@@ -108,14 +113,17 @@ internal static class Program
         sessions.Loaded(ScreenMode.Hybrid, hybridPath);
         Assert(sessions.IsDirty(ScreenMode.InfoScreen) && sessions.HasUnsavedChanges, "Saving one mode must not discard another mode's unsaved state.");
         Assert(sessions.PathFor(ScreenMode.PhotoFrame) == photoPath && sessions.PathFor(ScreenMode.Hybrid) == hybridPath, "Save must keep separate active filenames for each mode.");
-        var current = new PhotoFrameSettings { CaptionFontSize = 24 };
+        var current = new PhotoFrameSettings { CaptionFontSize = 24, CaptionFontFamily = "Orbitron" };
         current.Photos.Add(photo);
         sessions.SwitchSettings(ScreenMode.PhotoFrame, ScreenMode.Hybrid, current);
         current.CaptionFontSize = 36;
+        current.CaptionFontFamily = "Bungee";
         sessions.SwitchSettings(ScreenMode.Hybrid, ScreenMode.PhotoFrame, current);
         Assert(current.CaptionFontSize == 24 && current.Photos.Count == 1, "Returning to a mode must restore its settings while retaining the shared playlist.");
+        Assert(current.CaptionFontFamily == "Orbitron", "Photo Frame must retain its independent caption font.");
         sessions.SwitchSettings(ScreenMode.PhotoFrame, ScreenMode.Hybrid, current);
         Assert(current.CaptionFontSize == 36, "Photo and Hybrid settings must remain independent in memory.");
+        Assert(current.CaptionFontFamily == "Bungee", "Hybrid must retain its independent caption font.");
     }
 
     private static void CheckThemeFolderReload(string root)
@@ -271,9 +279,49 @@ internal static class Program
         Assert(document.HybridWidgets.Count == 1 && document.Widgets.Count == 2,
             "Hybrid editing altered Info Screen widgets.");
         Assert(editor.SelectedWidget?.DataSource == "GPU.Temperature", "Search-add lost the requested source.");
+        editor.AddWidgetToCanvas(WidgetType.Shape, null);
+        Assert(document.HybridWidgets.Count == 2 && editor.SelectedWidget?.Type == WidgetType.Shape && document.Widgets.Count == 2,
+            "Adding a Hybrid Shape must create an overlay without changing Info Screen layers.");
         document = new ThemeDocument();
         editor.AddWidgetToCanvas(WidgetType.Text, null);
         Assert(document.Widgets.Count == 1, "Editor kept a stale document after workspace replacement.");
+    }
+
+    private static void CheckWidgetBackground(string root)
+    {
+        foreach (var type in new[] { WidgetType.Text, WidgetType.Shape })
+        {
+            var document = new ThemeDocument { CanvasWidth = 100, CanvasHeight = 80, BackgroundColor = "#FF000000" };
+            using var workspace = new ThemeWorkspace(document, Path.Combine(root, "background-" + type));
+            var widget = new WidgetModel
+            {
+                Type = type, X = 0, Y = 0, Width = 90, Height = 70, CornerRadius = 0,
+                BackgroundColor = "#FF0000FF", ForegroundColor = "#FF00FF00", AccentColor = "#FFFF0000", Label = "X"
+            };
+            document.Widgets.Add(widget);
+            var renderer = new PCInfoScreenStudio.Rendering.ThemeRenderer();
+            using var solid = renderer.Render(workspace);
+            widget.BackgroundTransparency = 50;
+            using var half = renderer.Render(workspace);
+            widget.BackgroundTransparency = 100;
+            using var clear = renderer.Render(workspace);
+            Assert(solid.GetPixel(6, 6).Blue == 255 && Math.Abs(half.GetPixel(6, 6).Blue - 128) <= 1 && clear.GetPixel(6, 6) == SKColors.Black,
+                "Background transparency must make text and shape fills solid, half-transparent or invisible.");
+            var foreground = type == WidgetType.Text ? SKColors.Lime : SKColors.Red;
+            var solidPixels = solid.Pixels.Count(pixel => pixel == foreground);
+            Assert(solidPixels > 0 && half.Pixels.Count(pixel => pixel == foreground) == solidPixels &&
+                clear.Pixels.Count(pixel => pixel == foreground) == solidPixels,
+                "Changing background transparency must leave visible text or shape outlines unchanged.");
+            widget.BackgroundTransparency = 50;
+            var copy = widget.Clone();
+            var reloaded = System.Text.Json.JsonSerializer.Deserialize<WidgetModel>(System.Text.Json.JsonSerializer.Serialize(widget))!;
+            Assert(copy.BackgroundTransparency == 50 && reloaded.BackgroundTransparency == 50 && reloaded.ForegroundColor == "#FF00FF00",
+                "Background transparency must survive duplication and serialization without fading the foreground.");
+            widget.BackgroundTransparency = -1;
+            Assert(widget.BackgroundTransparency == 0, "Background transparency must be bounded at zero.");
+            widget.BackgroundTransparency = 101;
+            Assert(widget.BackgroundTransparency == 100, "Background transparency must be bounded at 100.");
+        }
     }
 
     private static void CheckPhotos(string root)

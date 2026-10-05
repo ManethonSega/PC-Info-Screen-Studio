@@ -124,7 +124,10 @@ public sealed class ThemeRenderer
         var caption = item.GetCaption(settings.CaptionMode, settings.CustomCaption);
         if (string.IsNullOrWhiteSpace(caption)) return;
         var size = (float)settings.CaptionFontSize;
-        using var typeface = SKTypeface.FromFamilyName("Segoe UI") ?? SKTypeface.Default;
+        var family = settings.CaptionFontFamily;
+        var typeface = BuiltInFontCatalog.TryGetPath(family, out var fontPath)
+            ? RenderResourceCache.GetTypefaceFromFile(fontPath)
+            : RenderResourceCache.GetTypefaceFromFamily(family, SKFontStyle.Normal);
         using var font = new SKFont(typeface, size);
         using var fillPaint = new SKPaint { Color = ParseColor(settings.CaptionColor), IsAntialias = true };
         var outlineWidth = (float)settings.CaptionOutlineThickness;

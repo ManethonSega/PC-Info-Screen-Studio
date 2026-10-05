@@ -123,6 +123,7 @@ public sealed class ModeThemeService
         target.BackgroundColor = source.BackgroundColor;
         target.ShowCaptions = source.ShowCaptions;
         target.CaptionFontSize = source.CaptionFontSize;
+        target.CaptionFontFamily = source.CaptionFontFamily;
         target.CaptionColor = source.CaptionColor;
         target.CaptionOutlineColor = source.CaptionOutlineColor;
         target.CaptionOutlineThickness = source.CaptionOutlineThickness;
