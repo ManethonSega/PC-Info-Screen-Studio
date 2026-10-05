@@ -44,7 +44,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private string _weatherCity = string.Empty;
     private string _weatherStatus = "Weather city not configured.";
     private string _hardwareStatus = "Hardware sensors not initialized.";
-    private bool _useLiveData;
     private bool _suppressDirty;
     private bool _suppressHistory;
     private bool _recoveryBusy;
@@ -138,15 +137,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             if (!IsEditorActive && !LivePreview)
                 return;
-            if (UseLiveData || IsHardwarePageVisible)
-                await RefreshRuntimeDataAsync();
-            else if (RuntimeWidgets.Any(w => w.Type == WidgetType.AnalogClock))
-            {
-                if (IsCanvasActive)
-                    ThemeChanged?.Invoke(this, EventArgs.Empty);
-                if (LivePreview)
-                    RequestLiveFrame?.Invoke(this, EventArgs.Empty);
-            }
+            await RefreshRuntimeDataAsync();
         };
         _dataTimer.Start();
 
@@ -477,19 +468,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         set => _device.LivePreview = value;
     }
 
-    public bool UseLiveData
-    {
-        get => _useLiveData;
-        set
-        {
-            if (!SetProperty(ref _useLiveData, value)) return;
-            if (value)
-                _ = RefreshRuntimeDataAsync();
-            else
-                ClearRuntimeData();
-            ThemeChanged?.Invoke(this, EventArgs.Empty);
-        }
-    }
+    public bool UseLiveData => true;
 
     public bool IsDeviceBusy => _device.IsDeviceBusy;
 
@@ -681,7 +660,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (IsLiveMode)
         {
             ClearAlignmentGuides();
-            UseLiveData = true;
         }
     }
 
@@ -1476,7 +1454,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task RefreshRuntimeDataAsync(bool forceWeather = false)
     {
-        if (!UseLiveData && !IsHardwarePageVisible) return;
+        if (_isDisposed) return;
 
         if (Interlocked.CompareExchange(ref _dataSampleBusy, 1, 0) != 0)
             return;
@@ -1516,13 +1494,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             WeatherStatus = _weatherMetrics.Status;
 
             if (IsHardwarePageVisible) HardwareDashboard.Update(sample);
-            if (!UseLiveData)
-            {
-                if (LivePreview && RuntimeWidgets.Any(w => w.Type == WidgetType.AnalogClock))
-                    RequestLiveFrame?.Invoke(this, EventArgs.Empty);
-                return;
-            }
-
             foreach (var widget in AllWidgets)
             {
                 if (sample.TryGetValue(widget.DataSource, out var rawValue))
@@ -1581,22 +1552,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (string.IsNullOrWhiteSpace(WeatherCity))
         {
             WeatherStatus = "Weather city not configured.";
-            if (UseLiveData)
-                await RefreshRuntimeDataAsync(forceWeather: true);
+            await RefreshRuntimeDataAsync(forceWeather: true);
             return;
         }
 
         WeatherStatus = $"Looking up {WeatherCity}...";
 
-        if (UseLiveData)
-        {
-            await RefreshRuntimeDataAsync(forceWeather: true);
-        }
-        else
-        {
-            await _weatherMetrics.GetMetricsAsync(WeatherCity, forceRefresh: true);
-            WeatherStatus = _weatherMetrics.Status;
-        }
+        await RefreshRuntimeDataAsync(forceWeather: true);
     }
 
     private async Task EnableFullSensorsAsync()
@@ -1714,7 +1676,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             $"GPU VRAM: {ShowMetric(sensorCheck, "GPU.VRAM")}\n" +
             $"Disk temperature: {ShowMetric(sensorCheck, "Disk.Temperature")}\n\n" +
             _hardwareMetrics.Status +
-            "\n\nTurn on 'Live data' to feed these values into widgets.",
+            "\n\nLive sensor readings are enabled for your widgets.",
             "Hardware sensor check",
             MessageBoxButton.OK,
             MessageBoxImage.Information);
@@ -1773,17 +1735,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 "Could not restart PC Info Screen Studio",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
-        }
-    }
-
-    private void ClearRuntimeData()
-    {
-        foreach (var widget in AllWidgets)
-        {
-            widget.RuntimeValue = null;
-            widget.RuntimeText = null;
-            widget.RuntimeUnit = null;
-            widget.RuntimeSeries.Clear();
         }
     }
 

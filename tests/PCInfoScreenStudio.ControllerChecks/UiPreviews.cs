@@ -19,7 +19,6 @@ internal static class UiPreviews
         vm.SetEditorActive(false);
         vm.CompleteFirstRunCommand.Execute(null);
         var root = (Grid)window.Content;
-        root.Background = new SolidColorBrush(Color.FromRgb(16, 18, 22));
         try
         {
             foreach (var mode in new[] { ScreenMode.InfoScreen, ScreenMode.PhotoFrame, ScreenMode.Hybrid })
@@ -38,6 +37,8 @@ internal static class UiPreviews
                 ["Network.AdapterNames"] = new(Text: "Sample Ethernet adapter"), ["Network.Download"] = new(2.3, Unit: "MB/s"), ["Network.Upload"] = new(0.4, Unit: "MB/s")
             });
             CaptureElement(root, 1480, 810, Path.Combine(directory, "Hardware.png"));
+            var settingsWindow = new PCInfoScreenStudio.SettingsWindow { DataContext = vm };
+            CaptureElement((FrameworkElement)settingsWindow.Content, 720, 680, Path.Combine(directory, "Settings.png"));
             vm.ShowPage(false);
             vm.Document.Mode = ScreenMode.InfoScreen;
             root.UpdateLayout();

@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:PCInfoScreenStudio.Controls"
         xmlns:models="clr-namespace:PCInfoScreenStudio.Models"
+        Style="{StaticResource {x:Type Window}}"
         Title="{Binding WindowTitle}"
         Icon="{StaticResource AppIconImage}"
         Width="1480" Height="880" MinWidth="1080" MinHeight="680"
@@ -22,7 +23,7 @@
     <KeyBinding Key="G" Modifiers="Control+Shift" Command="{Binding UngroupSelectedCommand}" />
   </Window.InputBindings>
 
-  <Grid>
+  <Grid Background="{Binding Background, RelativeSource={RelativeSource AncestorType=Window}}">
     <Grid.RowDefinitions>
       <RowDefinition Height="52" />
       <RowDefinition Height="*" />
@@ -56,10 +57,13 @@
         </StackPanel>
 
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
-          <Border Background="#6A1731" BorderBrush="#C95478" BorderThickness="1" CornerRadius="5" Padding="8,3" Margin="0,0,8,0">
+          <Border Background="{StaticResource PageSurfaceBrush}" BorderBrush="{StaticResource PageSurfaceBorderBrush}" BorderThickness="1" CornerRadius="5" Padding="8,3" Margin="0,0,8,0">
             <StackPanel Orientation="Horizontal">
-              <TextBlock Text="SCREEN MODE" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#FFF6E8CD" />
+              <TextBlock Text="SCREEN MODE" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource PageTextBrush}" />
               <ComboBox Width="170" Height="32"
+                        Background="{StaticResource PageSurfaceBrush}"
+                        Foreground="{StaticResource PageTextBrush}"
+                        BorderBrush="{StaticResource PageSurfaceBorderBrush}"
                         FontSize="14" FontWeight="SemiBold"
                         ItemsSource="{Binding ScreenModes}"
                         DisplayMemberPath="Label"
@@ -422,7 +426,7 @@
           <TextBlock Foreground="{StaticResource MutedTextBrush}" FontSize="11">
             <TextBlock.Style>
               <Style TargetType="TextBlock">
-                <Setter Property="Text" Value="Use simulated values for design, or enable Live data for current sensor values." />
+                <Setter Property="Text" Value="Live sensor readings are enabled. Choose Preview.Value as a data source to set a design value." />
                 <Style.Triggers>
                   <DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.PhotoFrame}"><Setter Property="Text" Value="Photo preview. Slideshow settings and sources are in the left workspace." /></DataTrigger>
                   <DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.Hybrid}"><Setter Property="Text" Value="Arrange the selected Hybrid overlay over the photo preview." /></DataTrigger>
@@ -586,12 +590,20 @@
                       <TextBlock Text="Label" Foreground="{StaticResource MutedTextBrush}" />
                       <TextBox Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,7" ToolTip="Text displayed as this widget's label." />
                       <Grid>
+                        <Grid.Style>
+                          <Style TargetType="Grid">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                              <DataTrigger Binding="{Binding DataSource}" Value="Preview.Value"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
+                            </Style.Triggers>
+                          </Style>
+                        </Grid.Style>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="72" /></Grid.ColumnDefinitions>
                         <StackPanel>
                           <TextBlock Text="Preview value" Foreground="{StaticResource MutedTextBrush}" />
-                          <Slider Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding SimulatedValue}" ToolTip="Set the preview value used while Live data is disabled." />
+                          <Slider Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding SimulatedValue}" ToolTip="Set the design value for the Preview.Value data source." />
                         </StackPanel>
-                        <TextBox Grid.Column="1" Text="{Binding SimulatedValue, UpdateSourceTrigger=LostFocus}" Margin="8,18,0,0" ToolTip="Enter the exact preview value used while Live data is disabled." />
+                        <TextBox Grid.Column="1" Text="{Binding SimulatedValue, UpdateSourceTrigger=LostFocus}" Margin="8,18,0,0" ToolTip="Enter an exact design value for the Preview.Value data source." />
                       </Grid>
                       <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
@@ -804,4 +816,3 @@
     </Grid>
   </Grid>
 </Window>
-

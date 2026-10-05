@@ -102,6 +102,7 @@ internal static class Program
     {
         using var vm = new MainViewModel(Settings(root, "navigation"));
         vm.SetEditorActive(false); // Avoid accessing physical sensors in this check.
+        Assert(vm.UseLiveData, "Live sensor data must be enabled from startup.");
         vm.Document.Mode = ScreenMode.Hybrid;
         Assert(!vm.IsDirty, "Switching screen modes alone must not create unsaved theme edits.");
         vm.Document.HybridWidgets.Add(new WidgetModel { Type = WidgetType.Text, Label = "Unsaved overlay" });

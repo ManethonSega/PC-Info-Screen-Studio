@@ -2,6 +2,11 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <Application.Resources>
+    <SolidColorBrush x:Key="WorkspaceBrush" Color="#101216" />
+    <SolidColorBrush x:Key="PageSurfaceBrush" Color="#4D0219" />
+    <SolidColorBrush x:Key="PageSurfaceBorderBrush" Color="#925069" />
+    <SolidColorBrush x:Key="PageTextBrush" Color="#F5F5F5" />
+    <SolidColorBrush x:Key="PageMutedTextBrush" Color="#C0C0C0" />
     <SolidColorBrush x:Key="PanelBrush" Color="#171A1F" />
     <SolidColorBrush x:Key="PanelAltBrush" Color="#20242B" />
     <SolidColorBrush x:Key="BorderBrush" Color="#343A45" />
@@ -40,7 +45,7 @@
     </Style>
 
     <Style TargetType="Window">
-      <Setter Property="Background" Value="#101216" />
+      <Setter Property="Background" Value="{StaticResource WorkspaceBrush}" />
       <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
       <Setter Property="FontFamily" Value="Segoe UI" />
     </Style>
@@ -94,6 +99,9 @@
       <Setter Property="FontSize" Value="13" />
       <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="Foreground" Value="#C8D4EB" />
+    </Style>
+    <Style x:Key="PageSectionTitleStyle" TargetType="TextBlock" BasedOn="{StaticResource SectionTitleStyle}">
+      <Setter Property="Foreground" Value="{StaticResource PageTextBrush}" />
     </Style>
     <Style TargetType="ToolTip">
       <Setter Property="Background" Value="#252A32" />
@@ -277,4 +285,3 @@
     </Style>
   </Application.Resources>
 </Application>
-
