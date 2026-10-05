@@ -2,7 +2,7 @@
 
 A visual Windows editor and runtime for 3.5-inch Turing/TURZX-style USB PC info screens. Create a sensor dashboard, use the screen as a photo frame, or combine photos with information overlays.
 
-> **Status:** `0.10.0-alpha.4`. Actively developed alpha. A permanent Windows x64 [portable download](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/tag/v0.10.0-alpha.4) is available. Development builds are also available through GitHub Actions. There is no installer, code signing or automatic updater.
+> **Status:** `0.10.0-alpha.5` source. Actively developed alpha. The previous alpha has a permanent Windows x64 [portable download](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/tag/v0.10.0-alpha.4) is available. Development builds are also available through GitHub Actions. There is no installer, code signing or automatic updater.
 
 The priorities are an intuitive interface, lightweight operation, and a clear preview of the physical screen.
 
@@ -108,7 +108,7 @@ Photo Frame and Hybrid themes do **not** embed photos. **Add folder** remembers 
 ### Info Screen editing
 
 - Add **Text**, **Value**, **Circle**, **Clock**, **Bar**, **Graph**, or **Shape** directly from the left panel.
-- Use **SEARCH & ADD** on the right to find sources such as CPU temperature, GPU usage, RAM, or clock, then click a result once.
+- Select the widget, then choose its **Source** on the right. **SEARCH** filters that dropdown, for example `GPU` shows GPU sources or `CPU temperature` finds the temperature source. **Clear** restores the full list. Searching does not add widgets or change the current sensor; choosing a source changes only the selected widget.
 - Drag widgets on the canvas and edit their appearance and data source in the right-hand properties panel. **Background transparency (%)** runs from 0 (solid) to 100 (invisible) and affects only the widget background, preserving text, gauges, images and outlines. Widget resizing does not change its explicit font-size setting.
 - Organize layers, hide or lock objects, use multi-selection and grouping, and align or distribute items. Grid snapping, smart guides, keyboard movement, undo/redo, and editor zoom are implemented.
 - Add images, animated GIFs, and custom fonts. The built-in fonts include Bungee, Fredoka, Monoton, and Orbitron.

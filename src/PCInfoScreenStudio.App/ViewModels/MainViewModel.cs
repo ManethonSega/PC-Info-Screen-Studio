@@ -56,7 +56,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private bool _isFirstRunVisible;
     private bool _firstRunUseStarterTheme = true;
     private string _firstRunStatus = "Connect your screen now, or finish setup and connect later.";
-    private string _addSearchText = string.Empty;
+    private string _sourceSearchText = string.Empty;
     private bool _isLiveMode;
 
     public event EventHandler? AlignmentGuidesChanged;
@@ -123,7 +123,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SaveModeThemeCommand = new RelayCommand(SaveModeTheme, () => Document.Mode != ScreenMode.InfoScreen);
         LoadModeThemeCommand = new RelayCommand(LoadModeTheme, () => SelectedModeTheme is not null);
         DeleteModeThemeCommand = new RelayCommand(DeleteModeTheme, () => SelectedModeTheme is not null);
-        AddCatalogItemCommand = new RelayCommand(AddCatalogItem);
+        ClearSourceSearchCommand = new RelayCommand(() => SourceSearchText = string.Empty);
+        DataSources.CollectionChanged += OnDataSourcesChanged;
         FirstRunConnectCommand = new RelayCommand(() => _ = DetectAndConnectFirstRunAsync(), () => !IsDeviceBusy);
         CompleteFirstRunCommand = new RelayCommand(CompleteFirstRun);
         ShowSetupAssistantCommand = new RelayCommand(ShowSetupAssistant);
@@ -216,42 +217,40 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public ObservableCollection<ModeThemeLibraryItem> ModeThemes { get; }
     public ObservableCollection<ThemeAsset> FontAssets { get; }
 
-    public IReadOnlyList<AddWidgetOption> AddCatalog { get; } =
-    [
-        new("CPU usage", "Circular gauge · ready to use", WidgetType.CircularGauge, "CPU.Usage", "processor load percent circle"),
-        new("CPU temperature", "Live temperature value", WidgetType.Value, "CPU.Temperature", "processor temp heat"),
-        new("GPU usage", "Circular gauge · ready to use", WidgetType.CircularGauge, "GPU.Usage", "graphics load percent circle"),
-        new("GPU temperature", "Live history graph", WidgetType.Graph, "GPU.Temperature", "graphics temp heat chart"),
-        new("RAM usage", "Segmented horizontal gauge", WidgetType.BarGauge, "RAM.Usage", "memory percent bar"),
-        new("Clock", "Traditional analogue clock", WidgetType.AnalogClock, "Clock.Time", "time watch"),
-        new("Date", "Current date text", WidgetType.Value, "Clock.Date", "day calendar"),
-        new("Text", "Custom text label", WidgetType.Text, null, "label heading"),
-        new("Value", "Label and live value", WidgetType.Value, "CPU.Usage", "sensor number"),
-        new("Circle", "Circular sensor gauge", WidgetType.CircularGauge, "CPU.Usage", "dial ring"),
-        new("Bar", "Segmented sensor gauge", WidgetType.BarGauge, "RAM.Usage", "horizontal meter"),
-        new("Graph", "Live history graph", WidgetType.Graph, "GPU.Temperature", "chart history"),
-        new("Shape", "Rectangle or ellipse", WidgetType.Shape, null, "background panel")
-    ];
-
-    public IEnumerable<AddWidgetOption> FilteredAddCatalog
+    public IEnumerable<string> FilteredDataSources
     {
         get
         {
-            var query = AddSearchText.Trim();
-            return string.IsNullOrWhiteSpace(query)
-                ? Array.Empty<AddWidgetOption>()
-                : AddCatalog.Where(item => item.Matches(query));
+            var terms = SourceSearchText.Split([' ', '\t', '\r', '\n', '.'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return terms.Length == 0 ? DataSources
+                : DataSources.Where(source => terms.All(term => source.Contains(term, StringComparison.OrdinalIgnoreCase))).ToArray();
         }
     }
 
-    public string AddSearchText
+    public string SourceSearchText
     {
-        get => _addSearchText;
+        get => _sourceSearchText;
         set
         {
-            if (!SetProperty(ref _addSearchText, value)) return;
-            RaisePropertyChanged(nameof(FilteredAddCatalog));
+            if (!SetProperty(ref _sourceSearchText, value ?? string.Empty)) return;
+            RaisePropertyChanged(nameof(FilteredDataSources));
+            RaisePropertyChanged(nameof(SourceSearchHint));
+            RaisePropertyChanged(nameof(ClearSourceSearchVisibility));
         }
+    }
+
+    public bool CanSearchSources => SelectedWidget?.Type is WidgetType.Text or WidgetType.Value
+        or WidgetType.CircularGauge or WidgetType.BarGauge or WidgetType.Graph;
+    public Visibility ClearSourceSearchVisibility => SourceSearchText.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+    public string SourceSearchHint => !CanSearchSources ? "Select a widget to choose its data source."
+        : string.IsNullOrWhiteSpace(SourceSearchText) ? "Search CPU, GPU or temperature to filter the Source list below."
+        : !FilteredDataSources.Any() ? "No matching sources. Clear search to see all sources."
+        : "Choose a matching source from the Source list below.";
+
+    private void OnDataSourcesChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (!string.IsNullOrWhiteSpace(SourceSearchText)) RaisePropertyChanged(nameof(FilteredDataSources));
+        RaisePropertyChanged(nameof(SourceSearchHint));
     }
 
     public bool IsEditorActive => _isEditorActive;
@@ -635,7 +634,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public RelayCommand SaveModeThemeCommand { get; }
     public RelayCommand LoadModeThemeCommand { get; }
     public RelayCommand DeleteModeThemeCommand { get; }
-    public RelayCommand AddCatalogItemCommand { get; }
+    public RelayCommand ClearSourceSearchCommand { get; }
     public RelayCommand FirstRunConnectCommand { get; }
     public RelayCommand CompleteFirstRunCommand { get; }
     public RelayCommand ShowSetupAssistantCommand { get; }
@@ -753,7 +752,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         => RequestLiveFrame?.Invoke(this, EventArgs.Empty);
 
     private void OnEditorPropertyChanged(object? sender, PropertyChangedEventArgs e)
-        => RaisePropertyChanged(e.PropertyName);
+    {
+        RaisePropertyChanged(e.PropertyName);
+        if (e.PropertyName == nameof(SelectedWidget))
+        {
+            RaisePropertyChanged(nameof(CanSearchSources));
+            RaisePropertyChanged(nameof(SourceSearchHint));
+        }
+    }
 
     private void OnEditorCommandStatesChanged(object? sender, EventArgs e) => RaiseCommandStates();
 
@@ -850,12 +856,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         if (parameter is null || !Enum.TryParse<WidgetType>(parameter.ToString(), out var type)) return;
         AddWidgetToCanvas(type, null);
-    }
-
-    private void AddCatalogItem(object? parameter)
-    {
-        if (parameter is not AddWidgetOption option) return;
-        AddWidgetToCanvas(option.Type, option.DataSource);
     }
 
     private void AddWidgetToCanvas(WidgetType type, string? dataSource) => _editor.AddWidgetToCanvas(type, dataSource);
@@ -2013,13 +2013,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public sealed record RotationOption(string Label, DeviceRotation Value);
     public sealed record ScreenModeOption(string Label, ScreenMode Value);
     public sealed record PhotoCaptionOption(string Label, PhotoCaptionMode Value);
-    public sealed record AddWidgetOption(string Label, string Description, WidgetType Type, string? DataSource, string SearchTerms)
-    {
-        public bool Matches(string query)
-            => (Label + " " + Description + " " + SearchTerms + " " + DataSource)
-                .Contains(query, StringComparison.CurrentCultureIgnoreCase);
-    }
-
     public void Dispose()
     {
         _isDisposed = true;
@@ -2031,6 +2024,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _weatherMetrics.Dispose();
         _hardwareMetrics.Dispose();
         DetachControllers();
+        DataSources.CollectionChanged -= OnDataSourcesChanged;
         _photos.Dispose();
         ThemeRenderer.ClearCaches();
         _device.Dispose();

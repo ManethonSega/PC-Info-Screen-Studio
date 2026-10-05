@@ -446,25 +446,17 @@
       <Border Grid.Column="2" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1,0,0,0">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="12">
-            <TextBlock Text="SEARCH &amp; ADD" Style="{StaticResource SectionTitleStyle}" Margin="2,2,0,7" />
-            <TextBox Text="{Binding AddSearchText, UpdateSourceTrigger=PropertyChanged}"
-                     ToolTip="Search by widget or source, for example CPU temperature, GPU usage, RAM, or clock."
-                     Margin="2,0,2,4" />
-            <TextBlock Text="Search CPU temperature, GPU usage or clock, then click to add." FontSize="11" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="3,0,3,4" />
-            <ItemsControl ItemsSource="{Binding FilteredAddCatalog}" Margin="0,0,0,8">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <Button Command="{Binding DataContext.AddCatalogItemCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                          CommandParameter="{Binding}" HorizontalContentAlignment="Left" Padding="9,5" ToolTip="{Binding Description}">
-                    <Grid>
-                      <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                      <StackPanel><TextBlock Text="{Binding Label}" FontWeight="SemiBold" /><TextBlock Text="{Binding Description}" FontSize="10" Foreground="{StaticResource MutedTextBrush}" /></StackPanel>
-                      <TextBlock Grid.Column="1" Text="+" FontSize="18" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" Margin="8,0,2,0" />
-                    </Grid>
-                  </Button>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
+            <TextBlock Text="SEARCH" Style="{StaticResource SectionTitleStyle}" Margin="2,2,0,7" />
+            <Grid Margin="2,0,2,4">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+              <TextBox x:Name="SourceSearchBox" Text="{Binding SourceSearchText, UpdateSourceTrigger=PropertyChanged}"
+                       IsEnabled="{Binding CanSearchSources}"
+                       ToolTip="Filter the selected widget's Source list, for example GPU, CPU temperature or clock. Searching does not add widgets or change their current sensor." />
+              <Button Grid.Column="1" Content="Clear" Command="{Binding ClearSourceSearchCommand}"
+                      Visibility="{Binding ClearSourceSearchVisibility}" Margin="6,0,0,0" Padding="7,4"
+                      ToolTip="Clear the search and show all data sources." />
+            </Grid>
+            <TextBlock Text="{Binding SourceSearchHint}" FontSize="11" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="3,0,3,8" />
             <Border Height="1" Background="{StaticResource BorderBrush}" Margin="0,2,0,10" />
             <TextBlock Text="PROPERTIES" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource MutedTextBrush}" Margin="2,2,0,10" />
 
@@ -535,11 +527,11 @@
                       </Expander.Style>
                       <StackPanel Margin="0,5,0,0">
                       <TextBlock Text="Source" Foreground="{StaticResource MutedTextBrush}" />
-                      <ComboBox ItemsSource="{Binding DataContext.DataSources, RelativeSource={RelativeSource AncestorType=Window}}"
-                                IsTextSearchEnabled="True"
-                                SelectedItem="{Binding DataSource, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                      <controls:SourcePicker Style="{StaticResource {x:Type ComboBox}}"
+                                ItemsSource="{Binding DataContext.FilteredDataSources, RelativeSource={RelativeSource AncestorType=Window}}"
+                                SelectedSource="{Binding DataSource, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                 Margin="0,3,0,3"
-                                ToolTip="Select a CPU, GPU, disk, network, cooling, weather or clock source" />
+                                ToolTip="Choose the selected widget's data source. SEARCH above filters this list; choosing a source updates this widget only." />
                       <CheckBox Content="Show advanced hardware sensors"
                                 IsChecked="{Binding DataContext.ShowAdvancedSensors, RelativeSource={RelativeSource AncestorType=Window}}"
                                 Margin="0,0,0,7"

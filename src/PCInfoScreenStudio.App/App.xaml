@@ -305,6 +305,7 @@
                            Background="Transparent"
                            BorderThickness="0"
                            Foreground="{TemplateBinding Foreground}"
+                           IsReadOnly="{TemplateBinding IsReadOnly}"
                            VerticalContentAlignment="Center"
                            Visibility="Collapsed"
                            Text="{Binding Text, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
@@ -334,6 +335,10 @@
               <Trigger Property="IsEditable" Value="True">
                 <Setter TargetName="SelectionPresenter" Property="Visibility" Value="Collapsed" />
                 <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible" />
+              </Trigger>
+              <Trigger Property="IsReadOnly" Value="True">
+                <Setter TargetName="PART_EditableTextBox" Property="IsHitTestVisible" Value="False" />
+                <Setter TargetName="PART_EditableTextBox" Property="Focusable" Value="False" />
               </Trigger>
               <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="DropDownToggle" Property="BorderBrush" Value="{StaticResource FocusBrush}" /></Trigger>
               <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="DropDownToggle" Property="BorderBrush" Value="{StaticResource FocusBrush}" /></Trigger>

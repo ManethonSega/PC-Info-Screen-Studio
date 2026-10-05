@@ -1,6 +1,6 @@
 # Roadmap
 
-Current source version: **0.10.0-alpha.4**.
+Current source version: **0.10.0-alpha.5**.
 
 The next milestone is product polish, not another broad feature category. Priorities remain **easy to use, lightweight, intuitive, and visually clear**. Checked items below describe implemented functionality, not a claim that every device or workload has been validated.
 
@@ -11,7 +11,7 @@ The next milestone is product polish, not another broad feature category. Priori
 - [x] First-run screen detection/connection assistant and starter theme.
 - [x] Prominent Info Screen / Photo Frame / Hybrid selector with mode-specific left panels.
 - [x] Dedicated Settings window for connection, rotation, protocol, sensor access, runtime, and editor preferences.
-- [x] Direct Add buttons on the left and searchable, one-click data-source adding on the right.
+- [x] Direct Add buttons on the left; configuration on the right, with search filtering the selected widget's Source dropdown.
 - [x] Separate Edit and Live-view workflows.
 - [x] Wider scrollable left panel and expandable sections with persisted preferences.
 

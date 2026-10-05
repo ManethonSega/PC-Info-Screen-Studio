@@ -33,6 +33,7 @@ internal static class Program
             CheckThemeFolderReload(root);
             CheckDashboard();
             CheckPageNavigation(root);
+            SourceSearchChecks.Check(root, PumpUntil);
             WorkflowChecks.Check(root, Await, PumpUntil);
             UiStateChecks.Check();
             if (args.Length == 2 && args[0] == "--capture-ui") UiPreviews.Capture(args[1]);
@@ -446,7 +447,7 @@ internal static class Program
         editor.AddWidgetToCanvas(WidgetType.Value, "GPU.Temperature");
         Assert(document.HybridWidgets.Count == 1 && document.Widgets.Count == 2,
             "Hybrid editing altered Info Screen widgets.");
-        Assert(editor.SelectedWidget?.DataSource == "GPU.Temperature", "Search-add lost the requested source.");
+        Assert(editor.SelectedWidget?.DataSource == "GPU.Temperature", "Adding a widget lost the requested source.");
         editor.AddWidgetToCanvas(WidgetType.Shape, null);
         Assert(document.HybridWidgets.Count == 2 && editor.SelectedWidget?.Type == WidgetType.Shape && document.Widgets.Count == 2,
             "Adding a Hybrid Shape must create an overlay without changing Info Screen layers.");
