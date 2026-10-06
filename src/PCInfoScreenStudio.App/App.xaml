@@ -208,6 +208,7 @@
       <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Separator"><Border Height="1" Background="{StaticResource BorderBrush}" Margin="8,5" /></ControlTemplate></Setter.Value></Setter>
     </Style>
     <Style TargetType="TextBox">
+      <Setter Property="Validation.ErrorTemplate" Value="{x:Null}" />
       <Setter Property="Background" Value="#111419" />
       <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
       <Setter Property="CaretBrush" Value="{StaticResource TextBrush}" />
@@ -220,13 +221,21 @@
       <Setter Property="VerticalContentAlignment" Value="Center" />
       <Setter Property="Template"><Setter.Value>
         <ControlTemplate TargetType="TextBox">
-          <Border x:Name="InputBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
-                  BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4">
-            <ScrollViewer x:Name="PART_ContentHost" />
-          </Border>
+          <StackPanel>
+            <Border x:Name="InputBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" MinHeight="30">
+              <ScrollViewer x:Name="PART_ContentHost" />
+            </Border>
+            <TextBlock x:Name="InlineValidationError" Visibility="Collapsed" Foreground="#ECA380"
+                       FontSize="11" TextWrapping="Wrap" Margin="2,3,2,0" />
+          </StackPanel>
           <ControlTemplate.Triggers>
             <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="InputBorder" Property="BorderBrush" Value="{StaticResource FocusBrush}" /></Trigger>
-            <Trigger Property="Validation.HasError" Value="True"><Setter TargetName="InputBorder" Property="BorderBrush" Value="#ECA380" /></Trigger>
+            <Trigger Property="Validation.HasError" Value="True">
+              <Setter TargetName="InputBorder" Property="BorderBrush" Value="#ECA380" />
+              <Setter TargetName="InlineValidationError" Property="Visibility" Value="Visible" />
+              <Setter TargetName="InlineValidationError" Property="Text" Value="{Binding (Validation.Errors)[0].ErrorContent, RelativeSource={RelativeSource TemplatedParent}}" />
+            </Trigger>
             <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="#929CA9" /></Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>

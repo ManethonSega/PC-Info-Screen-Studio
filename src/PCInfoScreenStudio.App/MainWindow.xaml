@@ -10,6 +10,12 @@
         WindowStartupLocation="CenterScreen"
         Loaded="OnLoaded"
         Closing="OnClosing" StateChanged="OnWindowStateChanged" AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop">
+  <Window.Resources>
+    <Style x:Key="AlignmentButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Width" Value="28" /><Setter Property="Height" Value="30" />
+      <Setter Property="Padding" Value="4" />
+    </Style>
+  </Window.Resources>
   <Window.InputBindings>
     <KeyBinding Key="N" Modifiers="Control" Command="{Binding NewCommand}" />
     <KeyBinding Key="O" Modifiers="Control" Command="{Binding OpenCommand}" />
@@ -200,8 +206,8 @@
                 <StackPanel Margin="0,5,0,0">
                   <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                    <StackPanel Margin="0,0,4,0"><TextBlock Text="Photo duration (s)" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding Document.PhotoFrame.DefaultDurationSeconds, UpdateSourceTrigger=LostFocus}" ToolTip="How long every photo remains visible." /></StackPanel>
-                    <StackPanel Grid.Column="1" Margin="4,0,0,0"><TextBlock Text="Transition time (s)" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding Document.PhotoFrame.TransitionDurationSeconds, UpdateSourceTrigger=LostFocus}" ToolTip="Duration of the transition between photos." /></StackPanel>
+                    <StackPanel Margin="0,0,4,0"><TextBlock Text="Photo duration (s)" Foreground="{StaticResource MutedTextBrush}" /><TextBox controls:NumericValidation.Field="PhotoDuration" Text="{Binding Document.PhotoFrame.DefaultDurationSeconds, UpdateSourceTrigger=LostFocus}" ToolTip="How long every photo remains visible." /></StackPanel>
+                    <StackPanel Grid.Column="1" Margin="4,0,0,0"><TextBlock Text="Transition time (s)" Foreground="{StaticResource MutedTextBrush}" /><TextBox controls:NumericValidation.Field="TransitionDuration" Text="{Binding Document.PhotoFrame.TransitionDurationSeconds, UpdateSourceTrigger=LostFocus}" ToolTip="Duration of the transition between photos." /></StackPanel>
                   </Grid>
                   <TextBlock Text="Transition" Foreground="{StaticResource MutedTextBrush}" Margin="0,5,0,0" />
                   <ComboBox ItemsSource="{Binding PhotoTransitions}" SelectedItem="{Binding Document.PhotoFrame.Transition}" ToolTip="Animation is used only while changing from one photo to the next." />
@@ -242,7 +248,7 @@
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                     <StackPanel Margin="0,0,4,0">
                       <TextBlock Text="Caption font size (px)" Foreground="{StaticResource MutedTextBrush}" />
-                      <TextBox Text="{Binding Document.PhotoFrame.CaptionFontSize, UpdateSourceTrigger=LostFocus}" ToolTip="Caption font size in screen pixels." />
+                      <TextBox controls:NumericValidation.Field="CaptionFontSize" Text="{Binding Document.PhotoFrame.CaptionFontSize, UpdateSourceTrigger=LostFocus}" ToolTip="Caption font size in screen pixels." />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Margin="4,0,0,0">
                       <TextBlock Text="Caption text colour" Foreground="{StaticResource MutedTextBrush}" />
@@ -257,7 +263,7 @@
                     </StackPanel>
                     <StackPanel Grid.Column="1" Margin="4,0,0,0">
                       <TextBlock Text="Outline width (px)" Foreground="{StaticResource MutedTextBrush}" />
-                      <TextBox Text="{Binding Document.PhotoFrame.CaptionOutlineThickness, UpdateSourceTrigger=LostFocus}" ToolTip="Set to 0 for no outline." />
+                      <TextBox controls:NumericValidation.Field="OutlineThickness" Text="{Binding Document.PhotoFrame.CaptionOutlineThickness, UpdateSourceTrigger=LostFocus}" ToolTip="Set to 0 for no outline." />
                     </StackPanel>
                   </Grid>
                 </StackPanel>
@@ -394,12 +400,48 @@
               </Style>
             </StackPanel.Style>
             <TextBlock Text="Align" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" Margin="0,0,3,0" />
-            <Button Content="L" Command="{Binding AlignWidgetCommand}" CommandParameter="Left" Padding="6,3" ToolTip="Align left" />
-            <Button Content="C" Command="{Binding AlignWidgetCommand}" CommandParameter="Center" Padding="6,3" ToolTip="Centre horizontally" />
-            <Button Content="R" Command="{Binding AlignWidgetCommand}" CommandParameter="Right" Padding="6,3" ToolTip="Align right" />
-            <Button Content="T" Command="{Binding AlignWidgetCommand}" CommandParameter="Top" Padding="6,3" ToolTip="Align top" />
-            <Button Content="M" Command="{Binding AlignWidgetCommand}" CommandParameter="Middle" Padding="6,3" ToolTip="Centre vertically" />
-            <Button Content="B" Command="{Binding AlignWidgetCommand}" CommandParameter="Bottom" Padding="6,3" ToolTip="Align bottom" />
+            <Button x:Name="AlignLeftButton" Command="{Binding AlignWidgetCommand}" CommandParameter="Left"
+                    Style="{StaticResource AlignmentButtonStyle}" AutomationProperties.Name="Align left"
+                    ToolTip="Align left. One widget: canvas; multiple widgets: selection bounds.">
+              <Path Width="18" Height="18" Stretch="Uniform" StrokeThickness="1.5" StrokeLineJoin="Round"
+                    Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                    Data="M2,1 L2,19 M5,4 L17,4 L17,8 L5,8 Z M5,12 L13,12 L13,16 L5,16 Z" />
+            </Button>
+            <Button x:Name="AlignCenterButton" Command="{Binding AlignWidgetCommand}" CommandParameter="Center"
+                    Style="{StaticResource AlignmentButtonStyle}" AutomationProperties.Name="Centre horizontally"
+                    ToolTip="Centre horizontally. One widget: canvas; multiple widgets: selection bounds.">
+              <Path Width="18" Height="18" Stretch="Uniform" StrokeThickness="1.5" StrokeLineJoin="Round"
+                    Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                    Data="M10,1 L10,19 M3,4 L17,4 L17,8 L3,8 Z M6,12 L14,12 L14,16 L6,16 Z" />
+            </Button>
+            <Button x:Name="AlignRightButton" Command="{Binding AlignWidgetCommand}" CommandParameter="Right"
+                    Style="{StaticResource AlignmentButtonStyle}" AutomationProperties.Name="Align right"
+                    ToolTip="Align right. One widget: canvas; multiple widgets: selection bounds.">
+              <Path Width="18" Height="18" Stretch="Uniform" StrokeThickness="1.5" StrokeLineJoin="Round"
+                    Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                    Data="M18,1 L18,19 M3,4 L15,4 L15,8 L3,8 Z M7,12 L15,12 L15,16 L7,16 Z" />
+            </Button>
+            <Button x:Name="AlignTopButton" Command="{Binding AlignWidgetCommand}" CommandParameter="Top"
+                    Style="{StaticResource AlignmentButtonStyle}" AutomationProperties.Name="Align top"
+                    ToolTip="Align top. One widget: canvas; multiple widgets: selection bounds.">
+              <Path Width="18" Height="18" Stretch="Uniform" StrokeThickness="1.5" StrokeLineJoin="Round"
+                    Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                    Data="M1,2 L19,2 M4,5 L8,5 L8,17 L4,17 Z M12,5 L16,5 L16,13 L12,13 Z" />
+            </Button>
+            <Button x:Name="AlignMiddleButton" Command="{Binding AlignWidgetCommand}" CommandParameter="Middle"
+                    Style="{StaticResource AlignmentButtonStyle}" AutomationProperties.Name="Centre vertically"
+                    ToolTip="Centre vertically. One widget: canvas; multiple widgets: selection bounds.">
+              <Path Width="18" Height="18" Stretch="Uniform" StrokeThickness="1.5" StrokeLineJoin="Round"
+                    Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                    Data="M1,10 L19,10 M4,3 L8,3 L8,17 L4,17 Z M12,6 L16,6 L16,14 L12,14 Z" />
+            </Button>
+            <Button x:Name="AlignBottomButton" Command="{Binding AlignWidgetCommand}" CommandParameter="Bottom"
+                    Style="{StaticResource AlignmentButtonStyle}" AutomationProperties.Name="Align bottom"
+                    ToolTip="Align bottom. One widget: canvas; multiple widgets: selection bounds.">
+              <Path Width="18" Height="18" Stretch="Uniform" StrokeThickness="1.5" StrokeLineJoin="Round"
+                    Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                    Data="M1,18 L19,18 M4,3 L8,3 L8,15 L4,15 Z M12,7 L16,7 L16,15 L12,15 Z" />
+            </Button>
             <Button Content="Group" Command="{Binding GroupSelectedCommand}" Padding="7,3" ToolTip="Group selected widgets (Ctrl+G)" />
             <Button Content="Ungroup" Command="{Binding UngroupSelectedCommand}" Padding="7,3" ToolTip="Ungroup selected widgets (Ctrl+Shift+G)" />
           </StackPanel>
@@ -417,7 +459,7 @@
               <CheckBox Content="Grid" IsChecked="{Binding Document.EditorGridVisible}" Margin="4,0,8,0" ToolTip="Show or hide the editor grid. It is not included in the display output." />
               <CheckBox Content="Snap" IsChecked="{Binding Document.SnapToGrid}" Margin="0,0,8,0" ToolTip="Snap dragging, resizing, and arrow-key movement to the configured grid spacing." />
               <TextBlock Text="Grid px" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" Margin="0,0,4,0" />
-              <TextBox Width="42" Text="{Binding Document.GridSize, UpdateSourceTrigger=LostFocus}" ToolTip="Grid spacing in screen pixels" />
+              <TextBox controls:NumericValidation.Field="GridSize" Width="42" Text="{Binding Document.GridSize, UpdateSourceTrigger=LostFocus}" ToolTip="Grid spacing in screen pixels" />
             </StackPanel>
             <TextBlock Text="Zoom" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" Margin="10,0,4,0" />
             <Slider Width="74" Minimum="0.5" Maximum="3" SmallChange="0.1" LargeChange="0.5"
@@ -473,7 +515,16 @@
               </TextBlock.Style>
             </TextBlock>
 
-            <ContentControl Content="{Binding SelectedWidget}">
+            <ContentControl x:Name="WidgetProperties" Content="{Binding SelectedWidget}">
+              <ContentControl.Style>
+                <Style TargetType="ContentControl">
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding SelectedWidget}" Value="{x:Null}">
+                      <Setter Property="Visibility" Value="Collapsed" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </ContentControl.Style>
               <ContentControl.ContentTemplate>
                 <DataTemplate DataType="{x:Type models:WidgetModel}">
                   <StackPanel>
@@ -495,17 +546,17 @@
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions><RowDefinition /><RowDefinition /><RowDefinition /></Grid.RowDefinitions>
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="X" VerticalAlignment="Center" Margin="0,0,5,0" />
-                        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding X, UpdateSourceTrigger=LostFocus}" Margin="0,2,8,2" ToolTip="Horizontal position in screen pixels from the left edge." />
+                        <TextBox controls:NumericValidation.Field="NonNegative" Grid.Row="0" Grid.Column="1" Text="{Binding X, UpdateSourceTrigger=LostFocus}" Margin="0,2,8,2" ToolTip="Horizontal position in screen pixels from the left edge." />
                         <TextBlock Grid.Row="0" Grid.Column="2" Text="Y" VerticalAlignment="Center" Margin="0,0,5,0" />
-                        <TextBox Grid.Row="0" Grid.Column="3" Text="{Binding Y, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,2" ToolTip="Vertical position in screen pixels from the top edge." />
+                        <TextBox controls:NumericValidation.Field="NonNegative" Grid.Row="0" Grid.Column="3" Text="{Binding Y, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,2" ToolTip="Vertical position in screen pixels from the top edge." />
                         <TextBlock Grid.Row="1" Grid.Column="0" Text="W" VerticalAlignment="Center" Margin="0,0,5,0" />
-                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Width, UpdateSourceTrigger=LostFocus}" Margin="0,2,8,2" ToolTip="Widget width in screen pixels." />
+                        <TextBox controls:NumericValidation.Field="Size" Grid.Row="1" Grid.Column="1" Text="{Binding Width, UpdateSourceTrigger=LostFocus}" Margin="0,2,8,2" ToolTip="Widget width in screen pixels." />
                         <TextBlock Grid.Row="1" Grid.Column="2" Text="H" VerticalAlignment="Center" Margin="0,0,5,0" />
-                        <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding Height, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,2" ToolTip="Widget height in screen pixels." />
+                        <TextBox controls:NumericValidation.Field="Size" Grid.Row="1" Grid.Column="3" Text="{Binding Height, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,2" ToolTip="Widget height in screen pixels." />
                         <TextBlock Grid.Row="2" Grid.Column="0" Text="Rot" VerticalAlignment="Center" Margin="0,0,5,0" />
-                        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Rotation, UpdateSourceTrigger=LostFocus}" Margin="0,2,8,2" ToolTip="Rotate this widget clockwise by the entered number of degrees." />
+                        <TextBox controls:NumericValidation.Field="Number" Grid.Row="2" Grid.Column="1" Text="{Binding Rotation, UpdateSourceTrigger=LostFocus}" Margin="0,2,8,2" ToolTip="Rotate this widget clockwise by the entered number of degrees." />
                         <TextBlock Grid.Row="2" Grid.Column="2" Text="Opacity" VerticalAlignment="Center" Margin="0,0,5,0" />
-                        <TextBox Grid.Row="2" Grid.Column="3" Text="{Binding Opacity, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,2" ToolTip="Widget opacity from 0 (transparent) to 1 (fully visible)." />
+                        <TextBox controls:NumericValidation.Field="Opacity" Grid.Row="2" Grid.Column="3" Text="{Binding Opacity, UpdateSourceTrigger=LostFocus}" Margin="0,2,0,2" ToolTip="Widget opacity from 0 (transparent) to 1 (fully visible)." />
                       </Grid>
                     </Expander>
 
@@ -600,12 +651,12 @@
                           <TextBlock Text="Preview value" Foreground="{StaticResource MutedTextBrush}" />
                           <Slider Minimum="{Binding Minimum}" Maximum="{Binding Maximum}" Value="{Binding SimulatedValue}" ToolTip="Set the design value for the Preview.Value data source." />
                         </StackPanel>
-                        <TextBox Grid.Column="1" Text="{Binding SimulatedValue, UpdateSourceTrigger=LostFocus}" Margin="8,18,0,0" ToolTip="Enter an exact design value for the Preview.Value data source." />
+                        <TextBox controls:NumericValidation.Field="Number" Grid.Column="1" Text="{Binding SimulatedValue, UpdateSourceTrigger=LostFocus}" Margin="8,18,0,0" ToolTip="Enter an exact design value for the Preview.Value data source." />
                       </Grid>
                       <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0" Margin="0,0,5,0"><TextBlock Text="Min" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding Minimum, UpdateSourceTrigger=LostFocus}" ToolTip="Lowest value represented by this gauge or graph." /></StackPanel>
-                        <StackPanel Grid.Column="1" Margin="5,0"><TextBlock Text="Max" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding Maximum, UpdateSourceTrigger=LostFocus}" ToolTip="Highest value represented by this gauge or graph." /></StackPanel>
+                        <StackPanel Grid.Column="0" Margin="0,0,5,0"><TextBlock Text="Min" Foreground="{StaticResource MutedTextBrush}" /><TextBox controls:NumericValidation.Field="Minimum" Text="{Binding Minimum, UpdateSourceTrigger=LostFocus}" ToolTip="Lowest value represented by this gauge or graph." /></StackPanel>
+                        <StackPanel Grid.Column="1" Margin="5,0"><TextBlock Text="Max" Foreground="{StaticResource MutedTextBrush}" /><TextBox controls:NumericValidation.Field="Maximum" Text="{Binding Maximum, UpdateSourceTrigger=LostFocus}" ToolTip="Highest value represented by this gauge or graph." /></StackPanel>
                         <StackPanel Grid.Column="2" Margin="5,0,0,0"><TextBlock Text="Suffix" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding Suffix, UpdateSourceTrigger=PropertyChanged}" ToolTip="Unit or text displayed after the value, for example %, °C, or GB." /></StackPanel>
                       </Grid>
                       <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
@@ -647,7 +698,7 @@
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                         <StackPanel>
                           <TextBlock Text="Size" Foreground="{StaticResource MutedTextBrush}" />
-                          <TextBox Text="{Binding FontSize, UpdateSourceTrigger=LostFocus}"
+                          <TextBox controls:NumericValidation.Field="FontSize" Text="{Binding FontSize, UpdateSourceTrigger=LostFocus}"
                                    ToolTip="Fixed text size in screen pixels. Resizing the widget does not change it." />
                         </StackPanel>
                         <CheckBox Grid.Column="1" Content="Bold" IsChecked="{Binding FontBold}" Margin="12,18,5,0" ToolTip="Use the bold font style." />
@@ -671,8 +722,8 @@
                       <ComboBox ItemsSource="{Binding DataContext.GraphStyles, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding GraphStyle}" Margin="0,3,0,6" ToolTip="Choose how graph history is drawn." />
                       <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                        <StackPanel Margin="0,0,5,0"><TextBlock Text="History (s)" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding HistorySeconds, UpdateSourceTrigger=LostFocus}" ToolTip="Number of seconds of sensor history shown in the graph." /></StackPanel>
-                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="Line width" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding LineThickness, UpdateSourceTrigger=LostFocus}" ToolTip="Thickness of graph lines in screen pixels." /></StackPanel>
+                        <StackPanel Margin="0,0,5,0"><TextBlock Text="History (s)" Foreground="{StaticResource MutedTextBrush}" /><TextBox controls:NumericValidation.Field="History" Text="{Binding HistorySeconds, UpdateSourceTrigger=LostFocus}" ToolTip="Number of seconds of sensor history shown in the graph." /></StackPanel>
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="Line width" Foreground="{StaticResource MutedTextBrush}" /><TextBox controls:NumericValidation.Field="Thickness" Text="{Binding LineThickness, UpdateSourceTrigger=LostFocus}" ToolTip="Thickness of graph lines in screen pixels." /></StackPanel>
                       </Grid>
                       <StackPanel Orientation="Horizontal"><CheckBox Content="Grid" IsChecked="{Binding ShowGrid}" Margin="0,4,15,0" ToolTip="Draw reference grid lines behind the graph." /><CheckBox Content="Auto scale" IsChecked="{Binding AutoScale}" Margin="0,4,0,0" ToolTip="Adjust the graph range automatically to recent values." /></StackPanel>
                       </StackPanel>
@@ -694,8 +745,8 @@
                       <StackPanel Margin="0,5,0,0">
                       <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                        <StackPanel Margin="0,0,5,0"><TextBlock Text="Thickness" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding GaugeThickness, UpdateSourceTrigger=LostFocus}" ToolTip="Thickness of the gauge track and active indicator." /></StackPanel>
-                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="Segments" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding SegmentCount, UpdateSourceTrigger=LostFocus}" ToolTip="Number of blocks used by a segmented bar gauge." /></StackPanel>
+                        <StackPanel Margin="0,0,5,0"><TextBlock Text="Thickness" Foreground="{StaticResource MutedTextBrush}" /><TextBox controls:NumericValidation.Field="Thickness" Text="{Binding GaugeThickness, UpdateSourceTrigger=LostFocus}" ToolTip="Thickness of the gauge track and active indicator." /></StackPanel>
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="Segments" Foreground="{StaticResource MutedTextBrush}" /><TextBox controls:NumericValidation.Field="Segments" Text="{Binding SegmentCount, UpdateSourceTrigger=LostFocus}" ToolTip="Number of blocks used by a segmented bar gauge." /></StackPanel>
                       </Grid>
                       </StackPanel>
                     </Expander>
@@ -721,8 +772,8 @@
                       <CheckBox Content="Automatic optimization" IsChecked="{Binding AutoOptimize}" ToolTip="Reduce media workload automatically for smoother display updates." />
                       <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                        <StackPanel Margin="0,0,5,0"><TextBlock Text="Speed" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding PlaybackSpeed, UpdateSourceTrigger=LostFocus}" ToolTip="Playback speed multiplier, for example 0.5 for half speed or 2 for double speed." /></StackPanel>
-                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="FPS (0=Auto)" Foreground="{StaticResource MutedTextBrush}" /><TextBox Text="{Binding TargetFps, UpdateSourceTrigger=LostFocus}" ToolTip="Limit animation frames per second. Use 0 for automatic timing." /></StackPanel>
+                        <StackPanel Margin="0,0,5,0"><TextBlock Text="Speed" Foreground="{StaticResource MutedTextBrush}" /><TextBox controls:NumericValidation.Field="PlaybackSpeed" Text="{Binding PlaybackSpeed, UpdateSourceTrigger=LostFocus}" ToolTip="Playback speed multiplier, for example 0.5 for half speed or 2 for double speed." /></StackPanel>
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="FPS (0=Auto)" Foreground="{StaticResource MutedTextBrush}" /><TextBox controls:NumericValidation.Field="Fps" Text="{Binding TargetFps, UpdateSourceTrigger=LostFocus}" ToolTip="Limit animation frames per second. Use 0 for automatic timing." /></StackPanel>
                       </Grid>
                       </StackPanel>
                     </Expander>
@@ -737,7 +788,7 @@
                       <StackPanel Margin="0,5,0,0">
                       <ComboBox ItemsSource="{Binding DataContext.ShapeStyles, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding ShapeStyle}" ToolTip="Choose the shape geometry." />
                       <TextBlock Text="Corner radius" Foreground="{StaticResource MutedTextBrush}" Margin="0,6,0,0" />
-                      <TextBox Text="{Binding CornerRadius, UpdateSourceTrigger=LostFocus}" ToolTip="Set how rounded the shape corners are, in pixels." />
+                      <TextBox controls:NumericValidation.Field="NonNegative" Text="{Binding CornerRadius, UpdateSourceTrigger=LostFocus}" ToolTip="Set how rounded the shape corners are, in pixels." />
                       </StackPanel>
                     </Expander>
 
@@ -762,7 +813,7 @@
                               Value="{Binding BackgroundTransparency, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                               VerticalAlignment="Center" Margin="0,0,8,0"
                               ToolTip="0% is solid; 100% is invisible. Only the widget background changes." />
-                      <TextBox Grid.Column="1" Text="{Binding BackgroundTransparency, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=F0}"
+                      <TextBox controls:NumericValidation.Field="Transparency" Grid.Column="1" Text="{Binding BackgroundTransparency, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat=F0}"
                                ToolTip="Background transparency from 0 to 100%. Text, images, gauges and outlines stay unchanged." />
                     </Grid>
                       </StackPanel>

@@ -73,6 +73,64 @@
             </ItemsControl.ItemTemplate>
           </ItemsControl>
 
+          <!-- Editor-only hints. They are WPF overlays, never part of USB rendering. -->
+          <StackPanel Panel.ZIndex="9000" HorizontalAlignment="Center" VerticalAlignment="Center"
+                      MaxWidth="360" Margin="16" IsHitTestVisible="False">
+            <Border x:Name="PhotoEmptyState" Background="#E8171A1F" CornerRadius="6" Padding="18" Margin="0,4">
+              <Border.Style>
+                <Style TargetType="Border">
+                  <Setter Property="Visibility" Value="Collapsed" />
+                  <Style.Triggers>
+                    <MultiDataTrigger>
+                      <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.PhotoFrame}" />
+                        <Condition Binding="{Binding Document.PhotoFrame.Photos.Count}" Value="0" />
+                        <Condition Binding="{Binding IsLiveMode}" Value="False" />
+                      </MultiDataTrigger.Conditions>
+                      <Setter Property="Visibility" Value="Visible" />
+                    </MultiDataTrigger>
+                    <MultiDataTrigger>
+                      <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.Hybrid}" />
+                        <Condition Binding="{Binding Document.PhotoFrame.Photos.Count}" Value="0" />
+                        <Condition Binding="{Binding IsLiveMode}" Value="False" />
+                      </MultiDataTrigger.Conditions>
+                      <Setter Property="Visibility" Value="Visible" />
+                    </MultiDataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </Border.Style>
+              <StackPanel>
+                <TextBlock Text="Add photos or choose a folder" FontSize="17" FontWeight="SemiBold"
+                           TextAlignment="Center" TextWrapping="Wrap" />
+                <TextBlock Text="Use Add files or Add folder on the left." Foreground="{StaticResource MutedTextBrush}"
+                           TextAlignment="Center" TextWrapping="Wrap" Margin="0,6,0,0" />
+              </StackPanel>
+            </Border>
+            <Border x:Name="HybridEmptyState" Background="#E8171A1F" CornerRadius="6" Padding="18" Margin="0,4">
+              <Border.Style>
+                <Style TargetType="Border">
+                  <Setter Property="Visibility" Value="Collapsed" />
+                  <Style.Triggers>
+                    <MultiDataTrigger>
+                      <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.Hybrid}" />
+                        <Condition Binding="{Binding Document.HybridWidgets.Count}" Value="0" />
+                        <Condition Binding="{Binding IsLiveMode}" Value="False" />
+                      </MultiDataTrigger.Conditions>
+                      <Setter Property="Visibility" Value="Visible" />
+                    </MultiDataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </Border.Style>
+              <StackPanel>
+                <TextBlock Text="Add an overlay" FontSize="17" FontWeight="SemiBold" TextAlignment="Center" />
+                <TextBlock Text="Choose an item under Hybrid overlays on the left." Foreground="{StaticResource MutedTextBrush}"
+                           TextAlignment="Center" TextWrapping="Wrap" Margin="0,6,0,0" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
           <Canvas Panel.ZIndex="9999" IsHitTestVisible="False">
             <Rectangle x:Name="SelectionMarquee"
                        Fill="#285B8CFF"
@@ -95,3 +153,4 @@
     </Grid>
   </ScrollViewer>
 </UserControl>
+

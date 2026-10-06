@@ -36,6 +36,7 @@ internal static class Program
             SourceSearchChecks.Check(root, PumpUntil);
             WorkflowChecks.Check(root, Await, PumpUntil);
             UiStateChecks.Check();
+            UiPolishChecks.Check(root, PumpUntil);
             if (args.Length == 2 && args[0] == "--capture-ui") UiPreviews.Capture(args[1]);
             Console.WriteLine("PASS: preferences, startup task, session resume, editor, photos, device queue, mode themes, dashboard, and navigation checks.");
             return 0;
