@@ -571,7 +571,9 @@ internal static class Program
             "Disconnect state was not forwarded.");
         hardware.FailNextConnection = true;
         Await(controller.ConnectOrDisconnectAsync(automatic: true));
-        Assert(!controller.IsConnected && controller.DeviceStatus.Contains("Connection failed"), "An automatic reconnect failure must be reported without an interactive dialog.");
+        Assert(!controller.IsConnected && controller.DeviceStatus.Contains("not ready") &&
+            !controller.DeviceStatus.Contains("Test port temporarily unavailable"),
+            "An automatic reconnect failure must use clear user-facing status without exposing a technical error.");
         Await(controller.ConnectOrDisconnectAsync(automatic: true));
         Assert(controller.IsConnected && controller.LivePreview, "Reconnecting after a temporary port failure must restart live output.");
         Await(controller.ConnectOrDisconnectAsync());
