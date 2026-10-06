@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.0-alpha.6
+
+- Added editor-only prompts to empty Photo Frame and Hybrid previews.
+- Hidden widget property fields when no layer is selected.
+- Replaced alignment letters with vector icons, accessible names and explanatory tooltips.
+- Added inline numeric errors while retaining valid settings and commit-on-focus-loss editing.
+- Added actual WPF checks for these workflows and refreshed the README workspace captures.
+
 ## 0.8.2-alpha.1
 
 - Bundled the official unmodified PawnIO 2.2.0 setup executable inside Windows release artifacts under `Prerequisites`.
@@ -139,3 +147,4 @@
 
 - Added initial live Windows data providers for CPU load, memory, storage, networking and clock/date values.
 - Added live graph-history buffering separated from saved design-time theme data.
+

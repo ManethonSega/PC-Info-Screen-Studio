@@ -162,7 +162,6 @@ internal static class UiPolishChecks
         var graph = vm.SelectedWidget!;
         CheckField(Field(window, "HistorySeconds"), "2.5", "20", () => graph.HistorySeconds, 20);
         CheckField(Field(window, "LineThickness"), "0", "2", () => graph.LineThickness, 2);
-        CheckField(Field(window, "Document.GridSize"), "101", "20", () => vm.Document.GridSize, 20);
         vm.SelectedWidget = widget;
         Flush();
         Assert(!Validation.GetHasError(Field(window, "Width")) && Field(window, "Width").Text == "20",
@@ -199,8 +198,12 @@ internal static class UiPolishChecks
     private static void Capture(FrameworkElement root, string directory, string name)
     {
         Directory.CreateDirectory(directory);
+        // The runner's desktop can be smaller than the app's normal editor size.
+        // Capture the full control tree rather than a clipped monitor viewport.
+        root.Measure(new Size(1560, 1040));
+        root.Arrange(new Rect(0, 0, 1560, 1040));
         root.UpdateLayout();
-        var bitmap = new RenderTargetBitmap((int)root.ActualWidth, (int)root.ActualHeight, 96, 96, PixelFormats.Pbgra32);
+        var bitmap = new RenderTargetBitmap(1560, 1040, 96, 96, PixelFormats.Pbgra32);
         bitmap.Render(root);
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));

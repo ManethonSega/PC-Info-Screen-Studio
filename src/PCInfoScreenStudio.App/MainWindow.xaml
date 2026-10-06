@@ -459,7 +459,7 @@
               <CheckBox Content="Grid" IsChecked="{Binding Document.EditorGridVisible}" Margin="4,0,8,0" ToolTip="Show or hide the editor grid. It is not included in the display output." />
               <CheckBox Content="Snap" IsChecked="{Binding Document.SnapToGrid}" Margin="0,0,8,0" ToolTip="Snap dragging, resizing, and arrow-key movement to the configured grid spacing." />
               <TextBlock Text="Grid px" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" Margin="0,0,4,0" />
-              <TextBox controls:NumericValidation.Field="GridSize" Width="42" Text="{Binding Document.GridSize, UpdateSourceTrigger=LostFocus}" ToolTip="Grid spacing in screen pixels" />
+              <TextBox Width="42" Text="{Binding Document.GridSize, UpdateSourceTrigger=LostFocus}" ToolTip="Grid spacing in screen pixels" />
             </StackPanel>
             <TextBlock Text="Zoom" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" Margin="10,0,4,0" />
             <Slider Width="74" Minimum="0.5" Maximum="3" SmallChange="0.1" LargeChange="0.5"

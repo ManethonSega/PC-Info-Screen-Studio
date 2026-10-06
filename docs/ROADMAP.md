@@ -1,6 +1,6 @@
 # Roadmap
 
-Current source version: **0.10.0-alpha.5**.
+Current source version: **0.10.0-alpha.6**.
 
 The next milestone is product polish, not another broad feature category. Priorities remain **easy to use, lightweight, intuitive, and visually clear**. Checked items below describe implemented functionality, not a claim that every device or workload has been validated.
 
@@ -14,6 +14,8 @@ The next milestone is product polish, not another broad feature category. Priori
 - [x] Direct Add buttons on the left; configuration on the right, with search filtering the selected widget's Source dropdown.
 - [x] Separate Edit and Live-view workflows.
 - [x] Wider scrollable left panel and expandable sections with persisted preferences.
+- [x] Editor-only empty-state prompts, selected-widget-only properties and vector alignment icons with descriptive tooltips.
+- [x] Inline numeric validation for dimensions, opacity, sensor ranges and photo settings, with invalid drafts preserving the last valid value.
 
 ### Info Screen editor
 
@@ -88,7 +90,7 @@ Validation should be focused on these user workflows and physical-device behavio
 
 ### 4. Make distribution dependable
 
-- [x] Publish 0.10.0-alpha.5 as a versioned GitHub Release with a permanent portable download and matching source.
+- [x] Publish 0.10.0-alpha.6 as a versioned GitHub Release with a permanent portable download and matching source.
 - [x] Compatibility and validation records distinguish automated checks from physical-device evidence.
 - [x] Refresh the UI screenshots from the actual Windows WPF controls before publication.
 - [ ] Decide on an installer and file associations after the portable workflow is stable.

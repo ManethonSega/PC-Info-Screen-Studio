@@ -4,10 +4,15 @@ This document describes what the release workflow verifies and what still needs 
 
 Candidate validation passed on **5 October 2026** in [Windows run 37367471392](https://github.com/ManethonSega/PC-Info-Screen-Studio/actions/runs/37367471392), including the extracted portable ZIP. The release workflow repeats these checks for its tagged source.
 
+UI-polish candidate checks passed on **6 October 2026** in [Windows run 37420665087](https://github.com/ManethonSega/PC-Info-Screen-Studio/actions/runs/37420665087), with zero compiler warnings or errors. The alpha.6 release workflow repeats these checks for its tagged source.
+
 ## Automated Windows checks
 
 | Workflow | Evidence provided by the checks |
 | --- | --- |
+| Empty states and property panels | Actual WPF Photo Frame and Hybrid prompts appear and disappear as photos and overlays change. They are absent in Live view; blank property editors hide when no widget is selected. |
+| Alignment icons | All six vector buttons retain single-widget canvas alignment and multi-selection alignment, with accessible names and descriptive tooltips. |
+| Numeric editing | Actual numeric fields reject invalid dimensions, opacity, range endpoints, photo timing and caption settings before their setters clamp them. Inline feedback appears while typing, corrections clear it, finite-number checks reject malformed values, and comma decimals honour the field culture. Invalid drafts preserve the last valid model value. |
 | Configure a selected widget | The actual search box filters the Source dropdown. GPU and multiword queries, empty results, Clear, advanced sensors and switching widgets preserve the current sensor until an explicit choice; Hybrid saves/reopens that choice. Search never adds widgets. |
 | Add, edit and save Info Screen | Direct Add command creates a widget; the application save path writes it into the reopened `.t3theme`. |
 | Save Photo Frame | The app saves global caption settings and retains the linked playlist. `.pcphoto` files exclude photos. |
