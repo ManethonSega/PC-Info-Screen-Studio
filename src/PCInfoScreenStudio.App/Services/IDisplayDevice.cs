@@ -23,6 +23,7 @@ public interface IDisplayDevice : IDisposable
     Task ApplyOrientationAsync(ThemeOrientation theme, DeviceRotation rotation,
         CancellationToken cancellationToken = default);
     Task DisplayAsync(SKBitmap bitmap, DeviceRotation rotation, CancellationToken cancellationToken = default);
+    Task ClearAsync(CancellationToken cancellationToken = default);
     Task TestPatternAsync(CancellationToken cancellationToken = default);
     Task RunBenchmarkAsync(CancellationToken cancellationToken = default);
 }

@@ -75,7 +75,7 @@ public sealed class DeviceService : IDisplayDevice
                             screen.Dispose();
                             screen = null;
 
-                            var rediscovered = _serialDiscovery.BestScreenCandidate();
+                            var rediscovered = WaitForScreenCandidate();
                             if (rediscovered is null)
                                 throw;
 
@@ -276,6 +276,27 @@ public sealed class DeviceService : IDisplayDevice
         }
     }
 
+    public async Task ClearAsync(CancellationToken cancellationToken = default)
+    {
+        await _ioGate.WaitAsync(cancellationToken);
+        try
+        {
+            var screen = _screen;
+            if (screen is null) return;
+
+            await Task.Run(() =>
+            {
+                var buffer = new ScreenBuffer(screen.Width, screen.Height);
+                screen.DisplayBuffer(0, 0, buffer);
+                screen.ScreenOff();
+            }, cancellationToken);
+        }
+        finally
+        {
+            _ioGate.Release();
+        }
+    }
+
     public async Task RunBenchmarkAsync(CancellationToken cancellationToken = default)
     {
         await _ioGate.WaitAsync(cancellationToken);
@@ -369,6 +390,20 @@ public sealed class DeviceService : IDisplayDevice
         ConnectedProtocol = DisplayProtocolProfile.Auto;
         ConnectedColorMode = DisplayColorMode.Auto;
         try { screen?.Dispose(); } catch { }
+    }
+
+    private SerialPortOption? WaitForScreenCandidate()
+    {
+        // A reset can temporarily remove the COM port and add it again under
+        // another number. This runs on the worker thread, not the UI thread.
+        for (var attempt = 0; attempt < 12; attempt++)
+        {
+            var candidate = _serialDiscovery.BestScreenCandidate();
+            if (candidate is not null) return candidate;
+            Thread.Sleep(250);
+        }
+
+        return null;
     }
 
     public void Dispose()

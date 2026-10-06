@@ -33,6 +33,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly DispatcherTimer _animationTimer;
     private readonly DispatcherTimer _historyTimer;
     private readonly DispatcherTimer _recoveryTimer;
+    private readonly SemaphoreSlim _autoReconnectSignal = new(0, 1);
     private readonly DocumentHistoryService _historyService = new();
     private readonly List<string> _history = [];
     private readonly string _recoveryPath = Path.Combine(
@@ -58,6 +59,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private string _firstRunStatus = "Connect your screen now, or finish setup and connect later.";
     private string _sourceSearchText = string.Empty;
     private bool _isLiveMode;
+    private CancellationTokenSource? _autoDisplayCts;
+    private Task? _autoDisplayTask;
+    private bool _manualDisplayStop;
 
     public event EventHandler? AlignmentGuidesChanged;
 
@@ -493,7 +497,26 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool AutoStartDisplay
     {
         get => _settings.AutoStartDisplay;
-        set => _settings.AutoStartDisplay = value;
+        set
+        {
+            if (_settings.AutoStartDisplay == value) return;
+            _settings.AutoStartDisplay = value;
+            if (value)
+            {
+                _manualDisplayStop = false;
+                StartAutoDisplayIfEnabled();
+            }
+            else
+            {
+                StopAutoDisplay();
+            }
+        }
+    }
+
+    public bool ClearDisplayOnExit
+    {
+        get => _settings.ClearDisplayOnExit;
+        set => _settings.ClearDisplayOnExit = value;
     }
 
     public bool ShowAdvancedSensors
@@ -702,6 +725,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _device.PropertyChanged += OnDevicePropertyChanged;
         _device.CommandStatesChanged += OnDeviceCommandStatesChanged;
         _device.LiveFrameRequested += OnLiveFrameRequested;
+        _device.ReconnectRequested += OnDeviceReconnectRequested;
         _editor.PropertyChanged += OnEditorPropertyChanged;
         _editor.CommandStatesChanged += OnEditorCommandStatesChanged;
         _editor.AlignmentGuidesChanged += OnAlignmentGuidesChanged;
@@ -721,6 +745,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _device.PropertyChanged -= OnDevicePropertyChanged;
         _device.CommandStatesChanged -= OnDeviceCommandStatesChanged;
         _device.LiveFrameRequested -= OnLiveFrameRequested;
+        _device.ReconnectRequested -= OnDeviceReconnectRequested;
         _editor.PropertyChanged -= OnEditorPropertyChanged;
         _editor.CommandStatesChanged -= OnEditorCommandStatesChanged;
         _editor.AlignmentGuidesChanged -= OnAlignmentGuidesChanged;
@@ -750,6 +775,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void OnLiveFrameRequested(object? sender, EventArgs e)
         => RequestLiveFrame?.Invoke(this, EventArgs.Empty);
+
+    private void OnDeviceReconnectRequested(object? sender, EventArgs e)
+    {
+        if (!_manualDisplayStop)
+            SignalAutoReconnect();
+    }
 
     private void OnEditorPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -1063,34 +1094,139 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IsFirstRunVisible = true;
     }
 
-    private Task ConnectOrDisconnectAsync() => _device.ConnectOrDisconnectAsync();
+    private async Task ConnectOrDisconnectAsync()
+    {
+        var wasConnected = _device.IsConnected;
+        if (!wasConnected)
+            _manualDisplayStop = false;
+        await _device.ConnectOrDisconnectAsync();
+        if (wasConnected && !_device.IsConnected)
+        {
+            _manualDisplayStop = true;
+            DeviceStatus = "Display stopped. Press Start display when you want to reconnect.";
+        }
+        else if (_device.IsConnected)
+        {
+            _manualDisplayStop = false;
+        }
+        else if (AutoStartDisplay)
+        {
+            SignalAutoReconnect();
+        }
+    }
 
     public void StartAutoDisplayIfEnabled()
     {
-        if (!AutoStartDisplay || _device.IsConnected || IsDeviceBusy)
+        if (!AutoStartDisplay || _isDisposed || (_autoDisplayTask is { IsCompleted: false }))
             return;
 
-        _ = StartAutoDisplayAsync();
+        _manualDisplayStop = false;
+        _autoDisplayCts = new CancellationTokenSource();
+        _autoDisplayTask = AutoReconnectLoopAsync(_autoDisplayCts.Token);
     }
 
-    private async Task StartAutoDisplayAsync()
+    public void NotifyDisplayDevicesChanged()
     {
-        for (var attempt = 0; attempt < 6 && !_isDisposed && AutoStartDisplay; attempt++)
+        if (_isDisposed) return;
+        _ = HandleDisplayDevicesChangedAsync();
+    }
+
+    public Task ClearDisplayForExitAsync()
+        => ClearDisplayOnExit ? _device.ClearDisplayAsync() : Task.CompletedTask;
+
+    private async Task HandleDisplayDevicesChangedAsync()
+    {
+        await _device.HandleDeviceChangeAsync();
+        if (!_manualDisplayStop)
+            SignalAutoReconnect();
+    }
+
+    private async Task AutoReconnectLoopAsync(CancellationToken cancellationToken)
+    {
+        var retryDelays = new[]
         {
-            if (_device.IsConnected) return;
-            RefreshPorts();
-            var candidate = Ports.FirstOrDefault(p => p.PortName.Equals(_settings.LastDisplayPort, StringComparison.OrdinalIgnoreCase))
-                ?? Ports.FirstOrDefault(p => p.IsLikelyScreen);
-            if (candidate is not null && !IsDeviceBusy)
+            TimeSpan.FromSeconds(2),
+            TimeSpan.FromSeconds(5),
+            TimeSpan.FromSeconds(10),
+            TimeSpan.FromSeconds(30)
+        };
+        var attempt = 0;
+
+        try
+        {
+            DeviceStatus = "Waiting for Windows to finish preparing USB devices...";
+            await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
+
+            while (!_isDisposed && AutoStartDisplay && !cancellationToken.IsCancellationRequested)
             {
-                SelectedPort = candidate.PortName;
-                await _device.ConnectOrDisconnectAsync(automatic: true);
-                if (_device.IsConnected) return;
+                if (_manualDisplayStop || _device.IsConnected)
+                {
+                    await _autoReconnectSignal.WaitAsync(cancellationToken);
+                    attempt = 0;
+                    continue;
+                }
+
+                RefreshPorts();
+                var candidate = FindRememberedDisplay();
+                if (candidate is not null && !IsDeviceBusy)
+                {
+                    SelectedPort = candidate.PortName;
+                    DeviceStatus = $"Display found on {candidate.PortName}. Connecting...";
+                    await _device.ConnectOrDisconnectAsync(automatic: true);
+                    if (_device.IsConnected)
+                    {
+                        attempt = 0;
+                        continue;
+                    }
+                }
+
+                var retryDelay = retryDelays[Math.Min(attempt, retryDelays.Length - 1)];
+                DeviceStatus = candidate is null
+                    ? $"Waiting for the USB display. Checking again in {(int)retryDelay.TotalSeconds} seconds..."
+                    : $"Display not ready. Retrying in {(int)retryDelay.TotalSeconds} seconds...";
+                attempt++;
+                await _autoReconnectSignal.WaitAsync(retryDelay, cancellationToken);
             }
-            if (attempt < 5) await Task.Delay(TimeSpan.FromSeconds(3));
         }
-        if (!_isDisposed && !_device.IsConnected && AutoStartDisplay)
-            DeviceStatus = "Automatic connection could not find or open the screen. Check the USB cable or connect from Settings.";
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private SerialPortOption? FindRememberedDisplay()
+    {
+        if (!string.IsNullOrWhiteSpace(_settings.LastDisplayHardwareId))
+        {
+            var hardwareMatch = Ports.FirstOrDefault(p => p.HardwareId.Equals(
+                _settings.LastDisplayHardwareId, StringComparison.OrdinalIgnoreCase));
+            if (hardwareMatch is not null) return hardwareMatch;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_settings.LastDisplayPort))
+        {
+            var portMatch = Ports.FirstOrDefault(p => p.PortName.Equals(
+                _settings.LastDisplayPort, StringComparison.OrdinalIgnoreCase));
+            if (portMatch is not null) return portMatch;
+        }
+
+        return Ports.FirstOrDefault(p => p.IsLikelyScreen)
+            ?? (Ports.Count == 1 ? Ports[0] : null);
+    }
+
+    private void SignalAutoReconnect()
+    {
+        if (!AutoStartDisplay || _isDisposed) return;
+        StartAutoDisplayIfEnabled();
+        if (_autoReconnectSignal.CurrentCount == 0)
+            _autoReconnectSignal.Release();
+    }
+
+    private void StopAutoDisplay()
+    {
+        _autoDisplayCts?.Cancel();
+        _autoDisplayCts?.Dispose();
+        _autoDisplayCts = null;
+        _autoDisplayTask = null;
     }
 
     private Task TestScreenAsync() => _device.TestScreenAsync();
@@ -2016,6 +2152,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _isDisposed = true;
+        StopAutoDisplay();
         _dataTimer.Stop();
         _animationTimer.Stop();
         _historyTimer.Stop();

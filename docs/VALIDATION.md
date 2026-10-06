@@ -19,7 +19,7 @@ UI-polish candidate checks passed on **6 October 2026** in [Windows run 37420665
 | Add and save Hybrid | The app saves an added shape and its exact position into `.pchybrid`. |
 | Switch modes and reopen | Independent photo settings, theme paths, dirty state, Info Screen layers, Hybrid positions and imported assets survive session save and recreation. |
 | Tray workflow | An actual WPF window is shown, minimized, restored, closed to tray, restored again and exited; a new view model restores its session. |
-| Reconnect | A fake display temporarily rejects a connection; automatic error handling and a subsequent successful reconnect are verified. No physical USB transfer is proved. |
+| Reconnect | A fake display temporarily rejects a connection; automatic error handling, physical-device identity persistence across a changed COM number, and a subsequent successful reconnect are verified. No physical USB transfer is proved. |
 | Windows startup | An isolated per-user, interactive task is registered, inspected and deleted on the Windows runner. Single-instance activation and noninteractive scheduled startup policy are checked. This does not simulate a real reboot or a user's UAC approval. |
 | UI readability | Actual selected-item templates and tooltip colours are inspected, and real WPF controls are captured for review. The checks do not claim that every OS configuration has been reviewed. |
 | Published package | The self-contained executable starts in smoke-test mode, the portable ZIP is extracted and the extracted executable starts again. Required files, native rendering library, fonts, licences and the verified PawnIO prerequisite are checked. |

@@ -252,10 +252,12 @@ internal static class Program
         settings.RequestAdministratorAtStartup = false;
         settings.StartWithWindows = false;
         settings.AutoStartDisplay = false;
+        settings.ClearDisplayOnExit = true;
         var reloaded = Settings(root, "preferences");
         Assert(!reloaded.CloseToTray && reloaded.CanvasZoom == .5 && reloaded.LastPhotoIndex == 2,
             "Preferences did not persist independently of the editor.");
         Assert(!reloaded.StartWithWindows && !reloaded.AutoStartDisplay, "Startup and connection opt-outs must persist.");
+        Assert(reloaded.ClearDisplayOnExit, "The clear-display-on-exit preference must persist.");
         File.WriteAllText(Path.Combine(root, "old-settings.json"), "{\"SettingsVersion\":3,\"WeatherCity\":\"Berlin\",\"AutoStartDisplay\":false}");
         var migrated = new AppSettingsService(Path.Combine(root, "old-settings.json")).Load();
         Assert(migrated.StartWithWindows && migrated.AutoStartDisplay && migrated.WeatherCity == "Berlin", "Startup migration must retain existing preferences.");
@@ -539,13 +541,17 @@ internal static class Program
         var document = new ThemeDocument();
         var settings = Settings(root, "device");
         using var controller = new DeviceController(() => document, settings, hardware,
-            () => [new SerialPortOption("COM6", "Test screen", "", "", 3)]);
+            () => [new SerialPortOption("COM6", "Test screen", "VID_TEST&PID_0001", "Test", 3)]);
         controller.DetectScreen();
         Assert(controller.SelectedPort == "COM6", "Device discovery did not choose the screen.");
         Await(controller.ConnectOrDisconnectAsync());
         Assert(Settings(root, "device").LastDisplayPort == "COM6", "The successfully connected screen port must persist for startup.");
+        Assert(Settings(root, "device").LastDisplayHardwareId == "VID_TEST&PID_0001",
+            "The physical display identity must persist so a changed COM number can be recognized.");
         Assert(controller.IsConnected && controller.LivePreview && controller.DisplayActionLabel == "Stop display",
             "Connection state was not forwarded.");
+        Await(controller.ClearDisplayAsync());
+        Assert(hardware.ClearCalls == 1, "Clearing the display must be forwarded to the device.");
         controller.DisplayProtocol = DisplayProtocolProfile.RevANativePortrait;
         Assert(settings.DisplayProtocol == DisplayProtocolProfile.RevANativePortrait && hardware.CompatibilityCalls == 1,
             "Device compatibility did not persist or apply.");
@@ -572,6 +578,16 @@ internal static class Program
         controller.Dispose();
         controller.SendLiveFrame(bitmap, force: true);
         Assert(hardware.Disposed && hardware.Frames.Count == 2, "Disposed device accepted a new frame.");
+
+        using var movedPortController = new DeviceController(() => document, Settings(root, "device"), new FakeDisplayDevice(),
+            () =>
+            [
+                new SerialPortOption("COM6", "Different serial device", "VID_OTHER", "Other", 0),
+                new SerialPortOption("COM9", "Test screen", "VID_TEST&PID_0001", "Test", 3)
+            ]);
+        movedPortController.RefreshPorts();
+        Assert(movedPortController.SelectedPort == "COM9",
+            "A remembered physical screen must be preferred when Windows assigns it a new COM number.");
     }
 
     private static void Await(Task task)
@@ -612,6 +628,7 @@ internal static class Program
         public bool FailNextConnection { get; set; }
         public bool Disposed { get; private set; }
         public int CompatibilityCalls { get; private set; }
+        public int ClearCalls { get; private set; }
         public List<DeviceRotation> Frames { get; } = [];
         public Task ConnectAsync(string portName, ThemeOrientation theme, DeviceRotation rotation,
             DisplayProtocolProfile requestedProtocol, DisplayColorMode requestedColorMode,
@@ -639,6 +656,11 @@ internal static class Program
         {
             Frames.Add(rotation);
             return BlockFirstFrame && Frames.Count == 1 ? _firstFrame.Task : Task.CompletedTask;
+        }
+        public Task ClearAsync(CancellationToken cancellationToken = default)
+        {
+            ClearCalls++;
+            return Task.CompletedTask;
         }
         public Task TestPatternAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task RunBenchmarkAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;

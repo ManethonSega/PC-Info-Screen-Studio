@@ -60,10 +60,28 @@ public sealed class SettingsController : ObservableObject
         set => Update(_values.LastDisplayPort, value, v => _values.LastDisplayPort = v);
     }
 
+    public string? LastDisplayHardwareId
+    {
+        get => _values.LastDisplayHardwareId;
+        set => Update(_values.LastDisplayHardwareId, value, v => _values.LastDisplayHardwareId = v);
+    }
+
+    public string? LastDisplayFriendlyName
+    {
+        get => _values.LastDisplayFriendlyName;
+        set => Update(_values.LastDisplayFriendlyName, value, v => _values.LastDisplayFriendlyName = v);
+    }
+
     public bool AutoStartDisplay
     {
         get => _values.AutoStartDisplay;
         set => Update(_values.AutoStartDisplay, value, v => _values.AutoStartDisplay = v);
+    }
+
+    public bool ClearDisplayOnExit
+    {
+        get => _values.ClearDisplayOnExit;
+        set => Update(_values.ClearDisplayOnExit, value, v => _values.ClearDisplayOnExit = v);
     }
 
     public bool ShowAdvancedSensors

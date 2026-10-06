@@ -44,6 +44,7 @@ public sealed class DeviceController : ObservableObject, IDisposable
 
     public event EventHandler? LiveFrameRequested;
     public event EventHandler? CommandStatesChanged;
+    public event EventHandler? ReconnectRequested;
 
     public string? SelectedPort
     {
@@ -109,7 +110,16 @@ public sealed class DeviceController : ObservableObject, IDisposable
         foreach (var port in _discoverPorts())
             Ports.Add(port);
 
-        if (!string.IsNullOrWhiteSpace(previous) &&
+        var rememberedDevice = !string.IsNullOrWhiteSpace(_settings.LastDisplayHardwareId)
+            ? Ports.FirstOrDefault(p => p.HardwareId.Equals(
+                _settings.LastDisplayHardwareId, StringComparison.OrdinalIgnoreCase))
+            : null;
+
+        if (rememberedDevice is not null)
+        {
+            SelectedPort = rememberedDevice.PortName;
+        }
+        else if (!string.IsNullOrWhiteSpace(previous) &&
             Ports.Any(p => p.PortName.Equals(previous, StringComparison.OrdinalIgnoreCase)))
         {
             SelectedPort = previous;
@@ -177,7 +187,7 @@ public sealed class DeviceController : ObservableObject, IDisposable
 
         if (string.IsNullOrWhiteSpace(SelectedPort))
         {
-            MessageBox.Show("No compatible serial display was found.", "Start display", MessageBoxButton.OK, MessageBoxImage.Information);
+            DeviceStatus = "No USB display was found. Connect the cable and the app will check again automatically.";
             return;
         }
 
@@ -196,7 +206,15 @@ public sealed class DeviceController : ObservableObject, IDisposable
                 DisplayColorMode,
                 deviceInfo);
 
-            _settings.LastDisplayPort = SelectedPort;
+            var connectedPort = _deviceService.ConnectedPort ?? SelectedPort;
+            SelectedPort = connectedPort;
+            var connectedInfo = _discoverPorts().FirstOrDefault(p =>
+                p.PortName.Equals(connectedPort, StringComparison.OrdinalIgnoreCase)) ?? deviceInfo;
+            _settings.LastDisplayPort = connectedPort;
+            if (!string.IsNullOrWhiteSpace(connectedInfo?.HardwareId))
+                _settings.LastDisplayHardwareId = connectedInfo.HardwareId;
+            if (!string.IsNullOrWhiteSpace(connectedInfo?.FriendlyName))
+                _settings.LastDisplayFriendlyName = connectedInfo.FriendlyName;
             LivePreview = true;
             DeviceStatus = BuildConnectionStatus();
             RaisePropertyChanged(nameof(DisplayActionLabel));
@@ -204,17 +222,15 @@ public sealed class DeviceController : ObservableObject, IDisposable
         }
         catch (UnauthorizedAccessException)
         {
-            DeviceStatus = "Connection failed: port is in use";
-            if (!automatic) MessageBox.Show(
-                $"{SelectedPort} is already in use by another program.\n\nClose the original screen software (including its tray icon), a serial monitor, or any other program using this COM port, then try again.",
-                "Could not connect display",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
+            await ReleaseFailedConnectionAsync();
+            DeviceStatus = _settings.AutoStartDisplay
+                ? $"{SelectedPort} is busy. Close other screen software; the app will retry automatically."
+                : $"{SelectedPort} is busy. Close other screen software, then press Start display.";
         }
         catch (Exception ex)
         {
-            DeviceStatus = "Connection failed: " + ex.Message;
-            if (!automatic) MessageBox.Show(ex.Message, "Could not connect display", MessageBoxButton.OK, MessageBoxImage.Error);
+            await ReleaseFailedConnectionAsync();
+            DeviceStatus = FriendlyConnectionError(ex, SelectedPort);
         }
         finally
         {
@@ -222,6 +238,72 @@ public sealed class DeviceController : ObservableObject, IDisposable
             RaisePropertyChanged(nameof(DisplayActionLabel));
             CommandStatesChanged?.Invoke(this, EventArgs.Empty);
         }
+    }
+
+    public async Task HandleDeviceChangeAsync()
+    {
+        if (_disposed) return;
+
+        RefreshPorts();
+        var connectedPort = _deviceService.ConnectedPort;
+        if (_deviceService.IsConnected && !string.IsNullOrWhiteSpace(connectedPort) &&
+            Ports.All(p => !p.PortName.Equals(connectedPort, StringComparison.OrdinalIgnoreCase)))
+        {
+            await ReleaseFailedConnectionAsync();
+            DeviceStatus = "Display disconnected. Waiting for it to be reconnected...";
+            ReconnectRequested?.Invoke(this, EventArgs.Empty);
+            RaisePropertyChanged(nameof(DisplayActionLabel));
+            CommandStatesChanged?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+
+        if (!_deviceService.IsConnected && Ports.Count > 0)
+        {
+            DeviceStatus = "USB display change detected. Checking for the screen...";
+            ReconnectRequested?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    public async Task ClearDisplayAsync()
+    {
+        if (_disposed || !_deviceService.IsConnected) return;
+
+        try
+        {
+            DeviceStatus = "Clearing display...";
+            await _deviceService.ClearAsync();
+        }
+        catch
+        {
+            // Windows may stop USB devices before the app receives its shutdown event.
+            // Clearing the display is therefore intentionally best-effort.
+        }
+    }
+
+    private async Task ReleaseFailedConnectionAsync()
+    {
+        try { await _deviceService.DisconnectAsync(); }
+        catch { }
+    }
+
+    private string FriendlyConnectionError(Exception error, string? port)
+    {
+        var message = error.GetBaseException().Message;
+        var location = string.IsNullOrWhiteSpace(port) ? "the selected USB port" : port;
+        var nextStep = _settings.AutoStartDisplay
+            ? "The app will retry automatically."
+            : "Check the USB cable, then press Start display.";
+        if (message.Contains("semaphore timeout", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("timeout", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("did not respond", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"The display on {location} did not respond. {nextStep}";
+        }
+
+        if (error is IOException || message.Contains("I/O", StringComparison.OrdinalIgnoreCase))
+            return $"The display on {location} is not ready. {nextStep}";
+
+        return $"Could not connect to the display on {location}. {nextStep}";
     }
 
     public async Task TestScreenAsync()
@@ -395,8 +477,21 @@ public sealed class DeviceController : ObservableObject, IDisposable
             catch (Exception ex)
             {
                 if (_disposed || Application.Current.Dispatcher.HasShutdownStarted) return;
+                await ReleaseFailedConnectionAsync();
                 await Application.Current.Dispatcher.InvokeAsync(() =>
-                    DeviceStatus = "Display error: " + ex.Message);
+                {
+                    DeviceStatus = FriendlyConnectionError(ex, _settings.LastDisplayPort);
+                    RaisePropertyChanged(nameof(DisplayActionLabel));
+                    CommandStatesChanged?.Invoke(this, EventArgs.Empty);
+                    ReconnectRequested?.Invoke(this, EventArgs.Empty);
+                });
+                lock (_frameQueueSync)
+                {
+                    _pendingFrame?.Bitmap.Dispose();
+                    _pendingFrame = null;
+                    _frameSenderRunning = false;
+                }
+                return;
             }
             finally
             {

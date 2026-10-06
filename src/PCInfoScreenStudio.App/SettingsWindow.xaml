@@ -70,7 +70,8 @@
               <TextBlock Text="Use live sensor data" Foreground="{StaticResource PageMutedTextBrush}" />
             </CheckBox>
             <CheckBox Content="Send live updates to the connected screen" IsChecked="{Binding LivePreview}" ToolTip="Keep the connected screen up to date with readings, photos and editor changes." />
-            <CheckBox Content="Start display automatically with the app" IsChecked="{Binding AutoStartDisplay}" ToolTip="Restore your workspace, reconnect the last successful screen port, and retry briefly while USB devices become ready." />
+            <CheckBox Content="Start display automatically with the app" IsChecked="{Binding AutoStartDisplay}" ToolTip="Restore your workspace, identify the last screen even if its COM number changes, and keep retrying quietly until the USB display is ready." />
+            <CheckBox Content="Clear the screen when the app exits" IsChecked="{Binding ClearDisplayOnExit}" ToolTip="Show a black screen when you deliberately exit the app. Windows may already have stopped USB access during shutdown, so this is best-effort." />
             <CheckBox Content="Keep running in the tray when closed" IsChecked="{Binding CloseToTray}" ToolTip="Closing the window keeps display output running. Use Exit in the tray menu to save the session and stop the app." />
           </StackPanel>
         </Border>

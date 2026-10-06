@@ -5,6 +5,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Interop;
+using System.Windows.Threading;
 using PCInfoScreenStudio.Models;
 using PCInfoScreenStudio.Services;
 using PCInfoScreenStudio.ViewModels;
@@ -22,6 +24,8 @@ public partial class MainWindow : Window
     private bool _startupLoaded;
     private bool _sessionSaved;
     private Task? _sessionSaveTask;
+    private HwndSource? _windowSource;
+    private DispatcherTimer? _deviceChangeTimer;
     public bool StartInTray { get; set; }
     private Point _photoDragStart;
     private PhotoFrameItem? _draggedPhoto;
@@ -87,6 +91,10 @@ public partial class MainWindow : Window
     {
         base.OnSourceInitialized(e);
         var handle = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+        _windowSource = HwndSource.FromHwnd(handle);
+        _windowSource?.AddHook(WindowMessageHook);
+        _deviceChangeTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _deviceChangeTimer.Tick += OnDeviceChangeSettled;
         var area = WinForms.Screen.FromHandle(handle).WorkingArea;
         var dpi = VisualTreeHelper.GetDpi(this);
         // WPF sizes are in logical pixels; the monitor work area uses physical pixels.
@@ -96,6 +104,30 @@ public partial class MainWindow : Window
         MinHeight = Math.Min(MinHeight, availableHeight);
         Width = Math.Min(Width, availableWidth);
         Height = Math.Min(Height, availableHeight);
+    }
+
+    private IntPtr WindowMessageHook(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        const int WmDeviceChange = 0x0219;
+        const int DeviceNodesChanged = 0x0007;
+        const int DeviceArrival = 0x8000;
+        const int DeviceRemovalComplete = 0x8004;
+
+        if (message == WmDeviceChange && wParam.ToInt64() is DeviceNodesChanged or DeviceArrival or DeviceRemovalComplete)
+        {
+            // Windows can send several notifications for one plug/unplug action.
+            // Wait briefly for COM-port enumeration to settle, then refresh once.
+            _deviceChangeTimer?.Stop();
+            _deviceChangeTimer?.Start();
+        }
+
+        return IntPtr.Zero;
+    }
+
+    private void OnDeviceChangeSettled(object? sender, EventArgs e)
+    {
+        _deviceChangeTimer?.Stop();
+        _viewModel.NotifyDisplayDevicesChanged();
     }
 
     private void OnSettingsClick(object sender, RoutedEventArgs e)
@@ -271,6 +303,7 @@ public partial class MainWindow : Window
         {
             _sessionSaveTask = _viewModel.SaveLastSessionAsync();
             await _sessionSaveTask;
+            await _viewModel.ClearDisplayForExitAsync();
             _sessionSaved = true;
             Close();
         }
@@ -292,6 +325,7 @@ public partial class MainWindow : Window
     {
         if (_disposed || _sessionSaved) return;
         (_sessionSaveTask ?? _viewModel.SaveLastSessionAsync()).GetAwaiter().GetResult();
+        _viewModel.ClearDisplayForExitAsync().GetAwaiter().GetResult();
         _sessionSaved = true;
     }
 
@@ -301,6 +335,12 @@ public partial class MainWindow : Window
             return;
 
         _disposed = true;
+        _deviceChangeTimer?.Stop();
+        if (_windowSource is not null)
+        {
+            _windowSource.RemoveHook(WindowMessageHook);
+            _windowSource = null;
+        }
         _trayIcon.Visible = false;
         _trayIcon.Dispose();
         _viewModel.Dispose();

@@ -53,6 +53,11 @@ public sealed class AppSettingsService
                 settings.AutoStartDisplay = true;
                 Save(settings);
             }
+            if (settings.SettingsVersion < 5)
+            {
+                settings.SettingsVersion = 5;
+                Save(settings);
+            }
             return settings;
         }
         catch
@@ -80,7 +85,7 @@ public sealed class AppSettingsService
 
 public sealed class AppSettings
 {
-    public int SettingsVersion { get; set; } = 4;
+    public int SettingsVersion { get; set; } = 5;
     public bool FirstRunCompleted { get; set; }
     public string WeatherCity { get; set; } = string.Empty;
     public DisplayProtocolProfile DisplayProtocol { get; set; } = DisplayProtocolProfile.Auto;
@@ -89,6 +94,9 @@ public sealed class AppSettings
     public bool StartWithWindows { get; set; } = true;
     public bool AutoStartDisplay { get; set; } = true;
     public string? LastDisplayPort { get; set; }
+    public string? LastDisplayHardwareId { get; set; }
+    public string? LastDisplayFriendlyName { get; set; }
+    public bool ClearDisplayOnExit { get; set; }
     public bool ShowAdvancedSensors { get; set; }
     public bool RequestAdministratorAtStartup { get; set; } = true;
     public bool AdvancedDisplayExpanded { get; set; } = true;

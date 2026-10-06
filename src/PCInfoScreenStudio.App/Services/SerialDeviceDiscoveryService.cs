@@ -30,6 +30,8 @@ public sealed class SerialDeviceDiscoveryService
     public IReadOnlyList<SerialPortOption> Discover()
     {
         var detected = new Dictionary<string, SerialPortOption>(StringComparer.OrdinalIgnoreCase);
+        var presentPorts = SerialPort.GetPortNames()
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         if (OperatingSystem.IsWindows())
         {
@@ -37,7 +39,12 @@ public sealed class SerialDeviceDiscoveryService
             ReadRegistryView(RegistryView.Registry32, detected);
         }
 
-        foreach (var port in SerialPort.GetPortNames())
+        // Enum registry entries can remain after a USB device is unplugged.
+        // Only advertise ports that Windows currently reports as present.
+        foreach (var stalePort in detected.Keys.Where(port => !presentPorts.Contains(port)).ToArray())
+            detected.Remove(stalePort);
+
+        foreach (var port in presentPorts)
         {
             if (!detected.ContainsKey(port))
                 detected[port] = new SerialPortOption(port, "Serial port", string.Empty, string.Empty, 0);
