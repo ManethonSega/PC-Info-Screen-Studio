@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Markup;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using PCInfoScreenStudio.Controllers;
@@ -16,7 +17,7 @@ using PCInfoScreenStudio.ViewModels;
 
 internal static class UiPolishChecks
 {
-    public static void Check(string root, Action<Func<bool>> pump)
+    public static void Check(string root, Action<Func<bool>> pump, string? captureDirectory = null)
     {
         var settings = new SettingsController(new AppSettingsService(System.IO.Path.Combine(root, "ui-polish.json")))
         { FirstRunCompleted = true, StartWithWindows = false, AutoStartDisplay = false, CloseToTray = false };
@@ -54,10 +55,10 @@ internal static class UiPolishChecks
             Flush();
             Assert(!properties.IsVisible && !hybridHint.IsVisible, "Deselecting an existing overlay must hide fields without claiming no overlays exist.");
             vm.Document.HybridWidgets.Clear();
-            vm.IsLiveMode = true;
+            vm.ToggleEditorModeCommand.Execute(null);
             Flush();
             Assert(!photoHint.IsVisible && !hybridHint.IsVisible, "Live view must not contain editor-only empty-state hints.");
-            vm.IsLiveMode = false;
+            vm.ToggleEditorModeCommand.Execute(null);
             vm.Document.Mode = ScreenMode.InfoScreen;
             vm.SelectedWidget = null;
             Flush();
@@ -74,6 +75,13 @@ internal static class UiPolishChecks
             Flush();
             var hybrid = vm.SelectedWidget!;
             CheckField(Field(window, "Width"), "7", "20", () => hybrid.Width, 20);
+            if (captureDirectory is not null)
+            {
+                Draft(Field(window, "Width"), "2");
+                Draft(Field(window, "Opacity"), "2");
+                Draft(Field(window, "Minimum"), "100");
+                Capture((FrameworkElement)window.Content, captureDirectory, "Numeric-validation.png");
+            }
             var before = vm.Document.Widgets.Select(w => w.Width).ToArray();
             Assert(before.Length > 0 && vm.Document.HybridWidgets.Count == 1, "Hybrid validation must retain independent Info Screen layers.");
             Console.WriteLine("PASS: actual WPF empty states, contextual properties, six alignment icons, draft validation, range relationships, photo settings and Hybrid.");
@@ -186,6 +194,18 @@ internal static class UiPolishChecks
         box.GetBindingExpression(TextBox.TextProperty)!.UpdateSource();
         Flush();
         Assert(value() == expected && !Validation.GetHasError(box), "Valid input must commit exactly as entered: " + valid);
+    }
+
+    private static void Capture(FrameworkElement root, string directory, string name)
+    {
+        Directory.CreateDirectory(directory);
+        root.UpdateLayout();
+        var bitmap = new RenderTargetBitmap((int)root.ActualWidth, (int)root.ActualHeight, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(root);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var output = File.Create(System.IO.Path.Combine(directory, name));
+        encoder.Save(output);
     }
 
     private static void Draft(TextBox box, string text) { box.SetCurrentValue(TextBox.TextProperty, text); Flush(); }
