@@ -1,6 +1,6 @@
 # Roadmap
 
-Current source version: **0.10.0-alpha.13**.
+Current source version: **0.10.0-alpha.14**.
 
 The next milestone is product polish, not another broad feature category. Priorities remain **easy to use, lightweight, intuitive, and visually clear**. Checked items below describe implemented functionality, not a claim that every device or workload has been validated.
 
@@ -18,6 +18,9 @@ The next milestone is product polish, not another broad feature category. Priori
 - [x] Inline numeric validation for dimensions, opacity, sensor ranges and photo settings, with invalid drafts preserving the last valid value.
 
 ### Info Screen editor
+
+- [x] Silent Windows-decoded video widgets with separate serial/USB rate limits, bounded active decoders and pause/restart controls.
+- [x] Local Export diagnostics action with resource/connection counters and error codes, excluding media and personal paths.
 
 - [x] Hardware-name widgets with automatic CPU/GPU/SSD/RAM identification and persistent custom names.
 - [x] Colour emoji in rendered text, labels and captions, with grapheme-aware shaping and bounded text-layout caching.
@@ -81,8 +84,6 @@ Remaining work is tracked in [labelled GitHub issues](https://github.com/Manetho
 | High | Bound total image/GIF memory and release unused assets | `area: memory` |
 | High | Record real display startup, reconnect and long-duration results | `area: hardware` |
 | High | Validate first-time setup, Windows scaling and keyboard accessibility | `area: usability` |
-| Medium | Disable new Video import until playback exists | `area: usability` |
-| Medium | Export useful diagnostics through an explicit user action | `area: runtime` |
 | Medium | Extract remaining coordinator responsibilities and reusable mode panels | `area: architecture` |
 | Medium | Improve conventional unit-test and CI result reporting | `area: tests` |
 | Low, deferred | Decide installer, file associations, signing and update strategy | `area: distribution` |
@@ -101,7 +102,7 @@ Preserve the current three-panel editor, commands, theme formats and undo behavi
 
 ## Deferred, not implemented
 
-- Full video decoding/playback; the current import shows a placeholder.
+- Native 5.2-inch H.264/SD-card playback, advanced video editing and video playlists.
 - Broader display-model compatibility until verified on physical hardware.
 - Automatic updates, signed builds, and installer packaging.
 

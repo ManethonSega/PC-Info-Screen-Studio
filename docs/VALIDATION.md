@@ -152,3 +152,7 @@ independent Photo Frame/Hybrid photos. They also reported a mode-change
 disconnect. Alpha.11 addresses that regression in simulated transport checks;
 the owner subsequently reported on 14 October 2026 that alpha.11 works correctly on their setup, including mode switching. Sustained GIF speed, Windows
 disk activity, restart and sleep/resume remain unmeasured on the real device.
+
+## Alpha.14 video and diagnostic checks
+
+The Windows suite adds generated H.264/AAC decoding with actual frame-pixel/vertical-orientation checks, pause/unpause, EOF, loop/speed, decoder bounds, inactive-mode cleanup and bad-media handling. Export checks inspect the JSON schema/counters and verify private exception messages/paths are absent. UI captures show the actual Video controls and Export diagnostics button. CI build, controller/WPF, published EXE and portable ZIP checks must pass before publication. This does not establish physical video throughput or long-duration reliability; test those on both serial and 5.2-inch USB screens.

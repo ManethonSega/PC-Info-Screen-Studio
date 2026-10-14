@@ -80,7 +80,7 @@ internal static class UiPreviews
             CaptureElement(root, 1560, 1040, Path.Combine(directory, "Hardware-name-widget.png"));
             CapturePanel((Border)settingsWindow.FindName("DiagnosticsPanel"), vm, 660, 175,
                 Path.Combine(directory, "Export-diagnostics.png"));
-            var export = Find<Button>(settingsWindow, b => Equals(b.Content, "Export diagnostics"));
+            var export = Find<Button>((FrameworkElement)settingsWindow.Content, b => Equals(b.Content, "Export diagnostics"));
             if (export is null || !ReferenceEquals(export.Command, vm.ExportDiagnosticsCommand)) throw new InvalidOperationException("Diagnostics button is not bound.");
             vm.AutoStartDisplay = false;
             vm.CanvasSize = DisplayCanvasSize.Turing52;

@@ -112,6 +112,7 @@ public static class VideoFrameProvider
                 while (!_stop.IsCancellationRequested)
                 {
                     using var sample = reader.ReadSample(SourceReaderIndex.FirstVideoStream, 0, out _, out var flags, out var timestamp);
+                    if (Environment.GetEnvironmentVariable("CI") == "true") Console.WriteLine($"Video sample: timestamp={timestamp}, flags={flags}, loop={Volatile.Read(ref _request).Loop}, paused={Volatile.Read(ref _request).Paused}");
                     if ((flags & SourceReaderFlag.Error) != 0) throw new InvalidDataException("Video stream error.");
                     if ((flags & SourceReaderFlag.CurrentMediaTypeChanged) != 0) throw new InvalidDataException("Changing video dimensions are not supported.");
                     if ((flags & SourceReaderFlag.EndOfStream) != 0)

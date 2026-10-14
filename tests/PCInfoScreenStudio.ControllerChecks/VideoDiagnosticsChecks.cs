@@ -40,6 +40,7 @@ internal static class VideoDiagnosticsChecks
             using var frame = VideoFrameProvider.GetFrame(workspace, widget, DisplayCanvasSize.Turing52, 0, out status);
             return frame is not null && frame.GetPixel(80, 10).Green > 70 && frame.GetPixel(80, 10).Red < 70;
         }, TimeSpan.FromSeconds(10));
+        Console.WriteLine("Video waiting for EOF: " + status);
         pump(() => { using var frame = VideoFrameProvider.GetFrame(workspace, widget, DisplayCanvasSize.Turing52, 0, out status); if (status.StartsWith("Cannot") || status.StartsWith("Invalid")) throw new InvalidOperationException("End-of-stream failed: " + status); return status.Contains("ended"); }, TimeSpan.FromSeconds(5));
         Console.WriteLine("PASS: video first frame, colour, pause/unpause and non-looping EOF");
         widget.Loop = true; widget.PlaybackSpeed = 2; VideoFrameProvider.Restart(workspace, widget);
