@@ -10,13 +10,14 @@ public static class ColoredTextRenderer
 {
     private const int LayoutLimit = 128;
     private static readonly object Sync = new();
-    private static readonly Dictionary<(uint Face, float Size, string Text), Layout> Layouts = [];
-    private static readonly Queue<(uint Face, float Size, string Text)> Order = [];
+    private static readonly Dictionary<(SKTypeface Face, float Size, string Text), Layout> Layouts = [];
+    private static readonly Queue<(SKTypeface Face, float Size, string Text)> Order = [];
 
     public readonly record struct TextMetrics(float Ascent, float Descent, float Top, float Bottom);
 
-    public static float Measure(string text, SKFont font, SKPaint paint)
+    public static float Measure(string? text, SKFont font, SKPaint paint)
     {
+        text ??= string.Empty;
         if (!ContainsEmoji(text)) return font.MeasureText(text, paint);
         lock (Sync)
         {
@@ -26,8 +27,9 @@ public static class ColoredTextRenderer
         }
     }
 
-    public static TextMetrics Metrics(string text, SKFont font)
+    public static TextMetrics Metrics(string? text, SKFont font)
     {
+        text ??= string.Empty;
         var metrics = font.Metrics;
         if (!ContainsEmoji(text)) return new(metrics.Ascent, metrics.Descent, metrics.Top, metrics.Bottom);
         lock (Sync)
@@ -38,8 +40,9 @@ public static class ColoredTextRenderer
         }
     }
 
-    public static void Draw(SKCanvas canvas, string text, float x, float baseline, SKFont font, SKPaint paint)
+    public static void Draw(SKCanvas canvas, string? text, float x, float baseline, SKFont font, SKPaint paint)
     {
+        text ??= string.Empty;
         if (string.IsNullOrEmpty(text)) return;
         if (!ContainsEmoji(text)) { canvas.DrawText(text, x, baseline, SKTextAlign.Left, font, paint); return; }
         lock (Sync)
@@ -60,7 +63,9 @@ public static class ColoredTextRenderer
 
     public static bool ContainsEmoji(string? text)
         => !string.IsNullOrEmpty(text) && text.EnumerateRunes().Any(r =>
-            r.Value is >= 0x1F000 and <= 0x1FAFF or >= 0x2600 and <= 0x27BF or 0xFE0F or 0x20E3);
+            r.Value is >= 0x1F000 and <= 0x1FAFF or >= 0x2600 and <= 0x27BF or
+                0x231A or 0x231B or >= 0x23E9 and <= 0x23EC or 0x23F0 or 0x23F3 or
+                0x25FD or 0x25FE or 0x2B1B or 0x2B1C or 0x2B50 or 0x2B55 or 0xFE0F or 0x20E3);
 
     public static void Clear()
     {
@@ -75,7 +80,7 @@ public static class ColoredTextRenderer
     {
         // Large pasted strings are rendered without retaining a permanent layout.
         temporary = text.Length > 2048;
-        var key = (font.Typeface.UniqueId, font.Size, text);
+        var key = (font.Typeface, font.Size, text);
         if (!temporary && Layouts.TryGetValue(key, out var cached)) return cached;
         var layout = BuildLayout(text, font);
         if (temporary) return layout;
@@ -121,6 +126,7 @@ public static class ColoredTextRenderer
             using var runFont = new SKFont(typeface, font.Size);
             using var shaper = new SKShaper(typeface);
             var result = shaper.Shape(value, runFont);
+            if (result.Codepoints.Length == 0) return;
             using var builder = new SKTextBlobBuilder();
             var buffer = builder.AllocateRawPositionedRun(runFont, result.Codepoints.Length, null);
             for (var i = 0; i < result.Codepoints.Length; i++)
@@ -128,7 +134,7 @@ public static class ColoredTextRenderer
                 buffer.Glyphs[i] = (ushort)result.Codepoints[i];
                 buffer.Positions[i] = result.Points[i];
             }
-            var blob = builder.Build();
+            var blob = builder.Build() ?? throw new InvalidOperationException("Could not build the shaped text run.");
             runs.Add(new Run(blob, offset, currentEmoji));
             var bounds = blob.Bounds;
             ascent = Math.Min(ascent, bounds.Top); descent = Math.Max(descent, bounds.Bottom);

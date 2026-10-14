@@ -74,7 +74,7 @@ internal static class HardwareNameEmojiChecks
         using var face = SKTypeface.FromFamilyName("Segoe UI");
         using var font = new SKFont(face, 48);
         using var paint = new SKPaint { Color = SKColors.White, IsAntialias = true };
-        foreach (var text in new[] { "👌💕👏", "👌🏽 👏🏻", "👩‍💻", "❤️ 1️⃣" })
+        foreach (var text in new[] { "👌💕👏", "👌🏽 👏🏻", "👩‍💻", "❤️ 1️⃣", "⌚⭐⭕" })
         {
             using var image = new SKBitmap(600, 100);
             using var canvas = new SKCanvas(image); canvas.Clear(SKColors.Black);
