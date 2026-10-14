@@ -21,7 +21,10 @@ internal static class Program
         Directory.CreateDirectory(root);
         try
         {
-            RunCheck("ThemePackageChecks", () => ThemePackageChecks.Check(root, Await));
+            RunCheck("StabilityRecoveryChecks", () => StabilityRecoveryChecks.Check(root, Await));
+            RunCheck("StabilityOperationChecks", () => StabilityOperationChecks.Check(root, Await, PumpUntil, args.Length == 2 && args[0] == "--capture-ui" ? args[1] : null));
+            RunCheck("StabilityMediaChecks", () => StabilityMediaChecks.Check(root));
+            RunCheck("ThemePackageChecks", () => ThemePackageChecks.Check(root, task => Await(task, TimeSpan.FromSeconds(60))));
             RunCheck("VideoDiagnosticsChecks", () => VideoDiagnosticsChecks.Check(root, PumpUntil));
             RunCheck("HardwareNameEmojiChecks", () => Await(HardwareNameEmojiChecks.RunAsync(root, PumpUntil, args.Length == 2 && args[0] == "--capture-ui" ? args[1] : null)));
             RunCheck("RegressionFixChecks", () => Await(RegressionFixChecks.RunAsync()));
@@ -411,9 +414,16 @@ internal static class Program
         File.WriteAllText(Path.Combine(directory, "last-session.t3theme"), "corrupt");
         using var fallback = new MainViewModel(Settings(root, "resume-corrupt"), sessions);
         fallback.SetEditorActive(false);
-        var failed = fallback.RestoreLastSessionAsync(); Await(failed);
-        Assert(!failed.Result && fallback.Document.Widgets.Count > 0 && fallback.DeviceStatus.Contains("Could not restore"),
-            "An unreadable session must leave the starter editor usable and report the failure.");
+        var recovered = fallback.RestoreLastSessionAsync(); Await(recovered);
+        Assert(recovered.Result && fallback.Document.Name == "Chosen theme" && fallback.Document.Widgets.Count > 0 && fallback.RecoveryNotice.Contains("backup"),
+            "An unreadable session must restore its validated backup and explain the recovery.");
+        File.WriteAllText(Path.Combine(directory, "last-session.t3theme"), "corrupt");
+        File.WriteAllText(Path.Combine(directory, "last-session.t3theme.bak"), "corrupt backup");
+        using var unavailable = new MainViewModel(Settings(root, "resume-no-valid-copy"), sessions);
+        unavailable.SetEditorActive(false);
+        var failed = unavailable.RestoreLastSessionAsync(); Await(failed);
+        Assert(!failed.Result && unavailable.Document.Widgets.Count > 0 && unavailable.RecoveryNotice.Contains("could not be read"),
+            "Two unreadable copies must leave the starter editor usable and show a persistent recovery notice.");
     }
 
     private static void CheckSensorStartup()
@@ -740,8 +750,11 @@ internal static class Program
         => (bool)typeof(DeviceController).GetField("_brightnessWorkerRunning", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(controller)!;
 
     private static void Await(Task task)
+        => Await(task, TimeSpan.FromSeconds(10));
+
+    private static void Await(Task task, TimeSpan timeout)
     {
-        PumpUntil(() => task.IsCompleted);
+        PumpUntil(() => task.IsCompleted, timeout);
         task.GetAwaiter().GetResult();
     }
 

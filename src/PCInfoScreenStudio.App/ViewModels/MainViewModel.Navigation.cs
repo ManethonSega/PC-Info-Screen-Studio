@@ -65,7 +65,7 @@ public sealed partial class MainViewModel
     public string CurrentThemeName => Document.Mode == ScreenMode.InfoScreen ? Document.Name
         : ActiveThemePath is string path ? Path.GetFileNameWithoutExtension(path) : "Untitled settings";
     public string ThemeSummary => Document.Mode == ScreenMode.InfoScreen ? "Layout, widgets and media · .t3theme" : ModeThemeSummary;
-    private bool CanManageActiveTheme => IsEditorPage && (Document.Mode == ScreenMode.InfoScreen ? SelectedTheme is { IsBuiltIn: false } : SelectedModeTheme is not null);
+    private bool CanManageActiveTheme => IsEditorPage && CanChangeWorkspace && (Document.Mode == ScreenMode.InfoScreen ? SelectedTheme is { IsBuiltIn: false } : SelectedModeTheme is not null);
 
     private void NotifyThemeState()
     {
@@ -92,6 +92,7 @@ public sealed partial class MainViewModel
 
     private void NewModeTheme()
     {
+        if (!CanChangeWorkspace) return;
         if (!ConfirmDiscardIfNeeded()) return;
         _suppressDirty = true;
         try
@@ -109,6 +110,8 @@ public sealed partial class MainViewModel
 
     public void LoadModeThemeFile(string path)
     {
+        if (!CanChangeWorkspace) return;
+        if (!BeginFileOperation("Opening settings theme...")) return;
         try
         {
             var preset = _modeThemeService.Load(path);
@@ -140,12 +143,15 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex)
         { MessageBox.Show(ex.Message, "Could not open settings theme", MessageBoxButton.OK, MessageBoxImage.Warning); }
+        finally { EndFileOperation(); }
     }
 
     private void SaveModeThemeFile(bool saveAs)
     {
+        if (!CanChangeWorkspace) return;
         var path = saveAs || ActiveThemePath is null ? _dialogs.SaveModeTheme(Document.Mode, CurrentThemeName) : ActiveThemePath;
         if (path is null) return;
+        if (!BeginFileOperation("Saving settings theme...", allowEditing: true)) return;
         try
         {
             _modeThemeService.SaveToPath(Document, Document.Mode, path);
@@ -156,10 +162,12 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex)
         { MessageBox.Show(ex.Message, "Could not save settings theme", MessageBoxButton.OK, MessageBoxImage.Warning); }
+        finally { EndFileOperation(); }
     }
 
     private void ManageModeTheme(bool rename)
     {
+        if (!CanChangeWorkspace) return;
         if (SelectedModeTheme is not { } theme) return;
         var name = rename ? Controls.TextPromptDialog.Show(Application.Current.MainWindow, "Rename settings theme", "Theme name", theme.DisplayName) : theme.DisplayName + " copy";
         if (string.IsNullOrWhiteSpace(name)) return;

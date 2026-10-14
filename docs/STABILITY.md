@@ -1,0 +1,27 @@
+# Recovery, file operations and media memory, alpha.20
+
+## Validated recovery
+
+App settings keep `settings.json.bak`; private resume storage keeps `Session/last-session.t3theme.bak`, both under the app's local data directory. Successful writes first create a unique pending file and validate it. A validated existing primary becomes the backup when the pending file replaces it. The first valid write establishes a backup. A corrupt primary never overwrites a good backup. File operations for each destination are serialized across service instances in the process.
+
+Startup first tries the primary, then a validated backup. An unreadable primary is retained under a unique `.unreadable-*` name before repairing it. If repair is blocked, the app can still load the backup and explain that repair failed. If both copies are unreadable, settings defaults and the existing editor recovery route are used with an inline notice; existing files remain available. A backup can be older than the latest work. Dismiss closes the notice without changing restored data. Failed settings writes keep the in-memory choice active and report that stored files were preserved.
+
+Session validation checks bounded metadata, supported state/mode structures, the theme package and retained asset payload lengths using bounded streaming rather than extracting another media copy. Unsaved mode flags, page choice, photo references and inactive embedded playlists are preserved. Linked files still depend on their original locations. Recovery is local; no files are uploaded. One backup increases local storage use, and validating larger sessions adds file I/O. Interrupted-write checks simulate pending/truncated data; they do not certify every filesystem/power-loss condition.
+
+## File operations
+
+New/Open/Save/import/library actions, Undo/Redo and mode/model selection share command availability while an asynchronous file operation is active. Ordinary editing remains possible during Info Screen Save; later changes stay dirty. Opening or importing holds editor controls, and a load cannot replace a document changed after loading began. The footer reports progress and offers Cancel. Failed/cancelled work retains the previous workspace or destination and reports a readable inline status.
+
+Package writes use detached metadata snapshots, unique pending files and per-destination serialization. Workspace file leases defer temporary-folder deletion until saves, imports, session snapshots and renders finish. They do not delete unused live assets, so Undo can still recover removed widgets. User image/GIF/video/font copying and photo metadata/folder scans run asynchronously. Mode-theme saves use pending-file replacement; their small JSON writes and legacy synchronous helper APIs remain synchronous. Exit/logoff cancels pending user file work and saves a private resume snapshot.
+
+## Media accounting
+
+Images, prepared photos and GIF decoder/frame resources share a **128 MiB retained-cache budget**. Image entries are bounded to display resolution after decoding. A single image or GIF decode bitmap is limited to **64 MiB**; formats that cannot decode large sources within that limit need resized sources. GIFs up to **16 MiB compressed** can keep encoded data in RAM; larger GIFs use the codec's file path. GIF accounting includes its composited bitmap, retained compressed bytes and managed frame/duration arrays. Native codec overhead is separate.
+
+Unused/hidden/inactive media is evicted as the active scene changes. Current/transition photos and one prefetched next photo can remain warm. Already-active resources are favored to avoid cache thrashing. A resource in use is pinned until drawing finishes; Clear/eviction cannot dispose it while it is being drawn. Public GIF snapshots are owned copies, and renderer GIF leases hold the decoder lock during drawing. Recreated GIF decoders retain their active media timeline. Source files stay available for Undo.
+
+When the active working set cannot fit, additional resources are used for the current draw and released rather than retained. This may increase decode work; use screen-sized media for crowded scenes. **128 MiB is not a process-memory cap.** Temporary draws, native codec/transformation buffers, fonts/text layouts, video workers/frames, frame queues, playlists and .NET/WPF overhead are outside the retained-cache limit. Diagnostics reports the cache budget, retained and temporary bytes, peak tracked bytes, hits, loads and evictions without source paths. Video keeps its separate bounded-frame/worker limits.
+
+## Checks
+
+Regression coverage includes malformed/missing settings and session primaries, backup fallback and preservation, invalid/cancelled writes, older settings migration, concurrent service instances, embedded/inactive photo references and workspace disposal during streaming. Actual WPF checks cover recovery notices, shared command state, footer Cancel/progress, edits made during save, failed Open, cancellation and partial-import cleanup. Cache checks cover shared-category LRU behavior, active-resource preference, pin lifetimes, temporary allocations, owned GIF snapshots and timeline/composition after decoder recreation. An accelerated workload renders 500 frames cycling 30 photos and two GIFs under an 8 MiB test budget, logs process-memory observations and checks source reuse after removal/Undo. It is not an overnight physical-device benchmark.

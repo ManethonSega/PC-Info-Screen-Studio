@@ -6,6 +6,7 @@ namespace PCInfoScreenStudio.Services;
 public sealed class AppSettingsService
 {
     private readonly string _settingsPath;
+    public string RecoveryNotice { get; private set; } = string.Empty;
 
     public AppSettingsService(string? settingsPath = null)
     {
@@ -17,13 +18,29 @@ public sealed class AppSettingsService
 
     public AppSettings Load()
     {
+        var gate = RecoveryFileStore.Gate(_settingsPath);
+        gate.Wait();
         try
         {
-            if (!File.Exists(_settingsPath))
-                return new AppSettings();
-
-            var json = File.ReadAllText(_settingsPath);
-            var settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+            RecoveryNotice = string.Empty;
+            var settings = ReadValid(_settingsPath);
+            if (settings is null)
+            {
+                settings = ReadValid(_settingsPath + ".bak");
+                if (settings is not null)
+                {
+                    RecoveryNotice = "Settings were restored from the last good backup. Any unreadable file was kept for diagnosis.";
+                    try { RecoveryFileStore.Restore(_settingsPath); }
+                    catch { RecoveryNotice = "Settings were loaded from backup. The original file could not be repaired; the backup is safe."; }
+                }
+                else
+                {
+                    if (File.Exists(_settingsPath) || File.Exists(_settingsPath + ".bak"))
+                        RecoveryNotice = "Saved settings could not be read. Defaults are in use; existing files are kept for diagnosis.";
+                    return new AppSettings();
+                }
+            }
+            var oldVersion = settings.SettingsVersion;
             if (settings.SettingsVersion < 2)
             {
                 settings.SettingsVersion = 2;
@@ -36,7 +53,6 @@ public sealed class AppSettingsService
                 settings.MediaPanelExpanded = true;
                 settings.ShapePanelExpanded = true;
                 settings.ColoursPanelExpanded = true;
-                Save(settings);
             }
             if (settings.SettingsVersion < 3)
             {
@@ -44,29 +60,37 @@ public sealed class AppSettingsService
                 // is reserved for genuinely new installations.
                 settings.SettingsVersion = 3;
                 settings.FirstRunCompleted = true;
-                Save(settings);
             }
             if (settings.SettingsVersion < 4)
             {
                 settings.SettingsVersion = 4;
                 settings.StartWithWindows = true;
                 settings.AutoStartDisplay = true;
-                Save(settings);
             }
             if (settings.SettingsVersion < 5)
             {
                 settings.SettingsVersion = 5;
-                Save(settings);
             }
+            if (oldVersion != settings.SettingsVersion)
+                try { SaveCore(settings); }
+                catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+                { RecoveryNotice = "Settings were loaded, but their upgrade could not be saved. Existing files were preserved."; }
             return settings;
         }
-        catch
-        {
-            return new AppSettings();
-        }
+        finally { gate.Release(); }
     }
 
     public void Save(AppSettings settings)
+    {
+        var gate = RecoveryFileStore.Gate(_settingsPath);
+        gate.Wait();
+        try { SaveCore(settings); }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+        { RecoveryNotice = "Settings could not be saved. Your changes are active for this session; stored settings and backups were preserved."; throw; }
+        finally { gate.Release(); }
+    }
+
+    private void SaveCore(AppSettings settings)
     {
         var directory = Path.GetDirectoryName(_settingsPath);
         if (!string.IsNullOrWhiteSpace(directory))
@@ -77,9 +101,40 @@ public sealed class AppSettingsService
             WriteIndented = true
         });
 
-        var pending = _settingsPath + ".tmp";
-        File.WriteAllText(pending, json);
-        File.Move(pending, _settingsPath, overwrite: true);
+        var pending = RecoveryFileStore.Pending(_settingsPath);
+        try
+        {
+            using (var file = new FileStream(pending, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            using (var writer = new StreamWriter(file))
+            {
+                writer.Write(json); writer.Flush(); file.Flush(flushToDisk: true);
+            }
+            if (ReadValid(pending) is null) throw new InvalidDataException("Settings could not be validated; existing settings and backup were preserved.");
+            RecoveryFileStore.Commit(pending, _settingsPath, ReadValid(_settingsPath) is not null, ReadValid(_settingsPath + ".bak") is not null);
+        }
+        finally { if (File.Exists(pending)) File.Delete(pending); }
+    }
+
+    private static AppSettings? ReadValid(string path)
+    {
+        try
+        {
+            if (!File.Exists(path) || new FileInfo(path).Length > 1024 * 1024) return null;
+            using var json = JsonDocument.Parse(File.ReadAllText(path));
+            if (json.RootElement.ValueKind != JsonValueKind.Object) return null;
+            var settings = json.RootElement.Deserialize<AppSettings>();
+            if (settings is null || settings.SettingsVersion is < 0 or > 5 ||
+                !Enum.IsDefined(settings.DisplayProtocol) || !Enum.IsDefined(settings.DisplayColorMode) ||
+                (settings.PreferredCanvasSize.HasValue && !Enum.IsDefined(settings.PreferredCanvasSize.Value)) ||
+                !double.IsFinite(settings.CanvasZoom) || settings.WeatherCity is null) return null;
+            settings.CanvasZoom = Math.Clamp(settings.CanvasZoom, .5, 3);
+            settings.SerialBrightness = Math.Clamp(settings.SerialBrightness, 0, 100);
+            settings.UsbBrightness = Math.Clamp(settings.UsbBrightness, 0, 100);
+            settings.LastPhotoIndex = Math.Max(0, settings.LastPhotoIndex);
+            return settings;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or ArgumentException)
+        { return null; }
     }
 }
 

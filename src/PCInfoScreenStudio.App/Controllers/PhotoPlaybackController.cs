@@ -337,6 +337,7 @@ public sealed class PhotoPlaybackController : ObservableObject, IDisposable
             : (settings.RuntimeCurrentIndex + 1) % settings.Photos.Count;
         var workspace = Workspace;
         var item = settings.Photos[next];
+        settings.RuntimePreloadedIndex = next;
         _ = Task.Run(() =>
         {
             try { ThemeRenderer.PreloadPhoto(workspace, item); } catch { }

@@ -78,6 +78,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public MainViewModel(SettingsController settings, SessionStateService? sessionService = null)
     {
         _settings = settings;
+        _recoveryNotice = settings.RecoveryNotice;
         _sessionService = sessionService ?? new SessionStateService();
         _weatherCity = _settings.WeatherCity;
         _workspace = _packageService.CreateNewWorkspace();
@@ -86,16 +87,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _photos = new PhotoPlaybackController(() => Workspace, _settings);
         AttachControllers();
         InitializeMediaCommands();
+        CancelFileOperationCommand = new RelayCommand(CancelFileOperation, () => IsFileOperationBusy);
+        DismissRecoveryNoticeCommand = new RelayCommand(() => { _recoveryNotice = string.Empty; RaisePropertyChanged(nameof(RecoveryNotice)); RaisePropertyChanged(nameof(RecoveryNoticeVisibility)); RaisePropertyChanged(nameof(ActivityStatus)); });
         Themes = [];
         ModeThemes = [];
         FontAssets = [];
 
-        NewCommand = new RelayCommand(NewTheme, () => IsEditorPage);
-        OpenCommand = new RelayCommand(async () => await OpenThemeAsync(), () => IsEditorPage);
-        SaveCommand = new RelayCommand(async () => await SaveAsync(false), () => IsEditorPage);
-        SaveAsCommand = new RelayCommand(async () => await SaveAsync(true), () => IsEditorPage);
-        UndoCommand = new RelayCommand(Undo, () => IsEditorPage && _historyIndex > 0);
-        RedoCommand = new RelayCommand(Redo, () => IsEditorPage && _historyIndex >= 0 && _historyIndex < _history.Count - 1);
+        NewCommand = new RelayCommand(NewTheme, () => IsEditorPage && CanChangeWorkspace);
+        OpenCommand = new RelayCommand(async () => await OpenThemeAsync(), () => IsEditorPage && CanChangeWorkspace);
+        SaveCommand = new RelayCommand(async () => await SaveAsync(false), () => IsEditorPage && CanChangeWorkspace);
+        SaveAsCommand = new RelayCommand(async () => await SaveAsync(true), () => IsEditorPage && CanChangeWorkspace);
+        UndoCommand = new RelayCommand(Undo, () => IsEditorPage && CanChangeWorkspace && _historyIndex > 0);
+        RedoCommand = new RelayCommand(Redo, () => IsEditorPage && CanChangeWorkspace && _historyIndex >= 0 && _historyIndex < _history.Count - 1);
         NudgeWidgetCommand = new RelayCommand(NudgeSelected, _ => IsEditorPage && SelectedWidgets.Any(w => !w.IsLocked));
         AlignWidgetCommand = new RelayCommand(AlignSelected, _ => IsEditorPage && SelectedWidgets.Any(w => !w.IsLocked));
         GroupSelectedCommand = new RelayCommand(GroupSelected, () => IsEditorPage && SelectedWidgets.Count >= 2);
@@ -105,11 +108,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         DuplicateWidgetCommand = new RelayCommand(DuplicateSelected, () => IsEditorPage && SelectedWidget is not null);
         MoveLayerUpCommand = new RelayCommand(() => MoveLayer(1), () => IsEditorPage && SelectedWidget is not null);
         MoveLayerDownCommand = new RelayCommand(() => MoveLayer(-1), () => IsEditorPage && SelectedWidget is not null);
-        ImportImageCommand = new RelayCommand(() => ImportMedia(ThemeAssetKind.Image));
-        ImportGifCommand = new RelayCommand(() => ImportMedia(ThemeAssetKind.Gif));
-        ImportVideoCommand = new RelayCommand(async () => await ImportVideoAsync(), () => !_videoImportBusy);
-        ImportFontCommand = new RelayCommand(ImportFont);
-        ToggleOrientationCommand = new RelayCommand(ToggleOrientation);
+        ImportImageCommand = new RelayCommand(() => ImportMedia(ThemeAssetKind.Image), () => CanChangeWorkspace);
+        ImportGifCommand = new RelayCommand(() => ImportMedia(ThemeAssetKind.Gif), () => CanChangeWorkspace);
+        ImportVideoCommand = new RelayCommand(async () => await ImportVideoAsync(), () => CanChangeWorkspace);
+        ImportFontCommand = new RelayCommand(ImportFont, () => CanChangeWorkspace);
+        ToggleOrientationCommand = new RelayCommand(ToggleOrientation, () => CanChangeWorkspace);
         RotateDeviceCommand = new RelayCommand(RotateDevice);
         RefreshPortsCommand = new RelayCommand(RefreshPorts);
         DetectScreenCommand = new RelayCommand(DetectScreen, () => !IsDeviceBusy);
@@ -118,15 +121,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         TestScreenCommand = new RelayCommand(() => _ = TestScreenAsync(), () => _device.IsConnected && !IsDeviceBusy);
         BenchmarkCommand = new RelayCommand(() => _ = RunBenchmarkAsync(), () => _device.IsConnected && !IsDeviceBusy);
         RefreshThemesCommand = new RelayCommand(() => { if (Document.Mode == ScreenMode.InfoScreen) RefreshThemes(); else RefreshModeThemes(); });
-        LoadThemeCommand = new RelayCommand(() => _ = LoadSelectedThemeAsync(), () => IsEditorPage && ActiveThemeSelection is not null);
+        LoadThemeCommand = new RelayCommand(() => _ = LoadSelectedThemeAsync(), () => IsEditorPage && CanChangeWorkspace && ActiveThemeSelection is not null);
         DuplicateThemeCommand = new RelayCommand(DuplicateSelectedTheme, () => CanManageActiveTheme);
         RenameThemeCommand = new RelayCommand(RenameSelectedTheme, () => CanManageActiveTheme);
         DeleteThemeCommand = new RelayCommand(DeleteSelectedTheme, () => CanManageActiveTheme);
         UpdateWeatherCommand = new RelayCommand(() => _ = UpdateWeatherAsync());
         RestartElevatedCommand = new RelayCommand(() => RestartElevated());
         EnableFullSensorsCommand = new RelayCommand(() => _ = EnableFullSensorsAsync());
-        AddPhotosCommand = new RelayCommand(AddPhotos);
-        AddPhotoFolderCommand = new RelayCommand(AddPhotoFolder);
+        AddPhotosCommand = new RelayCommand(AddPhotos, () => CanChangeWorkspace);
+        AddPhotoFolderCommand = new RelayCommand(AddPhotoFolder, () => CanChangeWorkspace);
         RemovePhotoCommand = new RelayCommand(RemoveSelectedPhoto, () => SelectedPhoto is not null);
         PreviousPhotoCommand = new RelayCommand(PreviousPhoto, () => Document.PhotoFrame.Photos.Count > 0);
         TogglePhotoPlaybackCommand = new RelayCommand(TogglePhotoPlayback, () => Document.PhotoFrame.Photos.Count > 0);
@@ -134,9 +137,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         SaveAlbumPresetCommand = new RelayCommand(SaveAlbumPreset, () => Document.PhotoFrame.Photos.Count > 0);
         LoadAlbumPresetCommand = new RelayCommand(LoadAlbumPreset);
         ChooseWatchedFolderCommand = new RelayCommand(ChooseWatchedFolder);
-        SaveModeThemeCommand = new RelayCommand(SaveModeTheme, () => Document.Mode != ScreenMode.InfoScreen);
-        LoadModeThemeCommand = new RelayCommand(LoadModeTheme, () => SelectedModeTheme is not null);
-        DeleteModeThemeCommand = new RelayCommand(DeleteModeTheme, () => SelectedModeTheme is not null);
+        SaveModeThemeCommand = new RelayCommand(SaveModeTheme, () => CanChangeWorkspace && Document.Mode != ScreenMode.InfoScreen);
+        LoadModeThemeCommand = new RelayCommand(LoadModeTheme, () => CanChangeWorkspace && SelectedModeTheme is not null);
+        DeleteModeThemeCommand = new RelayCommand(DeleteModeTheme, () => CanChangeWorkspace && SelectedModeTheme is not null);
         ClearSourceSearchCommand = new RelayCommand(() => SourceSearchText = string.Empty);
         DataSources.CollectionChanged += OnDataSourcesChanged;
         FirstRunConnectCommand = new RelayCommand(() => _ = DetectAndConnectFirstRunAsync(), () => !IsDeviceBusy);
@@ -359,13 +362,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         new("3.5-inch · 480 × 320", DisplayCanvasSize.Serial35),
         new("5.2-inch · 1280 × 720", DisplayCanvasSize.Turing52)
     ];
-    public bool CanChooseScreen => !IsDeviceBusy;
+    public bool CanChooseScreen => !IsDeviceBusy && CanChangeWorkspace;
     public DisplayCanvasSize CanvasSize
     {
         get => _settings.PreferredCanvasSize ?? _device.PreferredCanvasSize;
         set
         {
-            if (value == CanvasSize || IsDeviceBusy) return;
+            if (value == CanvasSize || !CanChooseScreen) return;
             _settings.PreferredCanvasSize = value;
             ResizeForSelectedScreen();
             _ = ChangeSelectedScreenAsync(value);
@@ -526,7 +529,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public string HardwareStatus
     {
         get => _hardwareStatus;
-        private set => SetProperty(ref _hardwareStatus, value);
+        private set { if (SetProperty(ref _hardwareStatus, value)) RaisePropertyChanged(nameof(ActivityStatus)); }
     }
 
     public bool IsHardwareElevated => _hardwareMetrics.IsElevated;
@@ -902,6 +905,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void OnSettingsPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(SettingsController.RecoveryNotice)) AddRecoveryNotice(_settings.RecoveryNotice);
         // Device compatibility properties are forwarded by DeviceController.
         if (e.PropertyName is not nameof(DisplayProtocol) and not nameof(DisplayColorMode)
             and not nameof(ShowAdvancedSensors))
@@ -910,6 +914,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void NewTheme()
     {
+        if (!CanChangeWorkspace) return;
         if (Document.Mode != ScreenMode.InfoScreen) { NewModeTheme(); return; }
         if (!ConfirmDiscardIfNeeded()) return;
         ReplaceWorkspace(_packageService.CreateNewWorkspace());
@@ -925,39 +930,49 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public async Task OpenThemeFileAsync(string path)
     {
+        if (!CanChangeWorkspace) return;
         if (Path.GetExtension(path).Equals(".pcphoto", StringComparison.OrdinalIgnoreCase) || Path.GetExtension(path).Equals(".pchybrid", StringComparison.OrdinalIgnoreCase))
-        { LoadModeThemeFile(path); return; }
+        { await LoadModeThemeFileAsync(path); return; }
         if (Document.Mode != ScreenMode.InfoScreen)
         { MessageBox.Show("Switch to Info Screen to open a .t3theme file.", "Open theme"); return; }
         if (!ConfirmDiscardIfNeeded()) return;
+        if (!BeginFileOperation("Opening theme...")) return;
+        var currentWorkspace = Workspace;
+        var revision = _editRevision;
         try
         {
-            var workspace = await _packageService.LoadAsync(path);
+            var workspace = await _packageService.LoadAsync(path, FileOperationToken, progress: FileProgress());
+            if (_isDisposed || FileOperationToken.IsCancellationRequested || Workspace != currentWorkspace || _editRevision != revision)
+            { workspace.Dispose(); if (!_isDisposed) DeviceStatus = "Open cancelled because the current workspace changed."; return; }
             ReplaceWorkspace(workspace);
         }
+        catch (OperationCanceledException) { if (!_isDisposed) DeviceStatus = "Opening cancelled. Your current workspace was kept."; }
         catch (Exception ex)
         {
             DiagnosticsService.RecordError("Theme load", ex);
-            MessageBox.Show(ex.Message, "Could not open theme", MessageBoxButton.OK, MessageBoxImage.Error);
+            if (!_isDisposed) AddRecoveryNotice("The theme could not be opened. Your current workspace was kept. " + (ex is InvalidDataException ? ex.Message : "Check the file and try again."));
         }
+        finally { EndFileOperation(); }
     }
 
     public Task SaveCurrentThemeAsync() => SaveAsync(false);
 
     private async Task SaveAsync(bool saveAs)
     {
+        if (!CanChangeWorkspace) return;
         if (Document.Mode != ScreenMode.InfoScreen) { SaveModeThemeFile(saveAs); return; }
         var path = saveAs || string.IsNullOrWhiteSpace(Workspace.FilePath)
             ? _dialogs.SaveTheme(Document.Name)
             : Workspace.FilePath;
         if (path is null) return;
+        if (!BeginFileOperation("Saving theme...", allowEditing: true)) return;
 
         var workspace = Workspace;
         var savedMode = Document.Mode;
         try
         {
-            await _packageService.SaveAsync(workspace, path);
-            if (!ReferenceEquals(Workspace, workspace)) return;
+            await _packageService.SaveAsync(workspace, path, FileOperationToken, FileProgress());
+            if (_isDisposed || !ReferenceEquals(Workspace, workspace)) return;
             var changedWhileSaving = workspace.IsDirty;
             _themeSessions.Loaded(savedMode, path);
             if (changedWhileSaving) _themeSessions.MarkDirty(savedMode);
@@ -966,11 +981,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             if (!HasUnsavedChanges) DeleteRecoveryFile();
             RefreshThemes();
         }
+        catch (OperationCanceledException) { if (!_isDisposed) DeviceStatus = "Save cancelled. The previous file and your edits were kept."; }
         catch (Exception ex)
         {
             DiagnosticsService.RecordError("Theme save", ex);
-            MessageBox.Show(ex.Message, "Could not save theme", MessageBoxButton.OK, MessageBoxImage.Error);
+            if (!_isDisposed) AddRecoveryNotice("The theme could not be saved. Your previous file and current edits were kept. " + (ex is InvalidDataException ? ex.Message : "Check available disk space and choose a writable folder."));
         }
+        finally { EndFileOperation(); }
     }
 
     private void AddWidget(object? parameter)
@@ -993,11 +1010,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _ => null
         };
         if (path is null) return;
-        ImportMediaFile(path, kind);
+        _ = ImportMediaFileAsync(path, kind);
     }
 
     public void ImportMediaFile(string path, ThemeAssetKind kind)
     {
+        if (!CanChangeWorkspace) return;
         try
         {
             var asset = kind == ThemeAssetKind.Video && Document.Mode == ScreenMode.Hybrid
@@ -1036,9 +1054,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         MarkDirtyAndRefresh();
     }
 
-    private void AddPhotos() => _photos.AddPhotos();
+    private void AddPhotos()
+    {
+        if (!CanChangeWorkspace) return;
+        var files = _dialogs.OpenImages(); if (files.Length > 0) _ = AddPhotoFilesAsync(files);
+    }
 
-    private void AddPhotoFolder() => _photos.AddPhotoFolder();
+    private void AddPhotoFolder()
+    {
+        if (!CanChangeWorkspace) return;
+        var folder = _dialogs.OpenFolder(); if (!string.IsNullOrWhiteSpace(folder)) _ = AddPhotoFilesAsync([], folder);
+    }
 
     public void AddPhotoFiles(IEnumerable<string> files) => _photos.AddPhotoFiles(files);
 
@@ -1093,28 +1119,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         var path = _dialogs.OpenFont();
         if (path is null) return;
-        ImportFontFile(path);
+        _ = ImportFontFileAsync(path);
     }
 
-    public void ImportFontFile(string path)
+    public void ImportFontFile(string path) => _ = ImportFontFileAsync(path);
+
+    public async Task ImportFontFileAsync(string path)
     {
+        if (!CanChangeWorkspace) return;
         var result = MessageBox.Show(
             "The font will be embedded inside the shareable theme file. Only continue if its licence allows redistribution.\n\nEmbed this font?",
             "Embed font", MessageBoxButton.YesNo, MessageBoxImage.Information);
         if (result != MessageBoxResult.Yes) return;
 
-        try
-        {
-            var asset = _assetService.Import(Workspace, path, ThemeAssetKind.Font);
-            FontAssets.Add(asset);
-            if (SelectedWidget is not null)
-                SelectedWidget.FontAssetId = asset.Id;
-            MarkDirty();
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show(ex.Message, "Could not import font", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
+        await ImportMediaFileAsync(path, ThemeAssetKind.Font);
     }
 
     private void DeleteSelected() => _editor.DeleteSelected();
@@ -1358,11 +1376,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void LoadModeTheme()
     {
-        if (SelectedModeTheme is { } theme) LoadModeThemeFile(theme.FilePath);
+        if (SelectedModeTheme is { } theme) _ = LoadModeThemeFileAsync(theme.FilePath);
     }
 
     private void DeleteModeTheme()
     {
+        if (!CanChangeWorkspace) return;
         if (SelectedModeTheme is null) return;
         var answer = MessageBox.Show(
             $"Delete '{SelectedModeTheme.DisplayName}'?",
@@ -1491,6 +1510,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task LoadSelectedThemeAsync()
     {
+        if (!CanChangeWorkspace) return;
         if (Document.Mode != ScreenMode.InfoScreen) { LoadModeTheme(); return; }
         var selection = SelectedTheme;
         if (selection is null) return;
@@ -1567,8 +1587,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         DetachWorkspace(_workspace);
         CancelVideoImport();
         VideoFrameProvider.Suspend(_workspace);
-        _workspace.Dispose();
         ThemeRenderer.ClearCaches();
+        _workspace.Dispose();
         _workspace = workspace;
         _editRevision++;
         var adapted = Math.Max(Document.CanvasWidth, Document.CanvasHeight) !=
@@ -1624,6 +1644,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (e.PropertyName == nameof(ThemeDocument.EditorWidgets)) return;
         if (e.PropertyName == nameof(ThemeDocument.Mode))
         {
+            if (IsFileOperationBusy && Document.Mode != _lastThemeMode)
+            { Document.Mode = _lastThemeMode; return; }
             _device.NotifyModeChanged();
             _editRevision++;
             var wasSuppressed = _suppressDirty;
@@ -2055,6 +2077,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _editRevision++;
         _themeSessions.MarkDirty(Document.Mode);
         Workspace.IsDirty = true;
+        ThemeRenderer.SynchronizeMedia(Workspace);
         NotifyThemeState();
         RaisePropertyChanged(nameof(IsDirty));
         RaisePropertyChanged(nameof(WindowTitle));
@@ -2102,6 +2125,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void Undo()
     {
+        if (!CanChangeWorkspace) return;
         CaptureHistoryNow();
         if (_historyIndex <= 0)
             return;
@@ -2112,6 +2136,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void Redo()
     {
+        if (!CanChangeWorkspace) return;
         if (_historyIndex < 0 || _historyIndex >= _history.Count - 1)
             return;
 
@@ -2297,6 +2322,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public sealed record PhotoCaptionOption(string Label, PhotoCaptionMode Value);
     public void Dispose()
     {
+        CancelFileOperation();
         _isDisposed = true;
         CancelVideoImport();
         VideoFrameProvider.Suspend(Workspace);

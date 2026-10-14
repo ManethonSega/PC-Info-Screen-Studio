@@ -10,28 +10,16 @@ namespace PCInfoScreenStudio.Rendering;
 /// </summary>
 internal static class RenderResourceCache
 {
-    private static readonly ConcurrentDictionary<string, SKBitmap> Images =
-        new(StringComparer.OrdinalIgnoreCase);
-
     private static readonly ConcurrentDictionary<string, SKTypeface> Typefaces =
         new(StringComparer.OrdinalIgnoreCase);
 
-    // Prepared photo-frame images are already display-sized. Keep only a small
-    // working set (current, previous and a few preloaded images) instead of one
-    // bitmap for every file in a large album.
-    private const int PreparedPhotoLimit = 12;
-    private static readonly object PreparedPhotoSync = new();
-    private static readonly Dictionary<string, SKBitmap> PreparedPhotos =
-        new(StringComparer.OrdinalIgnoreCase);
-    private static readonly LinkedList<string> PreparedPhotoLru = new();
-    private static readonly Dictionary<string, LinkedListNode<string>> PreparedPhotoNodes =
-        new(StringComparer.OrdinalIgnoreCase);
-
-    public static SKBitmap? GetImage(string path)
+    public static MediaLease<SKBitmap>? GetImage(string path, int width, int height)
     {
         try
         {
-            return Images.GetOrAdd(path, DecodeOrientedImage);
+            var stamp = File.GetLastWriteTimeUtc(path).Ticks;
+            return MediaResourceCache.Acquire($"image:{path}|{stamp}|{width}|{height}", "image", path,
+                () => DecodeOrientedImage(path, width, height), b => (long)b.RowBytes * b.Height, stamp.ToString());
         }
         catch
         {
@@ -39,7 +27,7 @@ internal static class RenderResourceCache
         }
     }
 
-    public static SKBitmap? GetPreparedPhoto(
+    public static MediaLease<SKBitmap>? GetPreparedPhoto(
         string path,
         int width,
         int height,
@@ -47,42 +35,9 @@ internal static class RenderResourceCache
         string backgroundColor)
     {
         var stamp = File.Exists(path) ? File.GetLastWriteTimeUtc(path).Ticks : 0;
-        var key = string.Join('|', path, stamp, width, height, fit, backgroundColor);
-        lock (PreparedPhotoSync)
-        {
-            if (PreparedPhotos.TryGetValue(key, out var cached))
-            {
-                TouchPreparedPhoto(key);
-                return cached;
-            }
-        }
-
-        SKBitmap prepared;
-        try { prepared = PreparePhoto(path, width, height, fit, backgroundColor); }
+        var key = "photo:" + string.Join('|', path, stamp, width, height, fit, backgroundColor);
+        try { return MediaResourceCache.Acquire(key, "photo", path, () => PreparePhoto(path, width, height, fit, backgroundColor), b => (long)b.RowBytes * b.Height, stamp.ToString()); }
         catch { return null; }
-
-        lock (PreparedPhotoSync)
-        {
-            if (PreparedPhotos.TryGetValue(key, out var existing))
-            {
-                prepared.Dispose();
-                TouchPreparedPhoto(key);
-                return existing;
-            }
-
-            PreparedPhotos[key] = prepared;
-            PreparedPhotoNodes[key] = PreparedPhotoLru.AddFirst(key);
-            while (PreparedPhotos.Count > PreparedPhotoLimit)
-            {
-                var oldest = PreparedPhotoLru.Last;
-                if (oldest is null) break;
-                PreparedPhotoLru.RemoveLast();
-                PreparedPhotoNodes.Remove(oldest.Value);
-                if (PreparedPhotos.Remove(oldest.Value, out var evicted))
-                    evicted.Dispose();
-            }
-            return prepared;
-        }
     }
 
     private static SKBitmap PreparePhoto(
@@ -109,13 +64,6 @@ internal static class RenderResourceCache
         var sampling = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
         canvas.DrawImage(image, sourceRect, destination, sampling, paint);
         return result;
-    }
-
-    private static void TouchPreparedPhoto(string key)
-    {
-        if (!PreparedPhotoNodes.TryGetValue(key, out var node)) return;
-        PreparedPhotoLru.Remove(node);
-        PreparedPhotoLru.AddFirst(node);
     }
 
     private static SKRect CropForAspect(SKRect source, float aspect, double focalX, double focalY)
@@ -163,11 +111,14 @@ internal static class RenderResourceCache
             decodeHeight = Math.Max(1, scaled.Height);
         }
 
+        if ((long)decodeWidth * decodeHeight * 4 > 64L * 1024 * 1024) throw new InvalidDataException("Image decoding exceeds the 64 MiB single-image limit. Use a smaller image.");
         var raw = new SKBitmap(decodeWidth, decodeHeight, SKColorType.Bgra8888, SKAlphaType.Premul);
-        codec.GetPixels(raw.Info, raw.GetPixels());
+        var decoded = codec.GetPixels(raw.Info, raw.GetPixels());
+        if (decoded is not SKCodecResult.Success and not SKCodecResult.IncompleteInput)
+        { raw.Dispose(); throw new InvalidDataException("Image decoding failed."); }
 
         if (codec.EncodedOrigin == SKEncodedOrigin.TopLeft)
-            return raw;
+            return BoundImage(raw, targetWidth, targetHeight);
 
         var swap = codec.EncodedOrigin is SKEncodedOrigin.LeftTop or SKEncodedOrigin.RightTop or SKEncodedOrigin.RightBottom or SKEncodedOrigin.LeftBottom;
         var oriented = new SKBitmap(swap ? raw.Height : raw.Width, swap ? raw.Width : raw.Height, SKColorType.Bgra8888, SKAlphaType.Premul);
@@ -184,7 +135,23 @@ internal static class RenderResourceCache
         }
         canvas.DrawBitmap(raw, 0, 0);
         raw.Dispose();
-        return oriented;
+        return BoundImage(oriented, targetWidth, targetHeight);
+    }
+
+    private static SKBitmap BoundImage(SKBitmap source, int? width, int? height)
+    {
+        var maximum = Math.Max(width ?? source.Width, height ?? source.Height);
+        var scale = Math.Min(1d, maximum / (double)Math.Max(source.Width, source.Height));
+        if (scale >= 1) return source;
+        try
+        {
+            var result = new SKBitmap(Math.Max(1, (int)Math.Round(source.Width * scale)), Math.Max(1, (int)Math.Round(source.Height * scale)), SKColorType.Bgra8888, SKAlphaType.Premul);
+            using var canvas = new SKCanvas(result);
+            using var image = SKImage.FromBitmap(source);
+            canvas.DrawImage(image, new SKRect(0, 0, result.Width, result.Height), new SKSamplingOptions(SKFilterMode.Linear));
+            return result;
+        }
+        finally { source.Dispose(); }
     }
 
     private static SKColor ParseColor(string value)
@@ -220,18 +187,7 @@ internal static class RenderResourceCache
     public static void Clear()
     {
         ColoredTextRenderer.Clear();
-        foreach (var image in Images.Values)
-            image.Dispose();
-        Images.Clear();
-
-        lock (PreparedPhotoSync)
-        {
-            foreach (var image in PreparedPhotos.Values)
-                image.Dispose();
-            PreparedPhotos.Clear();
-            PreparedPhotoLru.Clear();
-            PreparedPhotoNodes.Clear();
-        }
+        MediaResourceCache.Clear();
 
         foreach (var typeface in Typefaces.Values)
         {

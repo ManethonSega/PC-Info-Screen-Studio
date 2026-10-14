@@ -9,9 +9,7 @@ namespace PCInfoScreenStudio.Rendering;
 /// </summary>
 public static class AnimatedGifFrameProvider
 {
-    private static readonly ConcurrentDictionary<string, GifState> Cache =
-        new(StringComparer.OrdinalIgnoreCase);
-
+    private static readonly ConcurrentDictionary<string, long> Started = new(StringComparer.OrdinalIgnoreCase);
     public static SKBitmap? GetFrame(
         string path,
         double playbackSpeed,
@@ -20,8 +18,8 @@ public static class AnimatedGifFrameProvider
     {
         try
         {
-            var state = Cache.GetOrAdd(path, static p => new GifState(p));
-            return state.GetFrame(playbackSpeed, targetFps, loop);
+            using var frame = AcquireFrame(path, playbackSpeed, targetFps, loop);
+            return frame?.Value.Copy();
         }
         catch
         {
@@ -29,16 +27,39 @@ public static class AnimatedGifFrameProvider
         }
     }
 
-    public static void Clear()
+    public static MediaLease<SKBitmap>? AcquireFrame(string path, double playbackSpeed, int targetFps, bool loop)
     {
-        foreach (var state in Cache.Values)
-            state.Dispose();
-        Cache.Clear();
+        MediaLease<GifState>? retained = null;
+        try
+        {
+            var stamp = File.GetLastWriteTimeUtc(path).Ticks;
+            var started = Started.GetOrAdd(path, _ => Environment.TickCount64);
+            retained = MediaResourceCache.Acquire($"gif:{path}|{stamp}", "gif", path, () => new GifState(path, started), s => s.MemoryBytes, stamp.ToString());
+            var state = retained.Value;
+            Monitor.Enter(state.Sync);
+            try
+            {
+                var frame = state.GetFrame(playbackSpeed, targetFps, loop);
+                var owned = retained;
+                return new(frame, () => { Monitor.Exit(state.Sync); owned.Dispose(); });
+            }
+            catch { Monitor.Exit(state.Sync); throw; }
+        }
+        catch { retained?.Dispose(); return null; }
+    }
+
+    public static void Clear() { MediaResourceCache.Clear("gif"); Started.Clear(); }
+    public static void Synchronize(IEnumerable<string> paths)
+    {
+        var active = paths.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var path in Started.Keys.Where(p => !active.Contains(p))) Started.TryRemove(path, out _);
     }
 
     private sealed class GifState : IDisposable
     {
         private readonly object _sync = new();
+        public object Sync => _sync;
+        public long MemoryBytes => (long)_bitmap.RowBytes * _bitmap.Height + (_encodedData?.Size ?? 0) + (long)_frames.Length * (System.Runtime.CompilerServices.Unsafe.SizeOf<SKCodecFrameInfo>() + sizeof(int));
         private readonly SKCodec _codec;
         private readonly SKData? _encodedData;
         private readonly SKBitmap _bitmap;
@@ -50,20 +71,24 @@ public static class AnimatedGifFrameProvider
         private int _decodedFrame = -1;
         private bool _disposed;
 
-        public GifState(string path)
+        public GifState(string path) : this(path, Environment.TickCount64) { }
+        public GifState(string path, long startedAtMs)
         {
+            _startedAtMs = startedAtMs;
             // Keep modest compressed GIFs in memory so looping/skip decodes do
             // not seek and read the file repeatedly. Do not cache decoded frames.
-            if (new FileInfo(path).Length <= 64 * 1024 * 1024)
+            if (new FileInfo(path).Length <= 16 * 1024 * 1024)
                 _encodedData = SKData.CreateCopy(File.ReadAllBytes(path));
             _codec = (_encodedData is null ? SKCodec.Create(path) : SKCodec.Create(_encodedData))
                 ?? throw new InvalidDataException("SkiaSharp could not decode the GIF.");
 
             _frames = _codec.FrameInfo;
             if (_frames.Length == 0)
-                throw new InvalidDataException("The GIF does not contain animation frames.");
+            { _codec.Dispose(); _encodedData?.Dispose(); throw new InvalidDataException("The GIF does not contain animation frames."); }
 
             var info = _codec.Info;
+            if ((long)info.Width * info.Height * 4 > 64L * 1024 * 1024)
+            { _codec.Dispose(); _encodedData?.Dispose(); throw new InvalidDataException("GIF decoding exceeds the 64 MiB single-frame limit. Use a smaller GIF."); }
             _decodeInfo = new SKImageInfo(
                 info.Width,
                 info.Height,

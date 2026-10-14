@@ -1,6 +1,6 @@
 # Roadmap
 
-Current source version: **0.10.0-alpha.19**.
+Current source version: **0.10.0-alpha.20**.
 
 The next milestone is product polish, not another broad feature category. Priorities remain **easy to use, lightweight, intuitive, and visually clear**. Checked items below describe implemented functionality, not a claim that every device or workload has been validated.
 
@@ -84,9 +84,9 @@ Remaining work is tracked in [labelled GitHub issues](https://github.com/Manetho
 
 | Priority | Work | Tracking label |
 | --- | --- | --- |
-| High | Back up and recover settings and the last session without discarding valid data | `area: persistence` |
-| High | Prevent overlapping saves/loads/imports and keep long operations understandable | `area: runtime` |
-| High | Bound total image/GIF memory and release unused assets | `area: memory` |
+| Implemented in alpha.20 | Validated settings/session backups, automatic recovery and inline notices | `area: persistence` |
+| Implemented in alpha.20 | Shared file-operation guards, asynchronous preparation, progress/Cancel and workspace file lifetimes | `area: runtime` |
+| Implemented, measurement follow-up | Shared 128 MiB retained media budget; representative extended hardware resource measurements remain | `area: memory` |
 | High | Complete device/build records, measured resource trends and new handoff/video evidence; everyday functional checks passed | `area: hardware` |
 | High | Validate first-time setup, Windows scaling and keyboard accessibility | `area: usability` |
 | Medium | Extract remaining coordinator responsibilities and reusable mode panels | `area: architecture` |

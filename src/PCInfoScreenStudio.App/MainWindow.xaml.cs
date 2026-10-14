@@ -214,7 +214,6 @@ public partial class MainWindow : Window
     {
         if (_startupLoaded) return;
         _startupLoaded = true;
-        IsEnabled = false;
         _viewModel.SetEditorActive(false);
         if (StartInTray) Hide();
         try
@@ -266,7 +265,7 @@ public partial class MainWindow : Window
 
     private void OnDragOver(object sender, System.Windows.DragEventArgs e)
     {
-        if (!_viewModel.IsEditorPage) { e.Effects = DragDropEffects.None; e.Handled = true; return; }
+        if (!_viewModel.IsEditorPage || !_viewModel.CanChangeWorkspace) { e.Effects = DragDropEffects.None; e.Handled = true; return; }
         e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop)
             ? DragDropEffects.Copy
             : DragDropEffects.None;
@@ -290,26 +289,26 @@ public partial class MainWindow : Window
 
             if (ext is ".ttf" or ".otf")
             {
-                _viewModel.ImportFontFile(path);
+                await _viewModel.ImportFontFileAsync(path);
                 continue;
             }
 
             if (ext == ".gif")
             {
-                _viewModel.ImportMediaFile(path, ThemeAssetKind.Gif);
+                await _viewModel.ImportMediaFileAsync(path, ThemeAssetKind.Gif);
                 continue;
             }
 
             if (ext is ".mp4" or ".webm" or ".mov" or ".avi" or ".mkv")
             {
-                _viewModel.ImportMediaFile(path, ThemeAssetKind.Video);
+                await _viewModel.ImportMediaFileAsync(path, ThemeAssetKind.Video);
                 continue;
             }
 
             if (ext is ".png" or ".jpg" or ".jpeg" or ".webp" or ".bmp")
             {
-                if (_viewModel.Document.Mode == ScreenMode.InfoScreen) _viewModel.ImportMediaFile(path, ThemeAssetKind.Image);
-                else _viewModel.AddPhotoFiles([path]);
+                if (_viewModel.Document.Mode == ScreenMode.InfoScreen) await _viewModel.ImportMediaFileAsync(path, ThemeAssetKind.Image);
+                else await _viewModel.AddPhotoFilesAsync([path]);
             }
         }
     }
@@ -328,6 +327,7 @@ public partial class MainWindow : Window
         }
         e.Cancel = true;
         _savingSession = true;
+        _viewModel.CancelFileOperation();
         IsEnabled = false;
         try
         {
@@ -354,6 +354,7 @@ public partial class MainWindow : Window
     public void SaveSessionForWindowsShutdown()
     {
         if (_disposed || _sessionSaved) return;
+        _viewModel.CancelFileOperation();
         (_sessionSaveTask ?? _viewModel.SaveLastSessionAsync()).GetAwaiter().GetResult();
         _viewModel.ClearDisplayForExitAsync().GetAwaiter().GetResult();
         _sessionSaved = true;

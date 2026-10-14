@@ -23,27 +23,31 @@ public sealed class ThemePackageService
         return new ThemeWorkspace(document, root);
     }
 
-    public Task SaveAsync(ThemeWorkspace workspace, string filePath, CancellationToken cancellationToken = default)
-        => SaveCoreAsync(workspace, filePath, updateWorkspace: true, cancellationToken, null);
+    public Task SaveAsync(ThemeWorkspace workspace, string filePath, CancellationToken cancellationToken = default, IProgress<string>? progress = null)
+        => SaveCoreAsync(workspace, filePath, updateWorkspace: true, cancellationToken, null, progress);
 
     public Task SaveCopyAsync(ThemeWorkspace workspace, string filePath, CancellationToken cancellationToken = default, IEnumerable<Guid>? additionalAssetIds = null)
-        => SaveCoreAsync(workspace, filePath, updateWorkspace: false, cancellationToken, additionalAssetIds);
+        => SaveCoreAsync(workspace, filePath, updateWorkspace: false, cancellationToken, additionalAssetIds, null);
 
     private async Task SaveCoreAsync(
         ThemeWorkspace workspace,
         string filePath,
         bool updateWorkspace,
-        CancellationToken cancellationToken, IEnumerable<Guid>? additionalAssetIds)
+        CancellationToken cancellationToken, IEnumerable<Guid>? additionalAssetIds, IProgress<string>? progress)
     {
         // Capture on the caller's editor thread. IO uses only this detached snapshot;
         // live assets/files stay available to Undo even when omitted from the package.
         cancellationToken.ThrowIfCancellationRequested();
+        using var retainedFiles = workspace.RetainFiles();
         var originalJson = JsonSerializer.Serialize(workspace.Document, JsonOptions);
         var document = JsonSerializer.Deserialize<ThemeDocument>(originalJson, JsonOptions)!;
         KeepReferencedAssets(document, additionalAssetIds);
         var sources = workspace.Document.Assets.ToDictionary(a => a.Id, workspace.GetAbsolutePath);
         foreach (var asset in document.Assets) asset.LocalPath = sources[asset.Id];
-        await Task.Run(() => WritePackageAsync(document, filePath, cancellationToken), cancellationToken);
+        var gate = RecoveryFileStore.Gate(filePath);
+        await gate.WaitAsync(cancellationToken);
+        try { await Task.Run(() => WritePackageAsync(document, filePath, cancellationToken, progress), cancellationToken); }
+        finally { gate.Release(); }
         if (updateWorkspace)
         {
             workspace.FilePath = filePath;
@@ -52,7 +56,7 @@ public sealed class ThemePackageService
         }
     }
 
-    private static async Task WritePackageAsync(ThemeDocument document, string filePath, CancellationToken ct)
+    private static async Task WritePackageAsync(ThemeDocument document, string filePath, CancellationToken ct, IProgress<string>? progress)
     {
         var plan = new List<(string Name, string Source, long Length, ThemeAssetKind Kind)>();
         var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -82,8 +86,10 @@ public sealed class ThemePackageService
                     MinimumAppVersion = document.MinimumAppVersion, ThemeName = document.Name };
                 await WriteJsonEntryAsync(archive, "manifest.json", manifest, ct).ConfigureAwait(false);
                 await WriteJsonEntryAsync(archive, "theme.json", document, ct).ConfigureAwait(false);
+                var completed = 0;
                 foreach (var item in plan)
                 {
+                    progress?.Report($"Saving media {++completed} of {plan.Count}...");
                     ct.ThrowIfCancellationRequested();
                     // MP4 is already compressed; avoid spending minutes deflating it again.
                     var entry = archive.CreateEntry(item.Name, item.Kind == ThemeAssetKind.Video ? CompressionLevel.NoCompression : CompressionLevel.Optimal);
@@ -99,18 +105,24 @@ public sealed class ThemePackageService
         finally { if (File.Exists(pending)) File.Delete(pending); }
     }
 
-    public Task<ThemeWorkspace> LoadAsync(string filePath, CancellationToken cancellationToken = default, IEnumerable<Guid>? additionalAssetIds = null)
+    public Task<ThemeWorkspace> LoadAsync(string filePath, CancellationToken cancellationToken = default, IEnumerable<Guid>? additionalAssetIds = null, IProgress<string>? progress = null)
     {
         var extraIds = additionalAssetIds?.ToHashSet();
-        return Task.Run(() => LoadCoreAsync(filePath, cancellationToken, extraIds), cancellationToken);
+        return Task.Run(() => LoadCoreAsync(filePath, cancellationToken, extraIds, false, progress), cancellationToken);
     }
 
-    private static async Task<ThemeWorkspace> LoadCoreAsync(string filePath, CancellationToken cancellationToken, IEnumerable<Guid>? additionalAssetIds)
+    public async Task ValidateAsync(string filePath, CancellationToken cancellationToken = default, IEnumerable<Guid>? additionalAssetIds = null)
+    {
+        using var checkedWorkspace = await Task.Run(() => LoadCoreAsync(filePath, cancellationToken, additionalAssetIds, true, null), cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<ThemeWorkspace> LoadCoreAsync(string filePath, CancellationToken cancellationToken, IEnumerable<Guid>? additionalAssetIds, bool validationOnly, IProgress<string>? progress)
     {
         var root = CreateTempDirectory();
         try
         {
-            using var archive = ZipFile.OpenRead(filePath);
+            using var archiveFile = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
+            using var archive = new ZipArchive(archiveFile, ZipArchiveMode.Read);
             var themeEntry = archive.GetEntry("theme.json")
                 ?? throw new InvalidDataException("This file does not contain theme.json.");
 
@@ -128,6 +140,12 @@ public sealed class ThemePackageService
                 throw new InvalidDataException("The theme document could not be read.");
             if (document.FormatVersion > ThemeDocument.CurrentFormatVersion)
                 throw new InvalidDataException($"Theme format {document.FormatVersion} is newer than this app supports.");
+            if (document.FormatVersion < 0 || document.Assets is null || document.Widgets is null || document.HybridWidgets is null ||
+                document.CanvasWidth is < 1 or > 8192 || document.CanvasHeight is < 1 or > 8192 || !Enum.IsDefined(document.Mode) ||
+                document.Widgets.Any(w => w is null) || document.HybridWidgets.Any(w => w is null) ||
+                document.PhotoFrame.Photos is null || document.PhotoFrame.Photos.Any(p => p is null) ||
+                document.Assets.Any(a => a is null || string.IsNullOrWhiteSpace(a.PackagePath)))
+                throw new InvalidDataException("Theme metadata is invalid.");
 
             // Older packages can contain every previous import, including removed videos.
             // Recover the authored layout without extracting those abandoned payloads.
@@ -155,12 +173,14 @@ public sealed class ThemePackageService
                 var destination = GetSafeExtractionPath(root, normalized);
                 plan.Add((entry, destination));
             }
+            var completed = 0;
             foreach (var item in plan)
             {
+                progress?.Report($"Opening media {++completed} of {plan.Count}...");
                 cancellationToken.ThrowIfCancellationRequested();
-                Directory.CreateDirectory(Path.GetDirectoryName(item.Destination)!);
+                if (!validationOnly) Directory.CreateDirectory(Path.GetDirectoryName(item.Destination)!);
                 await using var source = item.Entry.Open();
-                await using var target = File.Create(item.Destination);
+                await using var target = validationOnly ? Stream.Null : File.Create(item.Destination);
                 var copied = await CopyBoundedAsync(source, target, item.Entry.Length, cancellationToken).ConfigureAwait(false);
                 if (copied != item.Entry.Length) throw new InvalidDataException("Theme asset length does not match its ZIP metadata.");
             }

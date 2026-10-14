@@ -78,7 +78,7 @@
                         ItemsSource="{Binding ScreenModes}"
                         DisplayMemberPath="Label"
                         SelectedValuePath="Value"
-                        SelectedValue="{Binding Document.Mode}"
+                        SelectedValue="{Binding Document.Mode}" IsEnabled="{Binding CanChangeWorkspace}"
                         ToolTip="Switch the complete workspace between Info Screen, Photo Frame, and Hybrid." />
             </StackPanel>
           </Border>
@@ -115,7 +115,7 @@
     </Border>
 
     <!-- Main three-column editor -->
-    <Grid Grid.Row="1" Visibility="{Binding EditorPageVisibility}">
+    <Grid Grid.Row="1" Visibility="{Binding EditorPageVisibility}" IsEnabled="{Binding CanEditContent}">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="{Binding LeftPanelWidth}" />
         <ColumnDefinition Width="*" />
@@ -897,7 +897,12 @@
       <Grid Margin="10,0">
         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
         <TextBlock Text="{Binding DeviceStatus}" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" MaxWidth="240" TextTrimming="CharacterEllipsis" ToolTip="{Binding DeviceStatus}" />
-        <TextBlock Grid.Column="1" Text="{Binding HardwareStatus}" Margin="18,0" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" TextTrimming="CharacterEllipsis" ToolTip="{Binding HardwareStatus}" />
+        <DockPanel Grid.Column="1" Margin="18,0" VerticalAlignment="Center">
+          <ProgressBar Width="54" Height="4" Foreground="{StaticResource AccentBrush}" Background="{StaticResource StrongBorderBrush}" BorderThickness="0" IsIndeterminate="True" Visibility="{Binding FileOperationVisibility}" Margin="0,0,8,0" />
+          <Button Content="Cancel" Command="{Binding CancelFileOperationCommand}" Visibility="{Binding FileOperationVisibility}" Padding="7,1" MinHeight="20" Height="24" Margin="0,0,8,0" AutomationProperties.Name="Cancel file operation" />
+          <Button Content="Dismiss" Command="{Binding DismissRecoveryNoticeCommand}" Visibility="{Binding RecoveryNoticeVisibility}" Padding="7,1" MinHeight="20" Height="24" Margin="0,0,8,0" AutomationProperties.Name="Dismiss recovery notice" />
+          <TextBlock Text="{Binding ActivityStatus}" VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" TextTrimming="CharacterEllipsis" ToolTip="{Binding ActivityStatus}" />
+        </DockPanel>
         <StackPanel Grid.Column="2" Orientation="Horizontal">
           <TextBlock Text="Theme: " Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" />
           <TextBlock Text="{Binding CurrentThemeName}" MaxWidth="250" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />

@@ -11,8 +11,10 @@ public sealed class ThemeRenderer
 
     public SKBitmap Render(ThemeWorkspace workspace, bool animateVideo = true)
     {
+        using var retainedFiles = workspace.RetainFiles();
         var doc = workspace.Document;
         var videoWidgets = doc.RuntimeMode == RuntimeScreenMode.Hybrid ? doc.HybridWidgets : doc.Widgets;
+        if (animateVideo) SynchronizeMedia(workspace);
         if (animateVideo) VideoFrameProvider.Synchronize(workspace, doc.RuntimeMode is RuntimeScreenMode.InfoScreen or RuntimeScreenMode.Hybrid ? videoWidgets : []);
         var bitmap = new SKBitmap(doc.CanvasWidth, doc.CanvasHeight, SKColorType.Bgra8888, SKAlphaType.Premul);
         using var canvas = new SKCanvas(bitmap);
@@ -52,15 +54,16 @@ public sealed class ThemeRenderer
 
         var currentIndex = Math.Clamp(settings.RuntimeCurrentIndex, 0, settings.Photos.Count - 1);
         var currentItem = settings.Photos[currentIndex];
-        var current = PreparePhoto(workspace, currentItem);
+        using var currentLease = PreparePhoto(workspace, currentItem);
+        var current = currentLease?.Value;
         if (current is null) return;
 
         var destination = new SKRect(0, 0, doc.CanvasWidth, doc.CanvasHeight);
         var progress = (float)Math.Clamp(settings.RuntimeTransitionProgress, 0, 1);
         var transition = settings.RuntimeTransition;
-        SKBitmap? previous = null;
-        if (settings.RuntimePreviousIndex >= 0 && settings.RuntimePreviousIndex < settings.Photos.Count)
-            previous = PreparePhoto(workspace, settings.Photos[settings.RuntimePreviousIndex]);
+        using var previousLease = progress < 1 && transition != PhotoTransition.Instant && settings.RuntimePreviousIndex >= 0 && settings.RuntimePreviousIndex < settings.Photos.Count
+            ? PreparePhoto(workspace, settings.Photos[settings.RuntimePreviousIndex]) : null;
+        var previous = previousLease?.Value;
 
         if (previous is null || progress >= 1 || transition == PhotoTransition.Instant)
         {
@@ -95,7 +98,7 @@ public sealed class ThemeRenderer
             DrawPhotoCaption(canvas, settings, currentItem, doc.CanvasWidth, doc.CanvasHeight);
     }
 
-    private static SKBitmap? PreparePhoto(ThemeWorkspace workspace, PhotoFrameItem item)
+    private static MediaLease<SKBitmap>? PreparePhoto(ThemeWorkspace workspace, PhotoFrameItem item)
     {
         var settings = workspace.Document.PhotoFrame;
         var path = ResolvePhotoPath(workspace, item);
@@ -106,6 +109,34 @@ public sealed class ThemeRenderer
             workspace.Document.CanvasHeight,
             settings.Fit,
             settings.BackgroundColor);
+    }
+
+    public static void SynchronizeMedia(ThemeWorkspace workspace)
+    {
+        var doc = workspace.Document;
+        var resources = new List<(string Category, string Source)>();
+        var widgets = doc.RuntimeMode == RuntimeScreenMode.Hybrid ? doc.HybridWidgets : doc.Widgets;
+        if (doc.RuntimeMode is RuntimeScreenMode.InfoScreen or RuntimeScreenMode.Hybrid)
+            foreach (var widget in widgets.Where(w => w.IsVisible && w.Type is WidgetType.Image or WidgetType.AnimatedImage))
+            {
+                var asset = doc.Assets.FirstOrDefault(a => a.Id == widget.AssetId);
+                if (asset is not null) resources.Add((widget.Type == WidgetType.AnimatedImage ? "gif" : "image", workspace.GetAbsolutePath(asset)));
+            }
+        if (doc.RuntimeMode is RuntimeScreenMode.PhotoFrame or RuntimeScreenMode.Hybrid)
+        {
+            var photo = doc.PhotoFrame;
+            if (photo.Photos.Count > 0)
+            {
+                var path = ResolvePhotoPath(workspace, photo.Photos[Math.Clamp(photo.RuntimeCurrentIndex, 0, photo.Photos.Count - 1)]);
+                if (path is not null) resources.Add(("photo", path));
+                if (photo.RuntimeTransitionProgress < 1 && photo.RuntimeTransition != PhotoTransition.Instant && photo.RuntimePreviousIndex >= 0 && photo.RuntimePreviousIndex < photo.Photos.Count)
+                { path = ResolvePhotoPath(workspace, photo.Photos[photo.RuntimePreviousIndex]); if (path is not null) resources.Add(("photo", path)); }
+                if (photo.RuntimePreloadedIndex >= 0 && photo.RuntimePreloadedIndex < photo.Photos.Count)
+                { path = ResolvePhotoPath(workspace, photo.Photos[photo.RuntimePreloadedIndex]); if (path is not null) resources.Add(("photo", path)); }
+            }
+        }
+        AnimatedGifFrameProvider.Synchronize(resources.Where(r => r.Category == "gif").Select(r => r.Source));
+        MediaResourceCache.RetainResources(resources);
     }
 
     internal static string? ResolvePhotoPath(ThemeWorkspace workspace, PhotoFrameItem item)
@@ -119,7 +150,10 @@ public sealed class ThemeRenderer
     }
 
     internal static void PreloadPhoto(ThemeWorkspace workspace, PhotoFrameItem item)
-        => _ = PreparePhoto(workspace, item);
+    {
+        try { using var files = workspace.RetainFiles(); using var prepared = PreparePhoto(workspace, item); }
+        catch (ObjectDisposedException) { }
+    }
 
     private static void DrawPhotoCaption(SKCanvas canvas, PhotoFrameSettings settings, PhotoFrameItem item, int width, int height)
     {
@@ -487,7 +521,8 @@ public sealed class ThemeRenderer
             return;
         }
 
-        var bitmap = RenderResourceCache.GetImage(path);
+        using var retained = RenderResourceCache.GetImage(path, workspace.Document.CanvasWidth, workspace.Document.CanvasHeight);
+        var bitmap = retained?.Value;
         if (bitmap is null) return;
         var dest = new SKRect(0, 0, (float)w.Width, (float)w.Height);
         var src = SourceRectForFit(bitmap.Width, bitmap.Height, dest.Width, dest.Height, w.MediaFit);
@@ -506,11 +541,12 @@ public sealed class ThemeRenderer
             return;
         }
 
-        var bitmap = AnimatedGifFrameProvider.GetFrame(
+        using var retained = AnimatedGifFrameProvider.AcquireFrame(
             path,
             w.PlaybackSpeed,
             w.TargetFps,
             w.Loop);
+        var bitmap = retained?.Value;
 
         if (bitmap is null)
         {
