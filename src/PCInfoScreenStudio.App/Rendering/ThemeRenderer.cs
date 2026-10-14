@@ -344,17 +344,29 @@ public sealed class ThemeRenderer
         canvas.DrawCircle(cx, cy, Math.Max(2.5f, diameter * .025f), centerPaint);
     }
 
+    private static float DrawGaugeHeader(SKCanvas canvas, ThemeWorkspace workspace, WidgetModel w)
+    {
+        if (!w.ShowLabel && !w.ShowValue) return 0;
+        var labelSize = Math.Max(8, (float)w.FontSize * .45f);
+        var valueSize = Math.Max(8, (float)w.FontSize * .55f);
+        using var labelFont = new SKFont(Typeface(workspace, w), labelSize);
+        using var valueFont = new SKFont(Typeface(workspace, w), valueSize);
+        var top = Math.Min(w.ShowLabel ? labelFont.Metrics.Top : 0, w.ShowValue ? valueFont.Metrics.Top : 0);
+        var bottom = Math.Max(w.ShowLabel ? labelFont.Metrics.Bottom : 0, w.ShowValue ? valueFont.Metrics.Bottom : 0);
+        var baseline = 4 - top;
+        if (w.ShowLabel) DrawText(canvas, workspace, w, w.Label, y: baseline, size: labelSize, color: w.ForegroundColor);
+        if (w.ShowValue) DrawRightText(canvas, workspace, w, FormatValue(w), baseline, valueSize, w.ForegroundColor);
+        return baseline + bottom + 4;
+    }
+
     private static void DrawBarGauge(SKCanvas canvas, ThemeWorkspace workspace, WidgetModel w)
     {
         FillBackground(canvas, w);
-        var header = w.ShowLabel || w.ShowValue ? Math.Min(28f, (float)w.Height * .3f) : 0f;
-        if (w.ShowLabel)
-            DrawText(canvas, workspace, w, w.Label, y: Math.Max(12, header - 5), size: Math.Max(8, (float)w.FontSize * .45f), color: w.ForegroundColor);
-        if (w.ShowValue)
-            DrawRightText(canvas, workspace, w, FormatValue(w), y: Math.Max(12, header - 5), size: Math.Max(8, (float)w.FontSize * .55f), color: w.ForegroundColor);
+        var header = DrawGaugeHeader(canvas, workspace, w);
 
         var y = header + 4;
-        var h = Math.Max(4, w.Height - y - 4);
+        var h = w.Height - y - 4;
+        if (h <= 0) return;
         var count = Math.Max(2, w.SegmentCount);
         var gap = 2f;
         var segW = ((float)w.Width - 8 - gap * (count - 1)) / count;
@@ -372,13 +384,10 @@ public sealed class ThemeRenderer
     private static void DrawGraph(SKCanvas canvas, ThemeWorkspace workspace, WidgetModel w)
     {
         FillBackground(canvas, w);
-        var header = Math.Min(30f, (float)w.Height * .25f);
-        if (w.ShowLabel)
-            DrawText(canvas, workspace, w, w.Label, y: Math.Max(12, header - 6), size: Math.Max(8, (float)w.FontSize * .45f), color: w.ForegroundColor);
-        if (w.ShowValue)
-            DrawRightText(canvas, workspace, w, FormatValue(w), y: Math.Max(12, header - 6), size: Math.Max(8, (float)w.FontSize * .55f), color: w.ForegroundColor);
+        var header = DrawGaugeHeader(canvas, workspace, w);
 
         var graph = new SKRect(4, header + 2, (float)w.Width - 4, (float)w.Height - 4);
+        if (graph.Width <= 0 || graph.Height <= 0) return;
         using var border = Paint(w.SecondaryColor, 1, SKPaintStyle.Stroke);
         canvas.DrawRect(graph, border);
 

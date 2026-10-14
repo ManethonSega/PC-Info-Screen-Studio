@@ -62,6 +62,11 @@
                 <Setter Property="Canvas.Left" Value="{Binding X}" />
                 <Setter Property="Canvas.Top" Value="{Binding Y}" />
                 <Setter Property="Panel.ZIndex" Value="{Binding ZIndex}" />
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                    <Setter Property="Panel.ZIndex" Value="5000" />
+                  </DataTrigger>
+                </Style.Triggers>
               </Style>
             </ItemsControl.ItemContainerStyle>
             <ItemsControl.ItemTemplate>

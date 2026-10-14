@@ -33,8 +33,11 @@ public partial class DesignerItemControl : System.Windows.Controls.UserControl
         if (Widget is null) return;
         var modifiers = Keyboard.Modifiers;
         var additive = modifiers.HasFlag(ModifierKeys.Control) || modifiers.HasFlag(ModifierKeys.Shift);
-        ViewModel?.SelectWidget(Widget, additive, modifiers.HasFlag(ModifierKeys.Control));
-        Focus();
+        // Re-selecting an already selected item collapses its resize thumbs
+        // briefly and releases their mouse capture. Leave an active grip alone.
+        if (!Widget.IsSelected || additive)
+            ViewModel?.SelectWidget(Widget, additive, modifiers.HasFlag(ModifierKeys.Control));
+        if (!IsThumbSource(e.OriginalSource as DependencyObject)) Focus();
         e.Handled = false;
     }
 
@@ -127,7 +130,7 @@ public partial class DesignerItemControl : System.Windows.Controls.UserControl
         var w = Widget;
         if (w is null) return;
 
-        ViewModel?.SelectWidget(w);
+        if (!w.IsSelected) ViewModel?.SelectWidget(w);
         _resizeStartX = w.X;
         _resizeStartY = w.Y;
         _resizeStartWidth = w.Width;
@@ -214,5 +217,15 @@ public partial class DesignerItemControl : System.Windows.Controls.UserControl
     {
         spacing = Math.Clamp(spacing, 2, 100);
         return Math.Round(value / spacing, MidpointRounding.AwayFromZero) * spacing;
+    }
+
+    private bool IsThumbSource(DependencyObject? source)
+    {
+        while (source is not null && source != this)
+        {
+            if (source is Thumb) return true;
+            source = System.Windows.Media.VisualTreeHelper.GetParent(source);
+        }
+        return false;
     }
 }

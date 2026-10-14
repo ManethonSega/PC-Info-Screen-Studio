@@ -138,11 +138,8 @@ public sealed class PhotoPlaybackController : ObservableObject, IDisposable
         var current = Document.PhotoFrame.Photos.ElementAtOrDefault(Document.PhotoFrame.RuntimeCurrentIndex);
         var index = Document.PhotoFrame.Photos.IndexOf(photo);
         Document.PhotoFrame.Photos.Remove(photo);
-        if (photo.AssetId is Guid assetId && !Document.PhotoFrame.Photos.Any(p => p.AssetId == assetId) && !AllWidgets.Any(w => w.AssetId == assetId))
-        {
-            var asset = Document.Assets.FirstOrDefault(a => a.Id == assetId);
-            if (asset is not null) Document.Assets.Remove(asset);
-        }
+        // Legacy embedded photos may still be referenced by an inactive mode.
+        // Keep their assets until the workspace is replaced.
         SelectedPhoto = Document.PhotoFrame.Photos.Count == 0
             ? null
             : Document.PhotoFrame.Photos[Math.Min(index, Document.PhotoFrame.Photos.Count - 1)];
@@ -239,14 +236,14 @@ public sealed class PhotoPlaybackController : ObservableObject, IDisposable
     public static bool IsSupportedPhoto(string path)
         => Path.GetExtension(path).ToLowerInvariant() is ".png" or ".jpg" or ".jpeg" or ".webp" or ".bmp";
 
-    public void InitializePhotoFrameRuntime()
+    public void InitializePhotoFrameRuntime(bool preservePosition = false)
     {
         var settings = Document.PhotoFrame;
         settings.EmbedImportedPhotos = false;
         settings.BackgroundMode = PhotoBackgroundMode.SolidColor;
         if (settings.Transition == PhotoTransition.KenBurns)
             settings.Transition = PhotoTransition.Crossfade;
-        settings.RuntimeCurrentIndex = Math.Clamp(_settings.LastPhotoIndex, 0, Math.Max(0, settings.Photos.Count - 1));
+        settings.RuntimeCurrentIndex = Math.Clamp(preservePosition ? settings.RuntimeCurrentIndex : _settings.LastPhotoIndex, 0, Math.Max(0, settings.Photos.Count - 1));
         settings.RuntimePreviousIndex = -1;
         settings.RuntimeTransitionProgress = 1;
         settings.RuntimePhotoProgress = 0;
@@ -386,7 +383,7 @@ public sealed class PhotoPlaybackController : ObservableObject, IDisposable
         if (!IsSupportedPhoto(e.FullPath)) return;
         Application.Current.Dispatcher.BeginInvoke(() =>
         {
-            if (!_disposed) AddPhotoFiles([e.FullPath]);
+            if (!_disposed && ReferenceEquals(sender, _photoFolderWatcher)) AddPhotoFiles([e.FullPath]);
         });
     }
 

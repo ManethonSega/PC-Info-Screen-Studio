@@ -1,6 +1,6 @@
 # Roadmap
 
-Current source version: **0.10.0-alpha.6**.
+Current source version: **0.10.0-alpha.11**.
 
 The next milestone is product polish, not another broad feature category. Priorities remain **easy to use, lightweight, intuitive, and visually clear**. Checked items below describe implemented functionality, not a claim that every device or workload has been validated.
 
@@ -21,7 +21,7 @@ The next milestone is product polish, not another broad feature category. Priori
 
 - [x] Landscape/portrait canvas and physical rotation controls.
 - [x] Text, values, circular gauges, analog clocks, bars, graphs, shapes, images, and custom fonts.
-- [x] Animated GIF playback.
+- [x] Animated GIF playback with sequential composition and compressed GIF data cached in RAM up to 64 MiB per file.
 - [x] Dragging, resizing, layers, visibility, locking, and duplication.
 - [x] Undo/redo, multi-selection, grouping, alignment, and distribution.
 - [x] Grid snapping, snap-aware keyboard movement, smart guides, and editor zoom.
@@ -37,7 +37,7 @@ The next milestone is product polish, not another broad feature category. Priori
 - [x] Missing caption metadata leaves the caption blank.
 - [x] Folder watching and reusable linked `.pcalbum` playlists.
 - [x] Separate `.pcphoto` / `.pchybrid` settings folders, without embedded photos.
-- [x] Independent Hybrid overlay widgets, exact saved positions, caption font selection and remembered slideshow position.
+- [x] Independent Photo Frame/Hybrid playlists, folders, settings and slideshow positions, plus separate Hybrid overlay widgets.
 - [x] Background-only widget transparency from 0 to 100%.
 
 ### Data, runtime, and distribution
@@ -46,6 +46,11 @@ The next milestone is product polish, not another broad feature category. Priori
 - [x] LibreHardwareMonitor sensors and optional HWiNFO shared-memory sources.
 - [x] Unavailable-sensor handling and optional PawnIO installation workflow.
 - [x] Revision-A detection, compatibility options, and physical display diagnostics.
+- [x] Experimental TURZX 5.2-inch WinUSB backend, bounded JPEG frames and retained connection during mode changes.
+- [x] Top-bar device family selection, remembered USB identity and canvas sizing for blank/imported themes.
+- [x] Continuous reconnect retries and optional best-effort exit clearing.
+- [x] Large-font graph/bar headings and resize-grip selection correction.
+- [x] Recovery writes deduplicated until another edit occurs.
 - [x] Background device I/O.
 - [x] Tray operation with editor suspension, released preview resources, and photo controls.
 - [x] Windows Startup Apps registration with a one-time approved per-user task, automatic display reconnection, and workspace/mode restoration.
@@ -91,6 +96,8 @@ Validation should be focused on these user workflows and physical-device behavio
 ### 4. Make distribution dependable
 
 - [x] Publish 0.10.0-alpha.6 as a versioned GitHub Release with a permanent portable download and matching source.
+- [x] Consolidate alpha.7 through alpha.11 source and preserve obsolete branch histories.
+- [ ] Confirm alpha.11 mode switching after long playback on the physical 5.2-inch screen.
 - [x] Compatibility and validation records distinguish automated checks from physical-device evidence.
 - [x] Refresh the UI screenshots from the actual Windows WPF controls before publication.
 - [ ] Decide on an installer and file associations after the portable workflow is stable.

@@ -21,23 +21,27 @@ internal static class Program
         Directory.CreateDirectory(root);
         try
         {
-            CheckSettings(root);
-            CheckSensorStartup();
-            CheckWindowsStartup();
-            CheckSessionResume(root);
-            CheckEditor();
-            CheckWidgetBackground(root);
-            CheckPhotos(root);
-            CheckDevice(root);
-            CheckThemeModes(root);
-            CheckThemeFolderReload(root);
-            CheckDashboard();
-            CheckPageNavigation(root);
-            SourceSearchChecks.Check(root, PumpUntil);
-            WorkflowChecks.Check(root, Await, PumpUntil);
-            UiStateChecks.Check();
-            UiPolishChecks.Check(root, PumpUntil, args.Length == 2 && args[0] == "--capture-ui" ? args[1] : null);
-            if (args.Length == 2 && args[0] == "--capture-ui") UiPreviews.Capture(args[1]);
+            RunCheck("RegressionFixChecks", () => Await(RegressionFixChecks.RunAsync()));
+            RunCheck("EditingRecoveryChecks.Check", () => EditingRecoveryChecks.Check(root, Await));
+            RunCheck("CheckSettings", () => CheckSettings(root));
+            RunCheck("CheckSensorStartup", () => CheckSensorStartup());
+            RunCheck("CheckWindowsStartup", () => CheckWindowsStartup());
+            RunCheck("CheckSessionResume", () => CheckSessionResume(root));
+            RunCheck("CheckEditor", () => CheckEditor());
+            RunCheck("CheckWidgetBackground", () => CheckWidgetBackground(root));
+            RunCheck("CheckPhotos", () => CheckPhotos(root));
+            RunCheck("CheckDevice", () => CheckDevice(root));
+            RunCheck("TuringUsbChecks.Check", () => TuringUsbChecks.Check(root, Await));
+            RunCheck("CheckThemeModes", () => CheckThemeModes(root));
+            RunCheck("CheckThemeFolderReload", () => CheckThemeFolderReload(root));
+            RunCheck("CheckDashboard", () => CheckDashboard());
+            RunCheck("CheckPageNavigation", () => CheckPageNavigation(root));
+            RunCheck("SourceSearchChecks.Check", () => SourceSearchChecks.Check(root, PumpUntil));
+            RunCheck("ScreenCanvasChecks.Check", () => ScreenCanvasChecks.Check(root, Await, PumpUntil));
+            RunCheck("WorkflowChecks.Check", () => WorkflowChecks.Check(root, Await, PumpUntil));
+            RunCheck("UiStateChecks.Check", () => UiStateChecks.Check());
+            RunCheck("UiPolishChecks.Check", () => UiPolishChecks.Check(root, PumpUntil, args.Length == 2 && args[0] == "--capture-ui" ? args[1] : null));
+            if (args.Length == 2 && args[0] == "--capture-ui") RunCheck("UI previews", () => UiPreviews.Capture(args[1]));
             Console.WriteLine("PASS: preferences, startup task, session resume, editor, photos, device queue, mode themes, dashboard, and navigation checks.");
             return 0;
         }
@@ -51,6 +55,18 @@ internal static class Program
             ThemeRendererCleanup();
             Directory.Delete(root, recursive: true);
         }
+    }
+
+    private static void RunCheck(string name, Action check)
+    {
+        Console.WriteLine("RUN: " + name);
+        using var watchdog = new System.Threading.Timer(_ =>
+        {
+            Console.Error.WriteLine($"FAIL: {name} did not finish within 90 seconds. Check for a blocking dialog or stalled task.");
+            Environment.Exit(2);
+        }, null, TimeSpan.FromSeconds(90), System.Threading.Timeout.InfiniteTimeSpan);
+        check();
+        Console.WriteLine("PASS CHECK: " + name);
     }
 
     private static void CheckThemeModes(string root)
@@ -127,7 +143,7 @@ internal static class Program
         current.CaptionFontSize = 36;
         current.CaptionFontFamily = "Bungee";
         sessions.SwitchSettings(ScreenMode.Hybrid, ScreenMode.PhotoFrame, current);
-        Assert(current.CaptionFontSize == 24 && current.Photos.Count == 1, "Returning to a mode must restore its settings while retaining the shared playlist.");
+        Assert(current.CaptionFontSize == 24 && current.Photos.Count == 1, "Returning to a mode must restore its settings while restoring its own playlist.");
         Assert(current.CaptionFontFamily == "Orbitron", "Photo Frame must retain its independent caption font.");
         sessions.SwitchSettings(ScreenMode.PhotoFrame, ScreenMode.Hybrid, current);
         Assert(current.CaptionFontSize == 36, "Photo and Hybrid settings must remain independent in memory.");

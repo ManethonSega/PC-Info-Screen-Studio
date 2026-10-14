@@ -1,10 +1,12 @@
 # PC Info Screen Studio
 
-A visual Windows editor and runtime for 3.5-inch Turing/TURZX-style USB PC info screens. Create a sensor dashboard, use the screen as a photo frame, or combine photos with information overlays.
+A visual Windows editor and runtime for 3.5-inch Turing/TURZX-style serial screens, with experimental TURZX 5.2-inch USB support. Create a sensor dashboard, use the screen as a photo frame, or combine photos with information overlays.
 
-> **Status:** `0.10.0-alpha.6`. Actively developed alpha. A permanent Windows x64 [portable download](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/tag/v0.10.0-alpha.6) is available. Development builds are also available through GitHub Actions. There is no installer, code signing or automatic updater.
+> **Status:** `0.10.0-alpha.11`. Actively developed alpha. A permanent Windows x64 [portable download](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/tag/v0.10.0-alpha.11) is available. Development builds are also available through GitHub Actions. There is no installer, code signing or automatic updater.
 
 The priorities are an intuitive interface, lightweight operation, and a clear preview of the physical screen.
+
+This release adds [experimental TURZX 5.2-inch support](docs/TURZX-52.md), including a 1280 × 720 canvas and direct WinUSB image output. The owner has confirmed basic output in all three modes; follow-up reliability and animation testing is pending. The large-font and separate-playlist fixes were confirmed by the owner. The alpha.11 mode-switch correction still needs a physical-screen retest.
 
 [Download and run](#download-and-run) · [Connect your screen](#connect-your-screen) · [Choose your mode](#choose-your-mode)
 
@@ -72,24 +74,24 @@ Photo Frame (`.pcphoto`) and Hybrid (`.pchybrid`) themes save settings in their 
 
 ## Download and run
 
-1. Download [PCInfoScreenStudio-0.10.0-alpha.6-win-x64.zip](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/download/v0.10.0-alpha.6/PCInfoScreenStudio-0.10.0-alpha.6-win-x64.zip) from the [portable alpha release](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/tag/v0.10.0-alpha.6).
+1. Download [PCInfoScreenStudio-0.10.0-alpha.11-win-x64.zip](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/download/v0.10.0-alpha.11/PCInfoScreenStudio-0.10.0-alpha.11-win-x64.zip) from the [portable alpha release](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/tag/v0.10.0-alpha.11).
 2. Extract the **entire folder** to a permanent location, then run `PCInfoScreenStudio.exe`. Keep all extracted files together.
 3. Read `START-HERE.txt` for connection, startup and tray instructions. The build is self-contained; no separate .NET runtime installation is required.
 
-The release includes [SHA256SUMS.txt](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/download/v0.10.0-alpha.6/SHA256SUMS.txt), matching source archives and `build-info.json` with the exact source commit. This is an **unsigned alpha**, with [documented device limits](docs/COMPATIBILITY.md) and [validation results and remaining checks](docs/VALIDATION.md).
+The release includes [SHA256SUMS.txt](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/download/v0.10.0-alpha.11/SHA256SUMS.txt), matching source archives and `build-info.json` with the exact source commit. This is an **unsigned alpha**, with [documented device limits](docs/COMPATIBILITY.md) and [validation results and remaining checks](docs/VALIDATION.md).
 
 For newer development builds, open the [Windows build workflow](https://github.com/ManethonSega/PC-Info-Screen-Studio/actions/workflows/build.yml), select the latest successful `main` run, then download `PCInfoScreenStudio-win-x64` under **Artifacts**. GitHub may require sign-in. These artifacts expire after **3 days**; the release download above is permanent.
 
 ## Connect your screen
 
-1. Plug the screen into USB. Close the manufacturer's application or any other program using the same serial port.
-2. In the first-run assistant, choose **Detect and connect screen**.
+1. Plug the screen into USB. Close the manufacturer's application or any other program using the same screen.
+2. Choose **3.5-inch** or **5.2-inch** in the main window top bar, then use **Detect and connect screen** or **Start display**.
 3. Choose **Info Screen**, **Photo Frame**, or **Hybrid**. For an Info Screen, the starter theme provides CPU, GPU, and RAM widgets.
 4. Choose **Finish setup**. Use **Start display** in the top bar to connect and begin sending updates when needed.
 
 You can finish setup without a device and edit a theme first. Use **Settings** in the top bar to select the port, detect the screen again, change orientation, or rerun the setup assistant. Stop output with **Stop display**.
 
-The current hardware focus is 3.5-inch Revision-A USB-CDC displays, including the USB35INCHIPSV2 compatibility profile. Other sizes and revisions are not a verified compatibility promise. The app supports 480 x 320 landscape and 320 x 480 portrait layouts, plus physical rotation at 0, 90, 180, and 270 degrees.
+The app supports 3.5-inch Revision-A USB-CDC displays, including the USB35INCHIPSV2 profile, and experimental TURZX 5.2-inch smart-screen WinUSB output. Canvas sizes are 480 × 320 or 1280 × 720 in landscape, with corresponding portrait sizes and physical rotation at 0, 90, 180 and 270 degrees. See [TURZX setup and limitations](docs/TURZX-52.md). The selected device family remains selected when both screens are plugged in; a missing screen does not silently switch to the other family.
 
 If the port is busy or access is denied, close other screen software, including its tray process. For a sideways image or incorrect colours, check rotation and compatibility options in **Settings**; the display colour test is an optional diagnostic.
 
@@ -121,6 +123,8 @@ The app opens in a larger window, automatically fitting within the monitor work 
 **Live view** hides editing controls for a clean preview. **Back to edit** returns to the editor. This is separate from starting or stopping physical display output.
 
 ### Photo Frame and Hybrid
+
+Each mode keeps its own photo list, folder, timing and caption settings. Changing Hybrid photos does not change Photo Frame photos.
 
 - Under **ADD PHOTOS**, add multiple files or a folder. Save the mode theme to remember the folder for next time; use a playlist preset to preserve individually selected files or a custom order. Drag playlist entries to reorder; use previous, pause/play, next, and remove controls.
 - Set a shared display duration, transition duration, loop, shuffle, and Fit/Fill/Stretch behaviour.

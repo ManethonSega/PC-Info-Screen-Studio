@@ -11,7 +11,11 @@ The first gradual refactoring pass keeps the existing WPF binding surface while 
 | `PhotoPlaybackController` | Linked playlist, selected photo, timing, transitions, navigation, preloading, and folder watcher | Settings, current-workspace accessor, album/file services |
 | `EditorController` | Selection, grouping, movement, alignment guides, layers, duplication/deletion, and widget defaults | Current-document accessor |
 | `SettingsController` | Loaded preferences, change notifications, and preference persistence | `AppSettingsService` |
-| `DeviceService` | Serialized background device I/O and protocol integration | Vendored Tedd.TuringScreen driver |
+| `DeviceService` | Serialized serial-device I/O and protocol integration | Vendored Tedd.TuringScreen driver |
+| `DisplayDeviceRouter` | Select the serial or direct USB backend | DeviceService, TuringUsbDisplayDevice |
+| `TuringUsbDisplayDevice` | WinUSB protocol, image encoding, orientation and transport cleanup | Windows USB discovery/transport |
+| `ThemeSessionController` | Independent Photo Frame/Hybrid settings, playlists and resume state | Current mode and settings snapshots |
+| `CanvasSizing` | Match imported/new themes to the selected display resolution | Theme document and display preference |
 
 The coordinator forwards controller property-change notifications and translates controller events into existing command-state updates, dirty/history handling, preview refresh, and frame requests. The XAML and its public binding names are unchanged.
 
@@ -29,7 +33,7 @@ flowchart TD
     Queue --> Device["DeviceService / USB display"]
 ```
 
-The frame queue retains only the latest waiting frame, not an unbounded animation backlog. It owns bitmap copies and releases replaced, sent, and pending-on-disposal copies. DeviceService serializes hardware I/O through its existing gate.
+The frame queue retains only the latest waiting frame, not an unbounded animation backlog. It owns bitmap copies and releases replaced, sent, and pending-on-disposal copies. The router chooses the selected display family; each backend serializes its transport I/O. TURZX output uses bounded JPEG frames and initializes sync/brightness only when connecting, not when switching modes. GIF compressed data is held in RAM, with a per-file budget; prepared-photo caching remains separately bounded.
 
 ## Photos and lifecycle
 
@@ -59,7 +63,7 @@ dotnet run --project tests/PCInfoScreenStudio.ControllerChecks/PCInfoScreenStudi
 
 ## Remaining gradual work
 
-MainViewModel is reduced from 3,043 lines to approximately 2,062 lines. Theme-library orchestration, live metric coordination, undo snapshot application, and recovery still remain there. Future passes should extract those separately, preserving the current user workflow rather than redesigning the UI during a structural change.
+MainViewModel remains a large coordinator across partial files. Theme-library orchestration, live metric coordination, undo snapshot application, and recovery still remain there. Future passes should extract those separately, preserving the current user workflow rather than redesigning the UI during a structural change.
 
 ## Projects and licensing
 

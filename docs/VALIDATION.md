@@ -38,3 +38,117 @@ These checks remain pending for this release unless an explicit dated record is 
 8. Ask someone unfamiliar with the app to complete connection, adding and saving without instructions. Record where they hesitate.
 
 Report issues with app version, Windows version, device details, exact steps and whether the problem occurs on the preview, physical screen or both. Local crash/startup logs exist under `%LOCALAPPDATA%\PCInfoScreenStudio\Logs`; there is no automatic remote crash reporting.
+
+## TURZX 5.2-inch integration
+
+The Windows harness now includes an independently calculated OpenSSL DES
+reference vector, image packet length/trailer checks, failed acknowledgement
+cleanup, native frame dimensions, aspect-preserving rotation, bounded JPEG
+fallback, resolution persistence and changed-interface USB identity checks.
+These use a simulated USB transport. They do not exercise physical WinUSB
+endpoints. Exact screen identity, driver accessibility, frame orientation,
+colour fidelity, sustained updates and restart/reconnect remain pending on
+real hardware. See TURZX-52.md.
+
+### Local validation of the unmerged alpha.7 test build
+
+The application and Windows controller harness cross-compiled with .NET SDK
+10.0.100, with zero warnings and errors. A portable console harness ran against
+the production protocol and driver sources with a simulated USB transport and
+real SkiaSharp image encoding. It passed command encryption, image payload
+length, acknowledgement handling, all four rotations, PNG/JPEG payload budget,
+USB release and failed-handshake cleanup checks. Reflection checks against the
+actual compiled app assembly passed high-resolution canvas resizing,
+orientation, serialization and Hybrid settings-theme resolution restoration.
+
+The Windows x64 self-contained application was published locally and the ZIP
+contents verified. The full WPF workflow executable and packaged EXE were
+**not run** because this host is Linux. Physical WinUSB I/O is also untested.
+GitHub publication was blocked by automatic approval review; the test build is
+provided directly with its matching source. Do not treat this as a CI-validated
+public release.
+
+### Local alpha.8 regression validation
+
+The application and WPF check project cross-compiled with zero warnings/errors.
+The Linux console regression harness used the actual DeviceController source
+with a fake display and a minimal dispatcher substitute. It passed 100 device
+discoveries with both screens, missing-selected-screen protection, changed USB
+path reconnection, persisted screen preference and switching back to serial.
+
+Actual Skia GIF decoding matched fresh reference decodes for skip/backward/loop
+positions at speeds 1, 2 and 4, using keep/background/previous disposal GIFs.
+Fast PNG payloads decoded losslessly and remained within the transfer budget.
+Protocol, rotation, connection cleanup and assembly-based theme checks passed.
+The WPF search/canvas tests compile but were not executed on this Linux host.
+The packaged EXE and real USB endpoints still require Windows/hardware testing.
+There is no new public GitHub release or CI result for this local test build.
+
+### Local alpha.9 Info Screen output validation
+
+The reported failure occurs on the physical screen while the app canvas still
+renders. The suspected PNG/JPEG decoder difference is addressed by selecting
+JPEG command 101 for all TURZX frames. The exact firmware cause is unconfirmed.
+
+Checks cover native JPEG dimensions, payload lengths, full chroma resolution,
+fine coloured dashboard lines with low average encoding error, noisy-photo
+compression limits, transitions between dashboard/photo/hybrid-like frames,
+100 consecutive dashboard updates, and clearing. The simulated transport
+rejects PNG command 102, and each frame payload is actually decoded with Skia.
+Protocol, device selection, GIF composition and assembly-based theme checks
+are also retained. The app and Windows harness cross-compile locally.
+
+These checks do not verify physical USB output. The Windows UI executable,
+packaged EXE and owner retest remain pending. This is a local test package,
+with matching source included, not a new GitHub release or Windows CI result.
+
+### Local alpha.10 regression validation
+
+Portable checks link the actual renderer, models, session controller, device
+controller, GIF decoder and TURZX driver. Linux stubs replace WPF dispatch and
+Windows-only default discovery, and the transport is simulated. Checks cover
+complete Orbitron glyphs at graph/bar font sizes 22/70/80, independent playlist
+and mutable item snapshots, JSON resume/positions, queued slow-transfer mode
+changes, and four mode boundaries followed by 100 real Skia JPEG decodes.
+
+GIF disposal 1/2/3 fixtures match fresh reference decodes at speeds 1/2/4 with
+skip/backward/loop positions. Each of three 300-decode RAM loops added only 103
+process read bytes on this Linux host (reading the I/O counter itself), rather
+than repeatedly reading the source. This is not a Windows Task Manager result.
+
+The application and Windows harness cross-compile locally. WPF grip/capture and
+edit-only recovery-write tests are included but cannot execute on Linux. The
+packaged EXE, actual driver timeouts, physical mode switch after long playback,
+and the user's reported 29.7 MB/s activity still require Windows/device checks.
+No public GitHub release or CI result is claimed for this local package.
+
+### Local alpha.11 mode-switch regression validation
+
+A new transport test deliberately rejects sync/brightness initialization after
+image playback has started. The alpha.10 production controller/driver failed
+this test by releasing the connection and changing its action label to Start
+display. After removing mid-session initialization, the same test passes with
+50 mode frames, the live session retained, Stop display unchanged, and the new
+frame colour decoded from the payload. The complete run contains one initial
+sync/brightness handshake followed only by JPEG image transfers.
+
+The delayed-transfer/newest-mode queue test and prior font, playlist and RAM-GIF
+checks are retained. The app and Windows test harness cross-compile locally;
+the Windows EXE and real USB output are not executed on this Linux host. No
+Windows CI result or public release is claimed. The physical firmware reason
+for the reported disconnect remains unconfirmed without a hardware trace.
+
+## GitHub consolidation, 14 October 2026
+
+The alpha.7 through alpha.11 source has been recovered from alpha.11's
+included source snapshot for publication. The Windows build workflow runs
+the complete WPF/controller harness, publishes the self-contained app and
+smoke-tests both the executable and extracted ZIP before releasing alpha.11.
+Its result is available in GitHub Actions and the ZIP build-info.json. The
+local-build sections above record historical checks, not current CI results.
+
+The owner reported that two alpha.10 fixes succeeded: large-font editing and
+independent Photo Frame/Hybrid photos. They also reported a mode-change
+disconnect. Alpha.11 addresses that regression in simulated transport checks;
+a physical retest has not yet been reported. Sustained GIF speed, Windows
+disk activity, restart and sleep/resume remain unmeasured on the real device.

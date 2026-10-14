@@ -34,15 +34,17 @@ public sealed class ThemeDocument : ObservableObject
         set
         {
             if (!SetProperty(ref _orientation, value)) return;
+            var longer = Math.Max(CanvasWidth, CanvasHeight);
+            var shorter = Math.Min(CanvasWidth, CanvasHeight);
             if (value == ThemeOrientation.Landscape)
             {
-                CanvasWidth = 480;
-                CanvasHeight = 320;
+                CanvasWidth = longer;
+                CanvasHeight = shorter;
             }
             else
             {
-                CanvasWidth = 320;
-                CanvasHeight = 480;
+                CanvasWidth = shorter;
+                CanvasHeight = longer;
             }
         }
     }
