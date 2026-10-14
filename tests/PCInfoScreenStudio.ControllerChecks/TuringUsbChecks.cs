@@ -93,7 +93,8 @@ internal static class TuringUsbChecks
         var oldDocument = new ThemeDocument { Mode = ScreenMode.Hybrid };
         ModeThemeService.Apply(oldDocument, modes.Load(path));
         Assert(oldDocument.CanvasWidth == 720 && oldDocument.CanvasHeight == 1280 && oldDocument.HybridWidgets[0].Y == document.HybridWidgets[0].Y, "Hybrid themes must reopen at their saved resolution and exact overlay position.");
-        var settings = new SettingsController(new AppSettingsService(Path.Combine(root, "usb-settings.json"))) { AutoStartDisplay = false };
+        var settings = new SettingsController(new AppSettingsService(Path.Combine(root, "usb-settings.json")))
+        { AutoStartDisplay = false, PreferredCanvasSize = DisplayCanvasSize.Turing52 };
         var first = new SerialPortOption("usb#vid_1cbe&pid_0050#one#guid-a", "TURZX", "vid_1cbe&pid_0050\\one", "TURZX", 100);
         IReadOnlyList<SerialPortOption> discovered = new[] { first };
         using var controllerDevice = new TuringUsbDisplayDevice(() => new FakeTransport());
