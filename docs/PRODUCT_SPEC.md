@@ -1,240 +1,69 @@
 # Product specification
 
-This document defines the target user experience. Implementation status is tracked separately in `ROADMAP.md`.
+This describes the current **0.10.0-alpha.13** product. Remaining work is tracked in the [roadmap](ROADMAP.md) and [GitHub issues](https://github.com/ManethonSega/PC-Info-Screen-Studio/issues). A listed feature does not certify every device or workload; see [compatibility](COMPATIBILITY.md) and [validation](VALIDATION.md).
 
-## Core principle
+## Product and interface
 
-The application should feel closer to a simple visual poster/layout editor than to CAD or monitoring software. Advanced options are progressively disclosed. The 480x320 or 320x480 screen is always the center of the editor.
+PC Info Screen Studio is a portable Windows x64 visual editor and runtime for small USB displays. Its priorities are easy setup, a readable preview and lightweight operation.
 
-## Main window
+Keep the existing editor structure: Add/Layers on the left, a display-sized canvas in the centre and contextual properties on the right. Editor/Hardware navigation, Undo/Redo, Settings, Live view, display selection, Mode and Start/Stop stay in the top bar. Each mode has a Themes panel. Settings contains connection, orientation, physical mounting rotation, sensor access, runtime and editor preferences.
 
-Three permanent areas:
+Use the shared MechKeyMesh navy/slate palette with silver text and cyan accents, consistent spacing and visible focus/selection states. Scrollable panels and inline numeric validation keep configuration readable. Hardware shows PC names and live metrics without stopping the selected display mode.
 
-1. **Add / Layers** on the left.
-2. **Real-pixel display canvas** in the center.
-3. **Contextual properties** on the right.
+## Display families
 
-The top toolbar contains file actions, layout orientation, physical mounting rotation, live display, COM device selection and connection state.
+| Selected family | Landscape canvas | Portrait canvas | Transport and status |
+| --- | --- | --- | --- |
+| 3.5-inch Revision-A Turing/TURZX-style display | 480 × 320 | 320 × 480 | USB-CDC serial, current supported focus |
+| TURZX 5.2-inch smart-screen display | 1280 × 720 | 720 × 1280 | WinUSB JPEG output, experimental; target VID 1CBE / PID 0050 |
 
-## Display orientation
+Canvas orientation and physical mounting rotation are independent. Rotation supports 0, 90, 180 and 270 degrees. New and imported themes fit the explicitly selected display. A missing screen does not silently select a different family when both are connected. The app does not install a display driver or control the TURZX desktop-monitor, SD-card or H.264 features.
 
-Theme layout and physical mounting are independent concepts.
+The owner confirms basic output and alpha.11 mode switching on their setup. Sustained operation, firmware variants and broader compatibility require further evidence.
 
-Theme canvas:
+## Modes and editing
 
-- Landscape: 480x320
-- Portrait: 320x480
+**Info Screen** arranges widgets and imported assets. **Photo Frame** runs a linked photo playlist. **Hybrid** combines its own playlist with a separate overlay layout. Modes retain independent settings and working edits.
 
-Physical output rotation:
+The editor supports selection, dragging, resize handles, rotation, keyboard movement, layers, hide/lock, duplication, multi-selection, grouping, alignment/distribution, grid snapping, smart guides, zoom and undo/redo. Resizing a widget retains its explicit font size. Live view provides a clean preview; physical output is controlled separately with Start/Stop.
 
-- 0°
-- 90°
-- 180°
-- 270°
+Implemented widget types are Text, Value, Circular Gauge, Analog Clock, Bar Gauge, Graph, Shape, Image, Animated Image and Hardware Name. Video is an import placeholder, with no decoding or playback. Shapes and gauges expose relevant fill, track, outline, range and text controls; graph styles include line, area and history bars. Widget background transparency affects only the background fill.
 
-The theme package remembers both.
+Hardware Name detects CPU, GPU, SSD/drive or RAM brand/model once in the background. Users can choose a component, edit Displayed name or restore Use detected name. Custom names persist in themes, clones and session resume. Firmware may omit meaningful RAM names; the app does not guess them.
 
-## Editing
+## Text, fonts and data
 
-Target editing behavior:
+Text supports installed Windows fonts, bundled fonts and imported TTF/OTF fonts. Imported fonts are passive theme assets and require redistribution rights. Rendered widget text, labels, values, hardware names and photo captions support colour emoji through Windows Segoe UI Emoji and grapheme-aware shaping. Native editing fields may show monochrome glyphs. Users can paste emoji or use Win + .; the canvas and device output share the renderer.
 
-- click to select
-- drag to move
-- resize handles
-- rotate where useful
-- keyboard nudging
-- multi-select
-- copy/paste/duplicate
-- lock/hide
-- group/ungroup
-- reorder layers
-- snap to grid
-- smart alignment guides
-- align and distribute selections
-- undo/redo
+Data sources include Windows CPU/RAM, drive/network readings, date/time, Open-Meteo weather, LibreHardwareMonitor and optional HWiNFO shared memory. Optional PawnIO setup and administrator access extend sensor availability. Missing sensors are labelled unavailable, not invented zeroes. Source search filters the selected widget's source list. Preview.Value supplies a manual design value.
 
-## Widgets
+## Photos and media
 
-### Text
+Photo Frame and Hybrid support file/folder import, playlist reordering, previous/play/pause/next, shared timing, loop/shuffle, Fit/Fill/Stretch/Original sizing, solid backgrounds and Crossfade/Slide/Zoom/Instant/Random transitions between photos. EXIF orientation is corrected. Global captions support filename, date, location or custom text with configurable font, size, colour and outline. Missing metadata leaves a caption blank. Folder watching and linked playlist presets are available.
 
-- static text
-- date
-- time
-- label
-- formatting
+PNG, JPEG, WebP, BMP and GIF assets are supported. Animated GIFs play; video assets currently show a placeholder. Prepared photos use a bounded display-sized cache, and compressed GIF data is limited to 64 MiB per file. General image/GIF cache memory is not yet governed by a complete shared budget; this is tracked work.
 
-### Dynamic value
+Scheduling, blurred backgrounds, continuous Ken Burns motion and per-photo crop, focal-point or duration controls are outside the current simplified workflow. There is no implemented video optimizer, media-trimming pipeline or one-click USB benchmark profile.
 
-Any compatible data source can be shown as text.
+## Saving and sharing
 
-### Circular gauge
+| Format | Content | Portability |
+| --- | --- | --- |
+| `.t3theme` | Info Screen layout, bindings, styles, imported fonts/images/GIFs and passive assets | Shareable ZIP-compatible package; [format details](THEME_FORMAT.md) |
+| `.pcphoto` | Photo Frame settings and remembered folder | Photos remain on the PC |
+| `.pchybrid` | Hybrid settings and overlay widgets | Linked photos/assets can depend on local paths |
+| `.pcalbum` | Photo references and playlist settings | Linked preset, not a portable photo bundle |
 
-- full/partial ring
-- configurable thickness
-- foreground and track colors
-- value and label
-- min/max
-- optional thresholds
+New/Open/Save/Save as and library actions use the active mode's format. Opening a folder-based mode theme reloads that folder; a theme without a folder retains the current playlist. Exit/logoff saves a private resume snapshot of modes, layouts, photo links and unsaved edits without overwriting reusable themes. Backup/recovery hardening is still pending.
 
-### Bar gauge
+Themes contain declarative data and passive assets, never executable code. Preserve existing format compatibility during maintenance. File associations are not installed today.
 
-- continuous or segmented
-- horizontal/vertical
-- configurable segment count/gap
-- foreground/track colors
-- thresholds
+## Runtime and distribution
 
-### Graph
+Background USB output uses a newest-frame queue. Tray operation suspends editor-only preview work while output continues. Windows startup uses an approved per-user scheduled task, resumes the working session and retries a remembered device quietly, including COM-number changes and USB reconnects. Optional clear-on-exit is best effort. Sensor elevation and prerequisite installation remain explicit user actions.
 
-- line
-- stepped line
-- filled area
-- block/bar history, including the retro segmented style
-- graph color
-- fill color
-- text color
-- background/grid/border colors
-- history duration
-- line thickness
-- fixed or automatic Y scale
-- current value and label
+The app is GPL-3.0-or-later, self-contained and distributed as an unsigned Windows x64 portable ZIP. Keep the complete folder together. There is no signed installer or automatic updater. Windows CI builds, checks controller/WPF workflows, captures the interface and smoke-tests published EXE and ZIP output. Physical reliability and usability results are recorded separately.
 
-### Shapes
+## Next milestone
 
-- line
-- rectangle
-- rounded rectangle
-- ellipse
-- fill/stroke/opacity
-
-## Data sources
-
-Target providers:
-
-- CPU usage, temperatures, clocks, power, voltage
-- GPU usage, core/hotspot temperature, clocks, VRAM, fan, power
-- RAM used/free/percentage
-- storage used/free, read/write rate, temperature
-- network upload/download and totals
-- motherboard temperatures/voltages
-- fan RPM
-- pump RPM
-- clock/date
-- weather temperature
-- feels-like temperature
-- humidity
-- wind
-- condition/icon
-- forecast fields
-
-Data and visual representation are separate. `GPU.Temperature` can therefore be bound to a value, ring, bar or graph.
-
-## Fonts
-
-- installed Windows fonts
-- imported TTF/OTF
-- imported fonts are embedded in the theme package
-- imported fonts can be used without installing them system-wide
-- font licence warning before embedding
-- size, weight, italic, alignment, spacing, outline and shadow
-
-## Colors
-
-Every relevant visual component should have independent color control. A later milestone adds reusable theme palette colors so changing a palette entry can update multiple objects.
-
-## Media
-
-Supported target formats:
-
-- PNG
-- JPG/JPEG
-- WebP
-- BMP
-- GIF
-- MP4
-- WebM
-- MOV
-- AVI/MKV where the bundled decoder permits
-
-Video has **no audio output**. Audio streams are discarded during optimization.
-
-### Import UX
-
-The user drops or opens media, then gets a visual crop view with:
-
-- Fit
-- Fill
-- Stretch
-- Original
-- pan
-- zoom
-- crop
-- rotation/mirroring
-- opacity
-- brightness
-- contrast
-- saturation
-- playback speed
-- trim start/end for animation/video
-- loop
-- FPS Auto/manual
-
-### Automatic optimization
-
-The app should pre-process media for the 3.5-inch screen:
-
-- resize/crop to target area
-- discard video audio
-- reduce FPS to what the actual display can sustain
-- precompute expensive transformations
-- convert/render with RGB565 behavior in mind
-- suppress visually insignificant temporal changes
-- cache optimized frames/metadata
-
-Profiles:
-
-- Maximum quality
-- Balanced
-- Maximum performance
-- Auto
-
-## Device benchmark
-
-A one-click device optimization should measure real USB/display performance and save a hardware profile. That profile is used by Auto FPS and media optimization rather than assuming a fixed frame rate.
-
-## Theme packages
-
-One `.t3theme` file contains everything required to reproduce a theme:
-
-- layout
-- widgets
-- styles/colors
-- data bindings
-- custom fonts
-- images
-- GIFs
-- silent optimized video
-- media crop/playback settings
-- compatibility metadata
-- preview thumbnail
-
-The package contains declarative data and passive assets only, never executable code.
-
-## Runtime mode
-
-After editing, the full editor should not have to stay open.
-
-Target runtime features:
-
-- system tray
-- start with Windows
-- start minimized
-- auto-connect display
-- auto-load last theme
-- switch themes from tray
-- brightness control
-- recover after USB reconnect
-
-## Shareability
-
-Double-clicking a registered `.t3theme` file should open it in the application. Dragging one onto the application should do the same. Themes should remain backward-compatible through an explicit format version.
+Prioritize settings/session recovery, safe long-running commands, total asset-memory bounds, physical reliability evidence and first-time/DPI/accessibility validation. Keep the current interface structure. Architecture, diagnostics and test-reporting improvements follow; installer/signing/update decisions remain deferred. Full video playback is a separate future feature, not an alpha.13 promise.

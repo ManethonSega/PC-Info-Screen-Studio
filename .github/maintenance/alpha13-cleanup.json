@@ -1,0 +1,195 @@
+{
+  "labels": [
+    {
+      "name": "bug",
+      "color": "d73a4a",
+      "description": "A reproducible problem with existing behaviour."
+    },
+    {
+      "name": "enhancement",
+      "color": "a2eeef",
+      "description": "An improvement to existing functionality."
+    },
+    {
+      "name": "beta-readiness",
+      "color": "FF922E",
+      "description": "Stability or validation needed before wider beta use."
+    },
+    {
+      "name": "priority: high",
+      "color": "FF922E",
+      "description": "Current stability and validation priority."
+    },
+    {
+      "name": "priority: medium",
+      "color": "1C8DFF",
+      "description": "Follow-up product and maintenance work."
+    },
+    {
+      "name": "priority: low",
+      "color": "35506F",
+      "description": "Deferred work after current priorities."
+    },
+    {
+      "name": "area: persistence",
+      "color": "0B132B",
+      "description": "Settings, sessions and theme data."
+    },
+    {
+      "name": "area: runtime",
+      "color": "1C8DFF",
+      "description": "Commands, startup, tray and diagnostics."
+    },
+    {
+      "name": "area: memory",
+      "color": "35506F",
+      "description": "Asset caching and resource lifetime."
+    },
+    {
+      "name": "area: hardware",
+      "color": "00B3C6",
+      "description": "USB displays, compatibility and physical testing."
+    },
+    {
+      "name": "area: usability",
+      "color": "00B3C6",
+      "description": "Setup, controls, accessibility and feedback."
+    },
+    {
+      "name": "area: architecture",
+      "color": "35506F",
+      "description": "Coordinator and UI decomposition."
+    },
+    {
+      "name": "area: tests",
+      "color": "1C8DFF",
+      "description": "Automated coverage and CI reporting."
+    },
+    {
+      "name": "area: distribution",
+      "color": "35506F",
+      "description": "Portable packaging, installation and updates."
+    }
+  ],
+  "issues": [
+    {
+      "key": "settings-recovery",
+      "title": "Back up and recover settings and the last session",
+      "labels": [
+        "enhancement",
+        "area: persistence",
+        "priority: high",
+        "beta-readiness"
+      ],
+      "body": "<!-- pcinfo-roadmap:settings-recovery -->\n\n## Current behaviour\n\n`AppSettingsService` replaces settings through a temporary file, but a failed load falls back to defaults without a recoverable backup. `SessionStateService` also needs recovery hardening. Private resume data can include unsaved edits.\n\n## Completion criteria\n\n- [ ] Keep a last-known-good backup for settings and session state; validate data before replacing either copy.\n- [ ] Recover from a corrupt/truncated primary using a valid backup and retain the bad file for optional diagnosis.\n- [ ] Show a readable recovery notice explaining what was restored, without turning normal launches into confirmation flows.\n- [ ] Check interrupted writes, invalid JSON and compatible older data. A failed save must not overwrite a valid backup.\n\nPreserve existing themes and the current editor layout. Record validation results in the PR and distinguish automated checks from physical-device evidence.\n"
+    },
+    {
+      "key": "safe-commands",
+      "title": "Prevent overlapping save, load and import operations",
+      "labels": [
+        "enhancement",
+        "area: runtime",
+        "priority: high",
+        "beta-readiness"
+      ],
+      "body": "<!-- pcinfo-roadmap:safe-commands -->\n\n## Current behaviour\n\nCommands use `RelayCommand` actions without a shared busy guard. Theme/settings services use temporary files, and overlapping commands or edits during a save can create races. Some imports can block the UI.\n\n## Completion criteria\n\n- [ ] Prevent conflicting double-click/shortcut operations through command availability and an appropriate busy state.\n- [ ] Give useful progress for long imports/loads and keep the window responsive; support cancellation where it can leave a valid workspace.\n- [ ] Use distinct temporary workspaces/files and save a consistent snapshot. Edits made after the snapshot must remain dirty.\n- [ ] Failed/cancelled loads preserve the previous workspace and linked assets; verify rapid Save/Load/import and failure cases.\n\nPreserve existing themes and the current editor layout. Record validation results in the PR and distinguish automated checks from physical-device evidence.\n"
+    },
+    {
+      "key": "asset-memory",
+      "title": "Bound total image and GIF memory and release unused assets",
+      "labels": [
+        "enhancement",
+        "area: memory",
+        "priority: high",
+        "beta-readiness"
+      ],
+      "body": "<!-- pcinfo-roadmap:asset-memory -->\n\n## Current behaviour\n\nPrepared photos are bounded, but `RenderResourceCache` and `AnimatedGifFrameProvider` need a total budget across assets. The 64 MiB GIF limit is per compressed file, not a complete process-memory cap. The owner observed about 150 MB on one setup; larger workloads are not benchmarked.\n\n## Completion criteria\n\n- [ ] Define and enforce a practical total cache budget covering decoded images and animation resources, with documented accounting.\n- [ ] Evict unused assets after theme changes/removal while preserving safe lifetimes for active rendering and USB output.\n- [ ] Avoid repeatedly decoding the same active asset and preserve photo/animation correctness under eviction.\n- [ ] Measure a representative large album, multiple GIFs and repeated theme/mode switches over extended tray operation; record workload and memory trend.\n\nPreserve existing themes and the current editor layout. Record validation results in the PR and distinguish automated checks from physical-device evidence.\n"
+    },
+    {
+      "key": "physical-reliability",
+      "title": "Record physical display startup, reconnect and long-duration results",
+      "labels": [
+        "enhancement",
+        "area: hardware",
+        "priority: high",
+        "beta-readiness"
+      ],
+      "body": "<!-- pcinfo-roadmap:physical-reliability -->\n\n## Current behaviour\n\nThe owner has confirmed alpha.11 basic output, mode switching, large fonts and independent playlists on their setup. The existing controller checks simulate reconnect behaviour; they do not establish sustained physical operation or broad firmware compatibility.\n\n## Completion criteria\n\n- [ ] Record exact display model, USB VID/PID, driver, Windows/app version, rotation and relevant connection settings for each tested family.\n- [ ] Run representative Info Screen, Photo Frame and Hybrid workloads for 4–8 hours or overnight and record output continuity, memory/CPU trend and observed failures.\n- [ ] Check unplug/replug, changed COM number where applicable, sleep/resume, Windows sign-in startup and repeated mode/theme switches on real hardware.\n- [ ] Check explicit family selection with both displays connected and one missing; record supported and failing configurations in COMPATIBILITY.md / VALIDATION.md.\n\nPreserve existing themes and the current editor layout. Record validation results in the PR and distinguish automated checks from physical-device evidence.\n"
+    },
+    {
+      "key": "first-user-dpi",
+      "title": "Validate first-time setup, Windows scaling and keyboard accessibility",
+      "labels": [
+        "enhancement",
+        "area: usability",
+        "priority: high",
+        "beta-readiness"
+      ],
+      "body": "<!-- pcinfo-roadmap:first-user-dpi -->\n\n## Current behaviour\n\nActual WPF captures show the updated palette and controls. Owner feedback confirms their workflow, but a new-user walkthrough, real Windows scaling and complete keyboard/focus checks remain outstanding.\n\n## Completion criteria\n\n- [ ] Have a new user connect, add/edit a widget, save/reopen, start/stop output and use tray recovery; record confusing steps and fix them.\n- [ ] Exercise 100%, 125%, 150% and 200% Windows scaling with representative monitor work areas; verify readable controls and accessible scrolling without clipping.\n- [ ] Verify tab order, visible focus, keyboard activation and screen-reader names for main actions and numeric-validation feedback.\n- [ ] Review hover/menu/caption contrast on Windows and the physical screen. Keep routine status inline and reserve modal prompts for necessary decisions/errors.\n\nPreserve existing themes and the current editor layout. Record validation results in the PR and distinguish automated checks from physical-device evidence.\n"
+    },
+    {
+      "key": "video-placeholder",
+      "title": "Disable new Video import until playback is implemented",
+      "labels": [
+        "enhancement",
+        "area: usability",
+        "priority: medium"
+      ],
+      "body": "<!-- pcinfo-roadmap:video-placeholder -->\n\n## Current behaviour\n\nVideo assets are accepted by the current import UI but only render a placeholder. This is documented, yet a new user can still reasonably expect playback.\n\n## Completion criteria\n\n- [ ] Disable new Video import with concise visible help explaining that playback is not available.\n- [ ] Continue loading existing themes containing video placeholders without failing or deleting their stored assets.\n- [ ] Confirm image/GIF import is unaffected and update relevant help. Implementing a video decoder is outside this issue.\n\nPreserve existing themes and the current editor layout. Record validation results in the PR and distinguish automated checks from physical-device evidence.\n"
+    },
+    {
+      "key": "diagnostics-export",
+      "title": "Export useful diagnostics through an explicit user action",
+      "labels": [
+        "enhancement",
+        "area: runtime",
+        "priority: medium"
+      ],
+      "body": "<!-- pcinfo-roadmap:diagnostics-export -->\n\n## Current behaviour\n\nStartup logs and controller diagnostics exist, but users must manually collect information to report connection and runtime problems.\n\n## Completion criteria\n\n- [ ] Add a clear export action containing app/Windows versions, selected display/backend, known USB identity, recent errors and useful resource counters.\n- [ ] Exclude photo/media content and scrub account names/personal file paths where possible; explain export contents before saving.\n- [ ] Save a user-selected local diagnostic file with a clear success/failure result. Do not automatically send reports.\n- [ ] Verify normal, disconnected and failed-startup information collection and document how to attach it to a bug report.\n\nPreserve existing themes and the current editor layout. Record validation results in the PR and distinguish automated checks from physical-device evidence.\n"
+    },
+    {
+      "key": "coordinator-extraction",
+      "title": "Extract remaining coordinator responsibilities and reusable mode panels",
+      "labels": [
+        "enhancement",
+        "area: architecture",
+        "priority: medium"
+      ],
+      "body": "<!-- pcinfo-roadmap:coordinator-extraction -->\n\n## Current behaviour\n\nIndependent editor, device, photo-playback, settings and theme/session controllers are already present. `MainViewModel` and `MainWindow.xaml` still carry substantial coordination and duplicated mode controls.\n\n## Completion criteria\n\n- [ ] Use focused PRs to separate theme-library orchestration, metrics, undo snapshot application and recovery responsibilities where useful.\n- [ ] Extract reusable mode-specific panels without changing placement, bindings, commands or property behaviour.\n- [ ] Preserve all three mode formats, independent playlists, hardware-name overrides, session resume and undo/redo.\n- [ ] Run controller/WPF checks and review actual interface captures after each extraction.\n\nPreserve existing themes and the current editor layout. Record validation results in the PR and distinguish automated checks from physical-device evidence.\n"
+    },
+    {
+      "key": "test-reporting",
+      "title": "Improve conventional unit-test and CI result reporting",
+      "labels": [
+        "enhancement",
+        "area: tests",
+        "priority: medium"
+      ],
+      "body": "<!-- pcinfo-roadmap:test-reporting -->\n\n## Current behaviour\n\nThe console ControllerChecks harness provides progress output and a watchdog and exercises actual WPF workflows. Conventional individually reported tests would make smaller service/controller regressions easier to locate.\n\n## Completion criteria\n\n- [ ] Introduce focused conventional tests for suitable services/controllers while retaining the Windows/WPF harness.\n- [ ] Publish individually identifiable test results in CI with a standard report format; keep failures easy to diagnose.\n- [ ] Retain harness progress/watchdog and publish/startup/ZIP smoke coverage.\n- [ ] Document which checks need Windows or a physical display and avoid presenting simulated checks as hardware certification.\n\nPreserve existing themes and the current editor layout. Record validation results in the PR and distinguish automated checks from physical-device evidence.\n"
+    },
+    {
+      "key": "distribution-strategy",
+      "title": "Decide installer, file associations, signing and update strategy",
+      "labels": [
+        "enhancement",
+        "area: distribution",
+        "priority: low"
+      ],
+      "body": "<!-- pcinfo-roadmap:distribution-strategy -->\n\n## Current behaviour\n\nThe current release is an unsigned, self-contained Windows x64 portable ZIP. Installer packaging, file associations, signing and automatic updates do not exist. This decision is deferred until the portable workflow is stable.\n\n## Completion criteria\n\n- [ ] Document practical installer/portable choices, signing costs and update-delivery trade-offs for owner review.\n- [ ] Specify optional file associations and how installation, moving, updating and removal affect startup registrations and user data.\n- [ ] Choose the intended distribution scope before implementing changes. Do not imply current releases are signed or automatically updated.\n\nPreserve existing themes and the current editor layout. Record validation results in the PR and distinguish automated checks from physical-device evidence.\n"
+    }
+  ],
+  "branches": [
+    {
+      "branch": "codex/cohesive-ui-alpha12",
+      "expectedSha": "9fd17bd5ddaa557ab9090b41b8c932571bd2de0b"
+    },
+    {
+      "branch": "codex/hardware-names-colour-emoji",
+      "expectedSha": "fb55a604a34eeab3bfcb7eeaa4858d311f4f36a9"
+    },
+    {
+      "branch": "codex/repository-docs-alpha13",
+      "expectedHeadFromMergeParent": true
+    }
+  ]
+}

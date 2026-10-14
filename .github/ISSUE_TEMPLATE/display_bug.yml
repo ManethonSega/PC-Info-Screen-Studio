@@ -1,0 +1,57 @@
+name: Display / connection bug
+description: Report a physical display, USB output, startup or reconnect problem.
+title: "[Display]: "
+labels: [bug, "area: hardware"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: App and Windows versions
+      placeholder: "For example: 0.10.0-alpha.13, Windows 11"
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Screen model
+      description: Give the brand/model and size, or say unknown.
+    validations:
+      required: true
+  - type: input
+    id: usb
+    attributes:
+      label: USB VID/PID and driver (if known)
+      description: Optional. Device Manager may show these under Properties, Details, Hardware IDs.
+  - type: dropdown
+    id: family
+    attributes:
+      label: Display selected in the app
+      options: [3.5-inch serial, 5.2-inch WinUSB, Not sure]
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Affected mode
+      options: [Info Screen, Photo Frame, Hybrid, All modes]
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps and connection settings
+      description: Include orientation/rotation, protocol if changed, other screen software and whether this follows startup, a mode switch, sleep or unplug/replug.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Expected and actual display output
+      description: Say what the physical screen shows (black, frozen, wrong colours, etc.), what the app preview/status shows and whether Stop/Start or reconnecting helps.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Photos or relevant logs (optional)
+      description: Remove private photos, account names and personal file paths before attaching anything.

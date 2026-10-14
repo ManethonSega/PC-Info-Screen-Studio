@@ -2,8 +2,9 @@ PC Info Screen Studio, portable alpha
 
 1. Extract this entire folder to a permanent location on your PC.
 2. Run PCInfoScreenStudio.exe. No separate .NET installation is needed.
-3. Plug in your compatible USB serial screen, then choose Detect screen and Start display.
-4. Choose Info Screen, Photo Frame or Hybrid in SCREEN MODE.
+3. Plug in your screen. Choose 3.5-inch or 5.2-inch in the top bar, then
+   choose Detect and connect screen or Start display. Close other screen software.
+4. Choose Info Screen, Photo Frame or Hybrid in the top-bar Mode selector.
 5. Add a widget on the left, then choose its Source on the right. SEARCH filters
    that source list; Clear shows all sources. Searching does not add widgets.
 6. Choose Save theme to update your reusable theme file.
@@ -28,8 +29,9 @@ Keep all files in this folder together. Opening the app from a moved folder may
 need approval to update its Windows startup task. Automatic updating is not included.
 
 This is an unsigned alpha, not a finished consumer release. Video import shows
-a placeholder; full video playback is not available. Device support is focused
-on Revision-A 480 x 320 USB serial displays. See DEVICE-COMPATIBILITY.md and
+a placeholder; full video playback is not available. Device support includes
+Revision-A 480 x 320 USB serial displays and experimental TURZX 5.2-inch
+1280 x 720 WinUSB output. See DEVICE-COMPATIBILITY.md and
 VALIDATION.md for evidence and remaining physical-device checks.
 
 Source and releases: https://github.com/ManethonSega/PC-Info-Screen-Studio

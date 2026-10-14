@@ -27,6 +27,8 @@ compatible driver already installed for the device.
 
 Software checks cover command encryption, payload budgets, orientation,
 failed-handshake cleanup, saved theme dimensions and remembered USB identity.
-Physical output, firmware variants and real unplug/replug are pending. Windows
+The owner has confirmed basic physical output in all three modes and alpha.11
+mode switching on their setup. Recorded sustained-operation results, firmware
+variants, sleep/resume and real unplug/replug coverage remain pending. Windows
 Desktop Mode, SD-card management and H.264 playback are not implemented by this
 backend. See TURZX-52.md for setup and the hardware acceptance checklist.

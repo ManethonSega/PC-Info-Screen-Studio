@@ -1,0 +1,61 @@
+name: App bug report
+description: Report a problem with editing, saving, photos, sensors or the interface.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "Please check existing issues first. For a physical screen or USB connection problem, use Display / connection bug instead."
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      placeholder: "For example: 0.10.0-alpha.13"
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version and display scaling
+      placeholder: "For example: Windows 11, 150% scaling"
+    validations:
+      required: true
+  - type: dropdown
+    id: display
+    attributes:
+      label: Selected display
+      options: [3.5-inch, 5.2-inch, No device connected, Not sure]
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Mode or page
+      options: [Info Screen, Photo Frame, Hybrid, Hardware, Settings, Startup or tray]
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List what you clicked or changed, including any theme/photo type involved.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result and how often it happens
+      description: Include any visible error and whether restarting helps.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots or relevant logs (optional)
+      description: Remove private photos, account names and personal file paths before attaching anything.

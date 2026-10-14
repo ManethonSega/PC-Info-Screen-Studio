@@ -47,6 +47,9 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Verify repository maintenance safeguards
+        run: node --test ./scripts/repository-maintenance.test.cjs
+
       - name: Restore
         run: dotnet restore .\PCInfoScreenStudio.slnx
 
@@ -216,3 +219,23 @@ jobs:
           if ($LASTEXITCODE -eq 0) { throw "Release $tag already exists. Existing releases are not overwritten." }
           gh release create $tag $zip $checksums --repo "${{ github.repository }}" --target "${{ github.sha }}" --title $title --notes-file $notes --prerelease
           if ($LASTEXITCODE -ne 0) { throw 'GitHub release publication failed.' }
+
+  repository_cleanup:
+    needs: windows
+    if: "github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Maintenance: refresh documentation and track beta work')"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Create labelled backlog and remove audited merged branches
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const maintain = require('./scripts/repository-maintenance.cjs');
+            await maintain({ github, context, core });

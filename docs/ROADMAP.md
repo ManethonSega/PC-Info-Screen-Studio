@@ -68,43 +68,36 @@ The next milestone is product polish, not another broad feature category. Priori
 
 The owner reports approximately **150 MB RAM usage as of 5 October 2026**, replacing the earlier approximately 1 GB observation. This is an observation on the owner's setup, not a published benchmark or a guarantee for all themes and albums. No urgent memory rewrite is planned on the strength of that observation.
 
-## Next: polish and maintainability
+## Next: beta readiness
 
-### 1. Stabilize the existing workflows
+The owner has supplied the alpha.11 confirmation requested earlier: basic output, mode switching, large fonts and independent playlists work on their setup. Do not repeat that request. The remaining evidence concerns sustained operation, reconnects, additional devices and new users.
 
-- [ ] Check the complete connect, add, edit, save, reopen, and tray workflow with a new user.
-- [x] Automated Save/Load, independent settings, linked folder, layer position and session-resume checks for all three modes.
-- [x] Actual WPF minimize, restore, close-to-tray and Exit checks, plus simulated reconnect failure and recovery.
-- [ ] Confirm these workflows on the physical screen and with a new user.
-- [x] Check actual selected-item and tooltip colours on the Windows runner and review WPF interface captures.
-- [ ] Confirm hover, menu and caption readability on the owner's Windows configuration and physical display.
-- [x] Controlled dark-control templates, consistent sizes/headings, toolbar icons, clear labels, descriptive hover help and a dark tray menu; direct actions stay in place.
+Remaining work is tracked in [labelled GitHub issues](https://github.com/ManethonSega/PC-Info-Screen-Studio/issues?q=is%3Aissue+is%3Aopen). Each issue has completion criteria. The [beta-readiness queue](https://github.com/ManethonSega/PC-Info-Screen-Studio/issues?q=is%3Aissue+is%3Aopen+label%3Abeta-readiness) contains the high-priority stability and validation work; medium and low priorities are follow-ups.
 
-### 2. Reduce maintenance risk without changing the interface
+| Priority | Work | Tracking label |
+| --- | --- | --- |
+| High | Back up and recover settings and the last session without discarding valid data | `area: persistence` |
+| High | Prevent overlapping saves/loads/imports and keep long operations understandable | `area: runtime` |
+| High | Bound total image/GIF memory and release unused assets | `area: memory` |
+| High | Record real display startup, reconnect and long-duration results | `area: hardware` |
+| High | Validate first-time setup, Windows scaling and keyboard accessibility | `area: usability` |
+| Medium | Disable new Video import until playback exists | `area: usability` |
+| Medium | Export useful diagnostics through an explicit user action | `area: runtime` |
+| Medium | Extract remaining coordinator responsibilities and reusable mode panels | `area: architecture` |
+| Medium | Improve conventional unit-test and CI result reporting | `area: tests` |
+| Low, deferred | Decide installer, file associations, signing and update strategy | `area: distribution` |
 
-- [x] First gradual extraction: independent editor, device, photo-playback, and settings controllers, with unchanged UI bindings.
-- [ ] Continue extracting theme-library orchestration, metrics, undo snapshot application, and recovery from the remaining coordinator.
-- [ ] Extract reusable mode-specific UI sections from MainWindow.
-- [ ] Preserve commands, bindings, existing theme compatibility, and undo behaviour during refactoring.
+Existing controller checks cover Save/Load, independent mode settings, linked folders, layer positions, session resume, actual WPF tray/window behaviour and simulated reconnect recovery. Windows captures verify current controls and rendered colour emoji. These checks complement physical-device and new-user testing; they do not replace it. See [VALIDATION.md](VALIDATION.md) and [COMPATIBILITY.md](COMPATIBILITY.md).
 
-### 3. Validate reliability and performance
+Preserve the current three-panel editor, commands, theme formats and undo behaviour during maintenance. Diagnostics should stay optional for ordinary use. There is no urgent memory rewrite based solely on the owner's 150 MB observation, but large albums and multiple GIFs still need total-cache limits and representative measurements.
 
-- [ ] Record memory and responsiveness with a representative large album and extended tray operation.
-- [ ] Verify repeated mode switches, theme reloads, and device reconnects.
-- [ ] Document confirmed display models, USB identifiers, orientation, and working settings.
-- [ ] Record unsupported devices and known failure cases clearly.
+## Documentation and repository upkeep
 
-Validation should be focused on these user workflows and physical-device behaviour. Do not make theme-rendering diagnostics a prerequisite for ordinary use.
-
-### 4. Make distribution dependable
-
-- [x] Publish 0.10.0-alpha.6 as a versioned GitHub Release with a permanent portable download and matching source.
-- [x] Consolidate alpha.7 through alpha.11 source and preserve obsolete branch histories.
-- [x] Owner reports alpha.11 working correctly on their setup, including mode switching; broader long-duration checks remain separate.
-- [x] Compatibility and validation records distinguish automated checks from physical-device evidence.
-- [x] Refresh the UI screenshots from the actual Windows WPF controls before publication.
-- [ ] Decide on an installer and file associations after the portable workflow is stable.
-- [ ] Evaluate signing and update delivery separately; neither exists today.
+- [x] Alpha.13 version and owner confirmation recorded consistently.
+- [x] README and secondary screenshots refreshed from the actual alpha.13 Windows interface.
+- [x] Product specification covers both display families and separates implemented features from deferred work.
+- Bug-report forms and labelled backlog issues accompany this cleanup.
+- Obsolete feature branches are removed only after their complete histories are verified in main and checks pass.
 
 ## Deferred, not implemented
 
