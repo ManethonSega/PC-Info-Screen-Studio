@@ -57,3 +57,5 @@ Hardware Name widgets record `0.10.0-alpha.13` as their minimum app version. The
 Photo Frame uses `.pcphoto` settings; Hybrid uses `.pchybrid` settings and overlays. `.pcalbum` saves linked photo references and playlist settings. These files do not embed the photo collection. See the [product specification](PRODUCT_SPEC.md#saving-and-sharing).
 
 Video widgets imported by alpha.14 record `0.10.0-alpha.14` as their minimum app version. No package format-version bump is required.
+
+Hybrid video overlays store a `MediaSourcePath` link to the original file in `.pchybrid`. Info Screen imports reference embedded video assets. Keep linked Hybrid files available; runtime frames and status are excluded from serialization.

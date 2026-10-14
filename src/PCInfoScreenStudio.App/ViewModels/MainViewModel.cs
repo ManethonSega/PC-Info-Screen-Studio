@@ -978,7 +978,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         try
         {
-            var asset = _assetService.Import(Workspace, path, kind);
+            var asset = kind == ThemeAssetKind.Video && Document.Mode == ScreenMode.Hybrid
+                ? _assetService.DescribeLinkedVideo(path) : _assetService.Import(Workspace, path, kind);
             AttachImportedMedia(asset, kind);
         }
         catch (Exception ex)
@@ -998,7 +999,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var widget = NewWidget(type);
         if (type == WidgetType.Video) Document.MinimumAppVersion = "0.10.0-alpha.14";
         widget.Name = asset.DisplayName;
-        widget.AssetId = asset.Id;
+        if (type == WidgetType.Video && Document.Mode == ScreenMode.Hybrid)
+        {
+            widget.AssetId = null; widget.MediaSourcePath = asset.LocalPath!;
+        }
+        else widget.AssetId = asset.Id;
         widget.X = 0;
         widget.Y = 0;
         widget.Width = Document.CanvasWidth;

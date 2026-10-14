@@ -19,7 +19,7 @@ public static class DiagnosticsService
             while (Errors.Count > 30) Errors.Dequeue();
         }
     }
-    public static object CreateReport(object display, object runtime)
+    public static object CreateReport(object display, object runtime, string? startupLogPath = null)
     {
         using var process = Process.GetCurrentProcess();
         DiagnosticError[] errors; lock (Sync) errors = Errors.ToArray();
@@ -30,21 +30,21 @@ public static class DiagnosticsService
             windows = RuntimeInformation.OSDescription, architecture = RuntimeInformation.ProcessArchitecture.ToString(),
             dotnet = RuntimeInformation.FrameworkDescription, display, runtime,
             memory = new { workingSetBytes = process.WorkingSet64, privateBytes = process.PrivateMemorySize64 },
-            recentErrors = errors, previousStartupErrors = ReadStartupErrorTypes(),
+            recentErrors = errors, previousStartupErrors = ReadStartupErrorTypes(startupLogPath),
             privacy = "No media, theme content, account names, personal paths or raw log text. Saved locally only; attach this file yourself if needed."
         };
     }
-    private static string[] ReadStartupErrorTypes()
+    private static string[] ReadStartupErrorTypes(string? startupLogPath)
     {
         try
         {
-            var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PCInfoScreenStudio", "Logs", "startup.log");
+            var path = startupLogPath ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PCInfoScreenStudio", "Logs", "startup.log");
             if (!File.Exists(path)) return [];
             using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             if (stream.Length > 32768) stream.Seek(-32768, SeekOrigin.End);
             using var reader = new StreamReader(stream);
             // Export only exception class names, never messages/stack traces containing private paths.
-            return Regex.Matches(reader.ReadToEnd(), @"\b(?:System\.)[A-Za-z0-9_.]*Exception\b").Select(m => m.Value).Distinct().Take(20).ToArray();
+            return Regex.Matches(reader.ReadToEnd(), @"(?m)^(System\.[A-Za-z0-9_.]*Exception)(?=:|$)").Select(m => m.Groups[1].Value).Distinct().Take(20).ToArray();
         }
         catch { return ["Startup log unavailable"]; }
     }

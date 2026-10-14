@@ -19,7 +19,7 @@ The 5.2-inch device's native H.264/SD-card capability is a separate protocol fea
 
 ## Scope and limits
 
-H.264 MP4 is recommended. Other Windows-supported containers/codecs may work, but are not promised by extension alone. Windows N can require Microsoft's Media Feature Pack. No FFmpeg/codec binaries are bundled. Imports are limited to 512 MiB and source video to Full HD (1920 × 1080 or portrait equivalent); output is bounded by the selected canvas. Import copying is asynchronous and guarded against overlapping imports/workspace replacement.
+H.264 MP4 is recommended. Other Windows-supported containers/codecs may work, but are not promised by extension alone. Windows N can require Microsoft's Media Feature Pack. No FFmpeg/codec binaries are bundled. Imports are limited to 512 MiB and source video to Full HD (1920 × 1080 or portrait equivalent); output is bounded by the selected canvas. Info Screen import copying is asynchronous and guarded against overlapping imports/workspace replacement. Hybrid overlays link to the original video instead of copying it; `.pchybrid` saves that link and reopening resolves it independently of the previous workspace. Keep linked files available. Missing files show a restore/restart instruction.
 
 This first stage has no audio, trim/crop timeline, scrubbing, playlist videos, native-device H.264 playback or codec installer. Unsupported, corrupt and changing-dimension streams show a readable status. Native decoder cancellation is cooperative between sample reads; a slow Windows decoder can delay resource release, while the editor stays responsive and the worker limit remains enforced.
 

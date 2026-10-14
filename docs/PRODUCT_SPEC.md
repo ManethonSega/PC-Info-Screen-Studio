@@ -51,7 +51,7 @@ Scheduling, blurred backgrounds, continuous Ken Burns motion and per-photo crop,
 | --- | --- | --- |
 | `.t3theme` | Info Screen layout, bindings, styles, imported fonts/images/GIFs and passive assets | Shareable ZIP-compatible package; [format details](THEME_FORMAT.md) |
 | `.pcphoto` | Photo Frame settings and remembered folder | Photos remain on the PC |
-| `.pchybrid` | Hybrid settings and overlay widgets | Linked photos/assets can depend on local paths |
+| `.pchybrid` | Hybrid settings and overlay widgets | Linked photos and video overlays depend on local paths |
 | `.pcalbum` | Photo references and playlist settings | Linked preset, not a portable photo bundle |
 
 New/Open/Save/Save as and library actions use the active mode's format. Opening a folder-based mode theme reloads that folder; a theme without a folder retains the current playlist. Exit/logoff saves a private resume snapshot of modes, layouts, photo links and unsaved edits without overwriting reusable themes. Backup/recovery hardening is still pending.

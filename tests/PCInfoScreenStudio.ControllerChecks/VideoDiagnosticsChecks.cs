@@ -84,13 +84,15 @@ internal static class VideoDiagnosticsChecks
         Require(status.Contains("Cannot play") || status.Contains("Video"), "Unsupported media has an actionable status");
         VideoFrameProvider.Clear(); pump(() => VideoFrameProvider.RunningDecoders == 0, TimeSpan.FromSeconds(5));
         DiagnosticsService.RecordError("Test decoder", new FileNotFoundException("Secret account Alice at C:\\Users\\Alice\\Private\\holiday.mp4"));
-        var report = DiagnosticsService.CreateReport(new { connected = false, family = "Serial35" }, new { activeVideos = 0 });
+        var oldLog = Path.Combine(root, "private-startup.log");
+        File.WriteAllText(oldLog, "System.IO.FileNotFoundException: Secret account Alice at C:\\Users\\Alice\\Private\\holiday.mp4\n   at C:\\private\\System.CustomerNameException.cs\n");
+        var report = DiagnosticsService.CreateReport(new { connected = false, family = "Serial35" }, new { activeVideos = 0 }, oldLog);
         var reportPath = Path.Combine(root, "diagnostics.json"); DiagnosticsService.ExportAsync(reportPath, report).GetAwaiter().GetResult();
         var json = File.ReadAllText(reportPath);
         using var parsed = JsonDocument.Parse(json);
         Require(parsed.RootElement.GetProperty("schemaVersion").GetInt32() == 1, "Diagnostics schema");
         Require(parsed.RootElement.GetProperty("memory").GetProperty("workingSetBytes").GetInt64() > 0, "Memory counters");
-        Require(json.Contains("FileNotFoundException") && !json.Contains("Alice") && !json.Contains("holiday.mp4") && !json.Contains("C:\\\\Users"), "Diagnostics excludes messages and personal paths");
+        Require(json.Contains("FileNotFoundException") && !json.Contains("Alice") && !json.Contains("holiday.mp4") && !json.Contains("C:\\\\Users") && !json.Contains("CustomerName"), "Diagnostics excludes messages and personal paths");
         Require(!Directory.EnumerateFiles(root, "diagnostics.json.*.tmp").Any(), "Diagnostics export removes temporary files");
         var importer = new AssetImportService();
         var assetCount = workspace.Document.Assets.Count;
@@ -108,6 +110,24 @@ internal static class VideoDiagnosticsChecks
         var serialized = JsonSerializer.Serialize(widget);
         var reopened = JsonSerializer.Deserialize<WidgetModel>(serialized)!;
         Require(reopened.MediaPaused == widget.MediaPaused && reopened.PlaybackSpeed == widget.PlaybackSpeed && !serialized.Contains("Transient status"), "Playback settings serialize; runtime status does not");
+        using (var hybrid = new ThemePackageService().CreateNewWorkspace())
+        {
+            hybrid.Document.Mode = ScreenMode.Hybrid;
+            var linked = importer.DescribeLinkedVideo(fixture);
+            var overlay = new WidgetModel { Type = WidgetType.Video, MediaSourcePath = linked.LocalPath!, MediaPaused = true };
+            hybrid.Document.HybridWidgets.Add(overlay);
+            var library = new ModeThemeService(Path.Combine(root, "video-linked-themes"));
+            var saved = library.Save(hybrid.Document, ScreenMode.Hybrid, "Linked video");
+            using var reopenedHybrid = new ThemePackageService().CreateNewWorkspace();
+            reopenedHybrid.Document.Mode = ScreenMode.Hybrid; reopenedHybrid.Document.RuntimeMode = RuntimeScreenMode.Hybrid;
+            ModeThemeService.Apply(reopenedHybrid.Document, library.Load(saved));
+            Require(reopenedHybrid.Document.HybridWidgets.Single().MediaSourcePath == fixture && reopenedHybrid.Document.Assets.Count == 0, "Hybrid settings theme preserves video link without embedding media");
+            pump(() => { using var frame = new ThemeRenderer().Render(reopenedHybrid); return reopenedHybrid.Document.HybridWidgets.Single().RuntimeMediaStatus.Contains("paused"); }, TimeSpan.FromSeconds(10));
+            Require(VideoFrameProvider.CachedFrameBytes > 0, "Reopened Hybrid video link decodes");
+            VideoFrameProvider.Suspend(reopenedHybrid);
+        }
+        Require(File.Exists(fixture), "Linked-video cleanup must never delete the source");
+        pump(() => VideoFrameProvider.RunningDecoders == 0, TimeSpan.FromSeconds(5));
         var clone = widget.Clone(); Require(clone.MediaPaused == widget.MediaPaused && clone.PlaybackSpeed == 2, "Playback controls persist in clones");
         Console.WriteLine("PASS: real H.264 decoding, RGB/stride/orientation, bounded frames, pause, playback, EOF, loop, speed, two-video limit, inactive cleanup, bad media and private local diagnostics.");
     }

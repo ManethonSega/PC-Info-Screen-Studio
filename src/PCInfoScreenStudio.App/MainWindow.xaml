@@ -295,7 +295,7 @@
                     <Button Content="Graph" Command="{Binding AddWidgetCommand}" CommandParameter="Graph" ToolTip="Add a history graph overlay." />
                     <Button Content="Shape" Command="{Binding AddWidgetCommand}" CommandParameter="Shape" ToolTip="Add a rectangle, rounded rectangle, ellipse or line overlay." />
                     <Button Content="Hardware name" Command="{Binding AddWidgetCommand}" CommandParameter="HardwareName" ToolTip="Automatically show a CPU, GPU, SSD or RAM name over your photos." />
-                    <Button Content="Video" Command="{Binding ImportVideoCommand}" ToolTip="Add a silent video overlay. Windows-supported H.264 MP4 is recommended." />
+                    <Button Content="Video" Command="{Binding ImportVideoCommand}" ToolTip="Add a silent video overlay linked to its original file. Keep that file available when reopening Hybrid themes." />
                   </UniformGrid>
                   <TextBlock Text="{Binding VideoImportStatus}" Foreground="{StaticResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="4,3,4,0" />
                 </StackPanel>

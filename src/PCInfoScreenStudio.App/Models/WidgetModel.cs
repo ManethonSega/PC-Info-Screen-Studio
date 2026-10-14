@@ -49,6 +49,7 @@ public sealed class WidgetModel : ObservableObject
     private bool _autoScale;
     private bool _showGrid;
     private Guid? _assetId;
+    private string _mediaSourcePath = string.Empty;
     private MediaFit _mediaFit = MediaFit.Fill;
     private bool _loop = true;
     private bool _mediaPaused;
@@ -188,6 +189,7 @@ public sealed class WidgetModel : ObservableObject
     public bool AutoScale { get => _autoScale; set => SetProperty(ref _autoScale, value); }
     public bool ShowGrid { get => _showGrid; set => SetProperty(ref _showGrid, value); }
 
+    public string MediaSourcePath { get => _mediaSourcePath; set => SetProperty(ref _mediaSourcePath, value ?? string.Empty); }
     public Guid? AssetId { get => _assetId; set => SetProperty(ref _assetId, value); }
     public MediaFit MediaFit { get => _mediaFit; set => SetProperty(ref _mediaFit, value); }
     public bool Loop { get => _loop; set => SetProperty(ref _loop, value); }
@@ -248,6 +250,7 @@ public sealed class WidgetModel : ObservableObject
             AutoScale = AutoScale,
             ShowGrid = ShowGrid,
             AssetId = AssetId,
+            MediaSourcePath = MediaSourcePath,
             MediaFit = MediaFit,
             Loop = Loop,
             MediaPaused = MediaPaused,

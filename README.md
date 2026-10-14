@@ -154,9 +154,13 @@ Choose **Video** under Media in Info Screen or Hybrid overlays. H.264 MP4 is the
 | 3.5-inch | 3 fps | 5 fps | RGB565 frames over serial |
 | 5.2-inch | 12 fps | 20 fps | JPEG frames over WinUSB |
 
-These are conservative application limits, not measured hardware guarantees. Observed USB transfer time can lower them further, and the newest-frame queue replaces stale frames rather than accumulating delay. The PC decodes the video without selecting audio. At most two active decoders keep one current display-sized frame each. This first version accepts up to 1920 × 1080 (or portrait equivalent) and 512 MiB per imported clip. Existing video placeholders now attempt playback. See [video implementation and limits](docs/VIDEO_PLAYBACK.md).
+These are conservative application limits, not measured hardware guarantees. Observed USB transfer time can lower them further, and the newest-frame queue replaces stale frames rather than accumulating delay. The PC decodes the video without selecting audio. At most two active decoders keep one current display-sized frame each. This first version accepts up to 1920 × 1080 (or portrait equivalent) and 512 MiB per imported clip. Info Screen imports are embedded in `.t3theme` packages. Hybrid video overlays link to the original file, so keep that file available when reopening a `.pchybrid` theme. Existing video placeholders now attempt playback. See [video implementation and limits](docs/VIDEO_PLAYBACK.md).
+
+![Silent video controls in the actual alpha.14 WPF editor](docs/images/video-playback.png)
 
 For troubleshooting, choose **Settings > Troubleshooting > Export diagnostics**, select a location and attach the saved JSON file to your bug report. It contains versions, selected transport/protocol, counters, memory usage and recent exception types/error codes. It excludes photos, theme content, account names, personal paths and raw error messages. Nothing is uploaded automatically.
+
+![Export diagnostics panel in Settings](docs/images/export-diagnostics.png)
 
 ## Data sources and sensors
 

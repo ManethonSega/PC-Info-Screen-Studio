@@ -33,8 +33,8 @@ public static class VideoFrameProvider
     public static SKBitmap? GetFrame(ThemeWorkspace workspace, WidgetModel widget, DisplayCanvasSize display, double transferMs, out string status)
     {
         var asset = workspace.Document.Assets.FirstOrDefault(a => a.Id == widget.AssetId);
-        if (asset is null) { status = "Video file missing"; return null; }
-        var path = workspace.GetAbsolutePath(asset);
+        var path = asset is not null ? workspace.GetAbsolutePath(asset) : widget.MediaSourcePath;
+        if (string.IsNullOrWhiteSpace(path)) { status = "Video file missing"; return null; }
         var request = new Request(path, workspace.Document.CanvasWidth, workspace.Document.CanvasHeight,
             VideoPlaybackProfile.FramesPerSecond(display, widget.TargetFps, widget.AutoOptimize, transferMs), widget.PlaybackSpeed, widget.Loop, widget.MediaPaused);
         lock (Sync)
@@ -165,7 +165,7 @@ public static class VideoFrameProvider
             {
                 DiagnosticsService.RecordError("Video decoder", ex);
                 Console.Error.WriteLine($"Video decoder: {ex.GetType().Name}, HRESULT 0x{ex.HResult:X8}");
-                lock (_sync) if (!_disposed) _status = ex is InvalidDataException ? ex.Message : "Cannot play video · Try H.264 MP4 or install Windows Media Feature Pack";
+                lock (_sync) if (!_disposed) _status = ex is FileNotFoundException or DirectoryNotFoundException ? "Video file missing · Restore the file and Restart video" : ex is InvalidDataException ? ex.Message : "Cannot play video · Try H.264 MP4 or install Windows Media Feature Pack";
             }
             finally
             {

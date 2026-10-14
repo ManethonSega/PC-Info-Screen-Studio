@@ -22,16 +22,17 @@ public sealed partial class MainViewModel
         ThemeAsset? asset = null;
         try
         {
-            asset = await _assetService.PrepareVideoAsync(workspace, path, cancellation.Token);
+            asset = await _assetService.PrepareVideoAsync(workspace, path, cancellation.Token, linkOnly: mode == ScreenMode.Hybrid);
             if (_isDisposed || Workspace != workspace || Document.Mode != mode) { VideoImportStatus = "Import cancelled because the workspace changed."; return; }
-            workspace.Document.Assets.Add(asset); workspace.IsDirty = true;
+            if (mode != ScreenMode.Hybrid) workspace.Document.Assets.Add(asset);
+            workspace.IsDirty = true;
             AttachImportedMedia(asset, ThemeAssetKind.Video); asset = null; VideoImportStatus = string.Empty;
         }
         catch (OperationCanceledException) { VideoImportStatus = "Video import cancelled."; }
         catch (Exception ex) { DiagnosticsService.RecordError("Video import", ex); VideoImportStatus = ex is InvalidDataException ? ex.Message : "Could not import video. Check the file and available disk space."; }
         finally
         {
-            if (asset is not null && File.Exists(asset.LocalPath)) { try { File.Delete(asset.LocalPath!); } catch { } }
+            if (asset is not null && mode != ScreenMode.Hybrid && File.Exists(asset.LocalPath)) { try { File.Delete(asset.LocalPath!); } catch { } }
             _videoImportCancellation = null; _videoImportBusy = false; ImportVideoCommand.RaiseCanExecuteChanged();
         }
     }
