@@ -926,6 +926,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
+            DiagnosticsService.RecordError("Theme load", ex);
             MessageBox.Show(ex.Message, "Could not open theme", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
@@ -940,14 +941,23 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             : Workspace.FilePath;
         if (path is null) return;
 
+        var workspace = Workspace;
+        var savedMode = Document.Mode;
         try
         {
-            await _packageService.SaveAsync(Workspace, path);
-            SetActiveThemeLoaded(path);
+            await _packageService.SaveAsync(workspace, path);
+            if (!ReferenceEquals(Workspace, workspace)) return;
+            var changedWhileSaving = workspace.IsDirty;
+            _themeSessions.Loaded(savedMode, path);
+            if (changedWhileSaving) _themeSessions.MarkDirty(savedMode);
+            workspace.IsDirty = _themeSessions.HasUnsavedChanges;
+            NotifyThemeState();
+            if (!HasUnsavedChanges) DeleteRecoveryFile();
             RefreshThemes();
         }
         catch (Exception ex)
         {
+            DiagnosticsService.RecordError("Theme save", ex);
             MessageBox.Show(ex.Message, "Could not save theme", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }

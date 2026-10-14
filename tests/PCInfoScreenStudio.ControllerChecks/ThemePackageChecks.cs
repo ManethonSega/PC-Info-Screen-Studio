@@ -5,6 +5,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using PCInfoScreenStudio.Models;
 using PCInfoScreenStudio.Services;
+using PCInfoScreenStudio.Controllers;
+using PCInfoScreenStudio.ViewModels;
 
 internal static class ThemePackageChecks
 {
@@ -16,6 +18,7 @@ internal static class ThemePackageChecks
         CheckLargeLegacyPackage(root, awaitTask);
         CheckUnusedMediaAndUndo(root, awaitTask);
         CheckBudgetAndFailures(root, awaitTask);
+        CheckEditingDuringSave(root, awaitTask);
         Console.WriteLine("PASS: legacy themes over 1 GiB, save/load symmetry, unused-media cleanup, hidden/Hybrid/photo/font retention, Undo source preservation, package limits, cancellation and atomic failure cleanup.");
     }
 
@@ -52,9 +55,13 @@ internal static class ThemePackageChecks
         Require(loaded.Document.Assets.Sum(a => new FileInfo(loaded.GetAbsolutePath(a)).Length) == length * 4, "All referenced payloads survive the old 1 GiB boundary");
         Require(SHA256.HashData(File.ReadAllBytes(path)).SequenceEqual(hash), "Opening must never modify the original package");
         var savedPath = Path.Combine(root, "large-roundtrip.t3theme");
-        awaitTask(package.SaveAsync(loaded, savedPath));
+        var saving = package.SaveAsync(loaded, savedPath);
+        loaded.Document.Name = "Edited while saving";
+        awaitTask(saving);
+        Require(loaded.IsDirty, "An edit during a background save must stay unsaved");
         var reopenedTask = package.LoadAsync(savedPath); awaitTask(reopenedTask);
         using var reopened = reopenedTask.Result;
+        Require(reopened.Document.Name == "Legacy large Info Screen", "Saved package uses the original frozen document snapshot");
         Require(reopened.Document.Assets.Count == 4 && reopened.Document.Assets.All(a => new FileInfo(reopened.GetAbsolutePath(a)).Length == length), "A saved large package must reopen with identical asset lengths");
         Console.WriteLine($"PASS: generated legacy package with {length * 4} expanded bytes opens and saves/reopens above 1 GiB.");
     }
@@ -124,8 +131,8 @@ internal static class ThemePackageChecks
             using (var body = zip.CreateEntry(asset.PackagePath).Open()) body.Write(new byte[100]);
             using var json = zip.CreateEntry("theme.json").Open(); JsonSerializer.Serialize(json, document, Json);
         }
-        SetDeclaredLengths(malformed, 1);
-        ExpectInvalid(package.LoadAsync(malformed), awaitTask, "size");
+        SetDeclaredLengths(malformed, 200);
+        ExpectInvalid(package.LoadAsync(malformed), awaitTask, "length");
 
         using var workspace = package.CreateNewWorkspace();
         var source = Path.Combine(root, "large-sparse-source.mp4");
@@ -153,6 +160,24 @@ internal static class ThemePackageChecks
     {
         try { awaitTask(task); throw new InvalidOperationException("Invalid package operation succeeded"); }
         catch (InvalidDataException ex) { Require(ex.Message.Contains(reason, StringComparison.OrdinalIgnoreCase), "Wrong rejection: " + ex.Message); }
+    }
+
+    private static void CheckEditingDuringSave(string root, Action<Task> awaitTask)
+    {
+        var settings = new SettingsController(new AppSettingsService(Path.Combine(root, "package-save-settings.json")))
+        { FirstRunCompleted = true, StartWithWindows = false, AutoStartDisplay = false };
+        using var vm = new MainViewModel(settings, new SessionStateService(Path.Combine(root, "package-save-session")));
+        vm.SetEditorActive(false);
+        vm.Document.Name = "Before Save";
+        var path = Path.Combine(root, "editor-frozen-save.t3theme");
+        vm.Workspace.FilePath = path;
+        var saving = vm.SaveCurrentThemeAsync();
+        vm.Document.Name = "After Save click";
+        awaitTask(saving);
+        Require(vm.IsDirty && vm.HasUnsavedChanges && vm.Workspace.IsDirty, "Actual editor must preserve edits made during a package save");
+        var loading = new ThemePackageService().LoadAsync(path); awaitTask(loading);
+        using var loaded = loading.Result;
+        Require(loaded.Document.Name == "Before Save", "Editor save writes its captured snapshot");
     }
 
     private static void SetDeclaredLengths(string path, long length)

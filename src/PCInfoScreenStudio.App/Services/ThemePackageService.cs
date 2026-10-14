@@ -37,6 +37,7 @@ public sealed class ThemePackageService
     {
         // Capture on the caller's editor thread. IO uses only this detached snapshot;
         // live assets/files stay available to Undo even when omitted from the package.
+        cancellationToken.ThrowIfCancellationRequested();
         var originalJson = JsonSerializer.Serialize(workspace.Document, JsonOptions);
         var document = JsonSerializer.Deserialize<ThemeDocument>(originalJson, JsonOptions)!;
         KeepReferencedAssets(document);
@@ -60,6 +61,7 @@ public sealed class ThemePackageService
         {
             ct.ThrowIfCancellationRequested();
             var name = NormalizePackagePath(asset.PackagePath);
+            GetSafeExtractionPath(Path.GetTempPath(), name); // Reject entries the loader could never safely extract.
             ValidateAssetExtension(asset, name);
             if (!paths.Add(name)) throw new InvalidDataException("Theme contains duplicate asset paths.");
             if (!File.Exists(asset.LocalPath)) continue; // Keep missing-asset metadata for its placeholder.
