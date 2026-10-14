@@ -32,3 +32,7 @@ mode switching on their setup. Recorded sustained-operation results, firmware
 variants, sleep/resume and real unplug/replug coverage remain pending. Windows
 Desktop Mode, SD-card management and H.264 playback are not implemented by this
 backend. See TURZX-52.md for setup and the hardware acceptance checklist.
+
+## Info Screen package size
+
+Alpha.17 uses the same 4 GiB expanded referenced-asset ceiling when saving and opening `.t3theme` packages. Metadata is limited to 16 MiB. Older versions could save packages larger than their 1 GiB loader limit. Removed/replaced media is now omitted from package snapshots and from extraction of older packages. Hidden widgets, Hybrid layers, embedded photos and imported fonts are retained. Live workspace files are kept for Undo. Per-video import/playback limits remain 512 MiB and 4K sources; a larger package does not raise those limits. Package reads/writes use bounded streaming on background workers and pending-file replacement, retaining extension/path checks.

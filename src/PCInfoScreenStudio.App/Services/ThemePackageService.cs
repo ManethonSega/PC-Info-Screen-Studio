@@ -7,6 +7,8 @@ namespace PCInfoScreenStudio.Services;
 
 public sealed class ThemePackageService
 {
+    public const long MaximumExpandedAssetBytes = 4L * 1024 * 1024 * 1024;
+    private const int MaximumDocumentBytes = 16 * 1024 * 1024;
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
@@ -33,49 +35,72 @@ public sealed class ThemePackageService
         bool updateWorkspace,
         CancellationToken cancellationToken)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(filePath))!);
-        var tempFile = filePath + ".tmp";
-        if (File.Exists(tempFile)) File.Delete(tempFile);
-
-        await using (var file = File.Create(tempFile))
-        using (var archive = new ZipArchive(file, ZipArchiveMode.Create, leaveOpen: false))
-        {
-            var manifest = new ThemeManifest
-            {
-                Format = "PCInfoScreenStudio",
-                FormatVersion = workspace.Document.FormatVersion,
-                MinimumAppVersion = workspace.Document.MinimumAppVersion,
-                ThemeName = workspace.Document.Name
-            };
-
-            await WriteJsonEntryAsync(archive, "manifest.json", manifest, cancellationToken);
-            await WriteJsonEntryAsync(archive, "theme.json", workspace.Document, cancellationToken);
-
-            foreach (var asset in workspace.Document.Assets)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var source = workspace.GetAbsolutePath(asset);
-                if (!File.Exists(source))
-                    continue;
-
-                var safeEntryName = NormalizePackagePath(asset.PackagePath);
-                ValidateAssetExtension(asset, safeEntryName);
-                var entry = archive.CreateEntry(safeEntryName, CompressionLevel.Optimal);
-                await using var entryStream = entry.Open();
-                await using var sourceStream = File.OpenRead(source);
-                await sourceStream.CopyToAsync(entryStream, cancellationToken);
-            }
-        }
-
-        File.Move(tempFile, filePath, overwrite: true);
+        // Capture on the caller's editor thread. IO uses only this detached snapshot;
+        // live assets/files stay available to Undo even when omitted from the package.
+        var originalJson = JsonSerializer.Serialize(workspace.Document, JsonOptions);
+        var document = JsonSerializer.Deserialize<ThemeDocument>(originalJson, JsonOptions)!;
+        KeepReferencedAssets(document);
+        var sources = workspace.Document.Assets.ToDictionary(a => a.Id, workspace.GetAbsolutePath);
+        foreach (var asset in document.Assets) asset.LocalPath = sources[asset.Id];
+        await Task.Run(() => WritePackageAsync(document, filePath, cancellationToken), cancellationToken);
         if (updateWorkspace)
         {
             workspace.FilePath = filePath;
-            workspace.IsDirty = false;
+            // An edit made while the frozen snapshot was being saved is still unsaved.
+            workspace.IsDirty = JsonSerializer.Serialize(workspace.Document, JsonOptions) != originalJson;
         }
     }
 
-    public async Task<ThemeWorkspace> LoadAsync(string filePath, CancellationToken cancellationToken = default)
+    private static async Task WritePackageAsync(ThemeDocument document, string filePath, CancellationToken ct)
+    {
+        var plan = new List<(string Name, string Source, long Length, ThemeAssetKind Kind)>();
+        var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        long expandedBytes = 0;
+        foreach (var asset in document.Assets)
+        {
+            ct.ThrowIfCancellationRequested();
+            var name = NormalizePackagePath(asset.PackagePath);
+            ValidateAssetExtension(asset, name);
+            if (!paths.Add(name)) throw new InvalidDataException("Theme contains duplicate asset paths.");
+            if (!File.Exists(asset.LocalPath)) continue; // Keep missing-asset metadata for its placeholder.
+            var length = new FileInfo(asset.LocalPath!).Length;
+            expandedBytes = AddToBudget(expandedBytes, length);
+            plan.Add((name, asset.LocalPath!, length, asset.Kind));
+        }
+        if (System.Text.Encoding.UTF8.GetByteCount(JsonSerializer.Serialize(document, JsonOptions)) > MaximumDocumentBytes)
+            throw new InvalidDataException("Theme document exceeds the 16 MiB metadata limit.");
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(filePath))!);
+        var pending = filePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            await using (var file = File.Create(pending))
+            using (var archive = new ZipArchive(file, ZipArchiveMode.Create))
+            {
+                var manifest = new ThemeManifest { Format = "PCInfoScreenStudio", FormatVersion = document.FormatVersion,
+                    MinimumAppVersion = document.MinimumAppVersion, ThemeName = document.Name };
+                await WriteJsonEntryAsync(archive, "manifest.json", manifest, ct).ConfigureAwait(false);
+                await WriteJsonEntryAsync(archive, "theme.json", document, ct).ConfigureAwait(false);
+                foreach (var item in plan)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    // MP4 is already compressed; avoid spending minutes deflating it again.
+                    var entry = archive.CreateEntry(item.Name, item.Kind == ThemeAssetKind.Video ? CompressionLevel.NoCompression : CompressionLevel.Optimal);
+                    await using var target = entry.Open();
+                    await using var source = File.OpenRead(item.Source);
+                    var copied = await CopyBoundedAsync(source, target, item.Length, ct).ConfigureAwait(false);
+                    if (copied != item.Length) throw new IOException("A theme asset changed while saving. Save again.");
+                }
+            }
+            ct.ThrowIfCancellationRequested();
+            File.Move(pending, filePath, overwrite: true);
+        }
+        finally { if (File.Exists(pending)) File.Delete(pending); }
+    }
+
+    public Task<ThemeWorkspace> LoadAsync(string filePath, CancellationToken cancellationToken = default)
+        => Task.Run(() => LoadCoreAsync(filePath, cancellationToken), cancellationToken);
+
+    private static async Task<ThemeWorkspace> LoadCoreAsync(string filePath, CancellationToken cancellationToken)
     {
         var root = CreateTempDirectory();
         try
@@ -84,21 +109,31 @@ public sealed class ThemePackageService
             var themeEntry = archive.GetEntry("theme.json")
                 ?? throw new InvalidDataException("This file does not contain theme.json.");
 
+            if (themeEntry.Length > MaximumDocumentBytes) throw new InvalidDataException("Theme document exceeds the 16 MiB metadata limit.");
             ThemeDocument? document;
             await using (var stream = themeEntry.Open())
-                document = await JsonSerializer.DeserializeAsync<ThemeDocument>(stream, JsonOptions, cancellationToken);
+            using (var metadata = new MemoryStream())
+            {
+                await CopyBoundedAsync(stream, metadata, MaximumDocumentBytes, cancellationToken).ConfigureAwait(false);
+                metadata.Position = 0;
+                document = await JsonSerializer.DeserializeAsync<ThemeDocument>(metadata, JsonOptions, cancellationToken).ConfigureAwait(false);
+            }
 
             if (document is null)
                 throw new InvalidDataException("The theme document could not be read.");
             if (document.FormatVersion > ThemeDocument.CurrentFormatVersion)
                 throw new InvalidDataException($"Theme format {document.FormatVersion} is newer than this app supports.");
 
+            // Older packages can contain every previous import, including removed videos.
+            // Recover the authored layout without extracting those abandoned payloads.
+            KeepReferencedAssets(document);
             var indexedAssets = document.Assets.ToDictionary(
                 a => NormalizePackagePath(a.PackagePath),
                 StringComparer.OrdinalIgnoreCase);
 
-            const long maxExpandedBytes = 1024L * 1024L * 1024L; // 1 GiB defensive ceiling
             long expandedBytes = 0;
+            var plan = new List<(ZipArchiveEntry Entry, string Destination)>();
+            var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var entry in archive.Entries)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -110,13 +145,19 @@ public sealed class ThemePackageService
                     continue; // Ignore unreferenced files, including executables/scripts.
 
                 ValidateAssetExtension(asset, normalized);
-                expandedBytes += entry.Length;
-                if (expandedBytes > maxExpandedBytes)
-                    throw new InvalidDataException("Theme assets exceed the 1 GiB safety limit.");
-
+                if (!paths.Add(normalized)) throw new InvalidDataException("Theme contains duplicate asset entries.");
+                expandedBytes = AddToBudget(expandedBytes, entry.Length);
                 var destination = GetSafeExtractionPath(root, normalized);
-                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-                entry.ExtractToFile(destination, overwrite: true);
+                plan.Add((entry, destination));
+            }
+            foreach (var item in plan)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                Directory.CreateDirectory(Path.GetDirectoryName(item.Destination)!);
+                await using var source = item.Entry.Open();
+                await using var target = File.Create(item.Destination);
+                var copied = await CopyBoundedAsync(source, target, item.Entry.Length, cancellationToken).ConfigureAwait(false);
+                if (copied != item.Entry.Length) throw new InvalidDataException("Theme asset length does not match its ZIP metadata.");
             }
 
             var workspace = new ThemeWorkspace(document, root) { FilePath = filePath, IsDirty = false };
@@ -134,6 +175,34 @@ public sealed class ThemePackageService
             try { Directory.Delete(root, true); } catch { }
             throw;
         }
+    }
+
+    private static void KeepReferencedAssets(ThemeDocument document)
+    {
+        var ids = document.Widgets.Concat(document.HybridWidgets).SelectMany(w => new[] { w.AssetId, w.FontAssetId })
+            .Concat(document.PhotoFrame.Photos.Select(p => p.AssetId)).Where(id => id.HasValue).Select(id => id!.Value).ToHashSet();
+        // Imported fonts remain in the editor's font palette even if no widget uses them yet.
+        document.Assets = new(document.Assets.Where(a => a.Kind == ThemeAssetKind.Font || ids.Contains(a.Id)));
+    }
+
+    private static long AddToBudget(long used, long length)
+    {
+        if (length < 0 || length > MaximumExpandedAssetBytes - used)
+            throw new InvalidDataException("Referenced theme assets exceed the 4 GiB package limit. Remove unused media or use smaller videos, then save again.");
+        return used + length;
+    }
+
+    private static async Task<long> CopyBoundedAsync(Stream source, Stream target, long maximum, CancellationToken ct)
+    {
+        var buffer = new byte[81920]; long copied = 0;
+        int count;
+        while ((count = await source.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
+        {
+            if (count > maximum - copied) throw new InvalidDataException("Theme data exceeds its declared or allowed size.");
+            await target.WriteAsync(buffer.AsMemory(0, count), ct).ConfigureAwait(false);
+            copied += count;
+        }
+        return copied;
     }
 
     private static async Task WriteJsonEntryAsync<T>(ZipArchive archive, string name, T value, CancellationToken ct)
