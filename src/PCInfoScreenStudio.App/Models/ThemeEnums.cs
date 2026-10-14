@@ -25,7 +25,8 @@ public enum WidgetType
     Image,
     AnimatedImage,
     Video,
-    Shape
+    Shape,
+    HardwareName
 }
 
 public enum GraphStyle

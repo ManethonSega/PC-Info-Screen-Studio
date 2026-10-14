@@ -43,8 +43,8 @@ public sealed class ThemeRenderer
             using var font = new SKFont(SKTypeface.Default, 18);
             using var paint = new SKPaint { Color = SKColors.LightGray, IsAntialias = true };
             const string message = "ADD PHOTOS";
-            var width = font.MeasureText(message, paint);
-            canvas.DrawText(message, (doc.CanvasWidth - width) / 2, doc.CanvasHeight / 2f, SKTextAlign.Left, font, paint);
+            var width = ColoredTextRenderer.Measure(message, font, paint);
+            ColoredTextRenderer.Draw(canvas, message, (doc.CanvasWidth - width) / 2, doc.CanvasHeight / 2f, font, paint);
             return;
         }
 
@@ -142,8 +142,8 @@ public sealed class ThemeRenderer
         canvas.Save();
         canvas.ClipRect(new SKRect(8, height - size - 22, width - 8, height - 8));
         if (outlineWidth > 0)
-            canvas.DrawText(caption, 14, height - 16, SKTextAlign.Left, font, outlinePaint);
-        canvas.DrawText(caption, 14, height - 16, SKTextAlign.Left, font, fillPaint);
+            ColoredTextRenderer.Draw(canvas, caption, 14, height - 16, font, outlinePaint);
+        ColoredTextRenderer.Draw(canvas, caption, 14, height - 16, font, fillPaint);
         canvas.Restore();
     }
 
@@ -174,6 +174,9 @@ public sealed class ThemeRenderer
         {
             case WidgetType.Text:
                 DrawAutoText(canvas, workspace, w, string.IsNullOrWhiteSpace(w.RuntimeText) ? w.Label : w.RuntimeText!);
+                break;
+            case WidgetType.HardwareName:
+                DrawAutoText(canvas, workspace, w, w.HardwareNameText);
                 break;
             case WidgetType.Value:
                 DrawValue(canvas, workspace, w);
@@ -351,8 +354,10 @@ public sealed class ThemeRenderer
         var valueSize = Math.Max(8, (float)w.FontSize * .55f);
         using var labelFont = new SKFont(Typeface(workspace, w), labelSize);
         using var valueFont = new SKFont(Typeface(workspace, w), valueSize);
-        var top = Math.Min(w.ShowLabel ? labelFont.Metrics.Top : 0, w.ShowValue ? valueFont.Metrics.Top : 0);
-        var bottom = Math.Max(w.ShowLabel ? labelFont.Metrics.Bottom : 0, w.ShowValue ? valueFont.Metrics.Bottom : 0);
+        var labelMetrics = ColoredTextRenderer.Metrics(w.Label, labelFont);
+        var valueMetrics = ColoredTextRenderer.Metrics(FormatValue(w), valueFont);
+        var top = Math.Min(w.ShowLabel ? labelMetrics.Top : 0, w.ShowValue ? valueMetrics.Top : 0);
+        var bottom = Math.Max(w.ShowLabel ? labelMetrics.Bottom : 0, w.ShowValue ? valueMetrics.Bottom : 0);
         var baseline = 4 - top;
         if (w.ShowLabel) DrawText(canvas, workspace, w, w.Label, y: baseline, size: labelSize, color: w.ForegroundColor);
         if (w.ShowValue) DrawRightText(canvas, workspace, w, FormatValue(w), baseline, valueSize, w.ForegroundColor);
@@ -566,8 +571,8 @@ public sealed class ThemeRenderer
         {
             var mid = (low + high) / 2f;
             using var font = new SKFont(typeface, mid);
-            var width = font.MeasureText(text, paint);
-            var metrics = font.Metrics;
+            var width = ColoredTextRenderer.Measure(text, font, paint);
+            var metrics = ColoredTextRenderer.Metrics(text ?? string.Empty, font);
             var height = metrics.Descent - metrics.Ascent;
 
             if (width <= maxWidth && height <= maxHeight)
@@ -589,12 +594,12 @@ public sealed class ThemeRenderer
             IsAntialias = true
         };
 
-        var metrics = font.Metrics;
+        var metrics = ColoredTextRenderer.Metrics(text ?? string.Empty, font);
         var baseline = y ?? (verticalCenter
             ? (float)(w.Height / 2 - (metrics.Ascent + metrics.Descent) / 2)
             : -metrics.Ascent);
 
-        canvas.DrawText(text ?? string.Empty, 4, baseline, SKTextAlign.Left, font, paint);
+        ColoredTextRenderer.Draw(canvas, text ?? string.Empty, 4, baseline, font, paint);
     }
 
     private static void DrawCenteredText(SKCanvas canvas, ThemeWorkspace workspace, WidgetModel w, string text, float size, string color, float centerY)
@@ -607,10 +612,10 @@ public sealed class ThemeRenderer
             IsAntialias = true
         };
 
-        var width = font.MeasureText(text, paint);
-        var metrics = font.Metrics;
+        var width = ColoredTextRenderer.Measure(text, font, paint);
+        var metrics = ColoredTextRenderer.Metrics(text ?? string.Empty, font);
         var baseline = centerY - (metrics.Ascent + metrics.Descent) / 2;
-        canvas.DrawText(text, ((float)w.Width - width) / 2, baseline, SKTextAlign.Left, font, paint);
+        ColoredTextRenderer.Draw(canvas, text, ((float)w.Width - width) / 2, baseline, font, paint);
     }
 
     private static void DrawRightText(SKCanvas canvas, ThemeWorkspace workspace, WidgetModel w, string text, float y, float size, string color)
@@ -623,8 +628,8 @@ public sealed class ThemeRenderer
             IsAntialias = true
         };
 
-        var width = font.MeasureText(text, paint);
-        canvas.DrawText(text, (float)w.Width - width - 4, y, SKTextAlign.Left, font, paint);
+        var width = ColoredTextRenderer.Measure(text, font, paint);
+        ColoredTextRenderer.Draw(canvas, text, (float)w.Width - width - 4, y, font, paint);
     }
 
     private static SKTypeface Typeface(ThemeWorkspace workspace, WidgetModel w)

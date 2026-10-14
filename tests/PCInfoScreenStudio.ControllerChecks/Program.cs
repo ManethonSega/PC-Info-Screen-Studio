@@ -21,6 +21,7 @@ internal static class Program
         Directory.CreateDirectory(root);
         try
         {
+            RunCheck("HardwareNameEmojiChecks", () => Await(HardwareNameEmojiChecks.RunAsync(root, PumpUntil, args.Length == 2 && args[0] == "--capture-ui" ? args[1] : null)));
             RunCheck("RegressionFixChecks", () => Await(RegressionFixChecks.RunAsync()));
             RunCheck("EditingRecoveryChecks.Check", () => EditingRecoveryChecks.Check(root, Await));
             RunCheck("CheckSettings", () => CheckSettings(root));

@@ -24,6 +24,8 @@ public sealed class WidgetModel : ObservableObject
     private double? _runtimeValue;
     private string? _runtimeText;
     private string? _runtimeUnit;
+    private bool _useDetectedHardwareName = true;
+    private string _customHardwareName = string.Empty;
     private string _fontFamily = "Segoe UI";
     private Guid? _fontAssetId;
     private double _fontSize = 18;
@@ -85,7 +87,41 @@ public sealed class WidgetModel : ObservableObject
     public double? RuntimeValue { get => _runtimeValue; set => SetProperty(ref _runtimeValue, value); }
 
     [JsonIgnore]
-    public string? RuntimeText { get => _runtimeText; set => SetProperty(ref _runtimeText, value); }
+    public string? RuntimeText
+    {
+        get => _runtimeText;
+        set { if (SetProperty(ref _runtimeText, value)) RaisePropertyChanged(nameof(HardwareNameText)); }
+    }
+
+    public bool UseDetectedHardwareName
+    {
+        get => _useDetectedHardwareName;
+        set { if (SetProperty(ref _useDetectedHardwareName, value)) RaisePropertyChanged(nameof(HardwareNameText)); }
+    }
+
+    public string CustomHardwareName
+    {
+        get => _customHardwareName;
+        set { if (SetProperty(ref _customHardwareName, value)) RaisePropertyChanged(nameof(HardwareNameText)); }
+    }
+
+    [JsonIgnore]
+    public string HardwareNameText
+    {
+        get => UseDetectedHardwareName ? RuntimeText ?? "Detecting hardware…" : CustomHardwareName;
+        set
+        {
+            var next = value ?? string.Empty;
+            var textChanged = _customHardwareName != next;
+            var modeChanged = _useDetectedHardwareName;
+            // Publish the complete edit together, so a binding refresh cannot briefly restore the detected value.
+            _customHardwareName = next;
+            _useDetectedHardwareName = false;
+            if (textChanged) RaisePropertyChanged(nameof(CustomHardwareName));
+            if (modeChanged) RaisePropertyChanged(nameof(UseDetectedHardwareName));
+            if (textChanged || modeChanged) RaisePropertyChanged(nameof(HardwareNameText));
+        }
+    }
 
     [JsonIgnore]
     public string? RuntimeUnit { get => _runtimeUnit; set => SetProperty(ref _runtimeUnit, value); }
@@ -182,6 +218,8 @@ public sealed class WidgetModel : ObservableObject
             ValueFormat = ValueFormat,
             Suffix = Suffix,
             SimulatedValue = SimulatedValue,
+            UseDetectedHardwareName = UseDetectedHardwareName,
+            CustomHardwareName = CustomHardwareName,
             FontFamily = FontFamily,
             FontAssetId = FontAssetId,
             FontSize = FontSize,

@@ -72,6 +72,12 @@ internal static class UiPreviews
             CapturePanel(album, vm, 310, 690, Path.Combine(directory, "Caption-settings.png"));
             CapturePanel(overlays, vm, 310, 290, Path.Combine(directory, "Hybrid-overlays.png"));
             CapturePanel(colours, vm, 310, 260, Path.Combine(directory, "Widget-background.png"));
+            vm.Document.Mode = ScreenMode.InfoScreen;
+            vm.AddWidgetCommand.Execute("HardwareName");
+            vm.SelectedWidget!.HardwareNameText = "Intel Core i9-13900K 👌💕👏";
+            vm.SelectedWidget.X = 8; vm.SelectedWidget.Y = 4; vm.SelectedWidget.Width = 460; vm.SelectedWidget.Height = 44;
+            FlushBindings();
+            CaptureElement(root, 1560, 1040, Path.Combine(directory, "Hardware-name-widget.png"));
             // Exercise native startup sizing, including monitor/DPI detection, without showing the editor.
             _ = new System.Windows.Interop.WindowInteropHelper(window).EnsureHandle();
         }

@@ -43,7 +43,7 @@ internal static class SourceSearchChecks
             search.GetBindingExpression(TextBox.TextProperty)!.UpdateSource();
             Flush();
             Assert(picker.IsDropDownOpen, "Typing in search must show the result dropdown immediately.");
-            Assert(vm.SourceSearchText == "gpu" && picker.Items.Count == 8 &&
+            Assert(vm.SourceSearchText == "gpu" && picker.Items.Count == 9 && picker.Items.Contains("Hardware.GPUName") &&
                 picker.Items.Cast<string>().All(s => s.Contains("GPU", StringComparison.OrdinalIgnoreCase)),
                 "Typing GPU in the real search box must filter all GPU sources into the actual dropdown.");
             Assert(widget.DataSource == "CPU.Usage" && picker.Text == "CPU.Usage" && vm.Document.Widgets.Count == count,

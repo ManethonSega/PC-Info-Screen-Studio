@@ -231,6 +231,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public ObservableCollection<ThemeLibraryItem> Themes { get; }
     public ObservableCollection<ModeThemeLibraryItem> ModeThemes { get; }
     public ObservableCollection<ThemeAsset> FontAssets { get; }
+    public IReadOnlyList<HardwareNameOption> HardwareNameSources { get; } =
+    [
+        new("CPU name", "Hardware.CPUName"), new("GPU name", "Hardware.GPUName"),
+        new("SSD / drive names", "Hardware.StorageNames"), new("RAM brand / model", "Hardware.RAMName")
+    ];
 
     public IEnumerable<string> FilteredDataSources
     {
@@ -257,7 +262,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public bool CanSearchSources => SelectedWidget?.Type is WidgetType.Text or WidgetType.Value
         or WidgetType.CircularGauge or WidgetType.BarGauge or WidgetType.Graph;
     public Visibility ClearSourceSearchVisibility => SourceSearchText.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
-    public string SourceSearchHint => !CanSearchSources ? "Select a widget to choose its data source."
+    public string SourceSearchHint => SelectedWidget?.Type == WidgetType.HardwareName ? "Choose the component under Hardware name below."
+        : !CanSearchSources ? "Select a widget to choose its data source."
         : string.IsNullOrWhiteSpace(SourceSearchText) ? "Search CPU, GPU or temperature to filter the Source list below."
         : !FilteredDataSources.Any() ? "No matching sources. Clear search to see all sources."
         : "Choose a matching source from the Source list below.";
@@ -291,6 +297,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         "CPU.Usage", "CPU.Temperature", "CPU.Power", "CPU.Clock",
         "GPU.Usage", "GPU.Temperature", "GPU.Hotspot", "GPU.VRAM", "GPU.VRAMUsed", "GPU.VRAMTotal", "GPU.Power", "GPU.FanRPM",
         "RAM.Usage", "RAM.UsedGB", "RAM.AvailableGB", "RAM.TotalGB",
+        "Hardware.CPUName", "Hardware.GPUName", "Hardware.StorageNames", "Hardware.RAMName",
         "Disk.Usage", "Disk.FreeGB", "Disk.Temperature", "Disk.Read", "Disk.Write",
         "Network.Download", "Network.Upload",
         "Cooling.FanRPM", "Cooling.Fan1RPM", "Cooling.Fan2RPM", "Cooling.Fan3RPM",
@@ -1661,7 +1668,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             RaisePropertyChanged(nameof(CanSearchSources));
             RaisePropertyChanged(nameof(SourceSearchHint));
         }
-        if (e.PropertyName is nameof(WidgetModel.IsSelected) or nameof(WidgetModel.RuntimeValue) or nameof(WidgetModel.RuntimeText) or nameof(WidgetModel.RuntimeUnit) or nameof(WidgetModel.BackgroundTransparency)) return;
+        if (e.PropertyName is nameof(WidgetModel.IsSelected) or nameof(WidgetModel.RuntimeValue) or nameof(WidgetModel.RuntimeText) or nameof(WidgetModel.RuntimeUnit) or nameof(WidgetModel.HardwareNameText) or nameof(WidgetModel.BackgroundTransparency)) return;
         if (e.PropertyName == nameof(WidgetModel.DataSource) && sender is WidgetModel widget)
             ApplyDataSourceDefaults(widget);
         MarkDirtyAndRefresh();
@@ -1707,6 +1714,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _systemSampleTask ??= Task.Run(_systemMetrics.Sample);
             _hardwareSampleTask ??= Task.Run(_hardwareMetrics.Sample);
             _weatherSampleTask ??= _weatherMetrics.GetMetricsAsync(WeatherCity, forceWeather);
+            _hardwareInventoryTask ??= Task.Run(HardwareInventoryService.Read);
             var sampleDeadline = Environment.TickCount64 + 750;
             foreach (var provider in new[] { _systemSampleTask, _hardwareSampleTask, _weatherSampleTask })
             {
@@ -1732,6 +1740,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 }
             }
             foreach (var pair in _lastWeatherMetrics) sample[pair.Key] = pair.Value;
+            if (_hardwareInventoryTask.IsCompletedSuccessfully)
+                foreach (var pair in _hardwareInventoryTask.Result) sample[pair.Key] = pair.Value;
 
             HardwareStatus = _hardwareMetrics.Status;
             RaisePropertyChanged(nameof(IsHardwareElevated));
@@ -2235,6 +2245,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         return result == MessageBoxResult.Yes;
     }
 
+    public sealed record HardwareNameOption(string Label, string Value);
     public sealed record RotationOption(string Label, DeviceRotation Value);
     public sealed record ScreenModeOption(string Label, ScreenMode Value);
     public sealed record PhotoCaptionOption(string Label, PhotoCaptionMode Value);
