@@ -616,12 +616,14 @@ internal static class Program
         task.GetAwaiter().GetResult();
     }
 
-    private static void PumpUntil(Func<bool> completed)
+    private static void PumpUntil(Func<bool> completed) => PumpUntil(completed, TimeSpan.FromSeconds(10));
+
+    private static void PumpUntil(Func<bool> completed, TimeSpan timeout)
     {
         var deadline = Stopwatch.StartNew();
         while (!completed())
         {
-            if (deadline.Elapsed > TimeSpan.FromSeconds(10)) throw new TimeoutException("Controller check timed out.");
+            if (deadline.Elapsed > timeout) throw new TimeoutException("Controller check timed out.");
             var frame = new DispatcherFrame();
             Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => frame.Continue = false));
             Dispatcher.PushFrame(frame);
