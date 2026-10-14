@@ -84,14 +84,14 @@ For newer development builds, open the [Windows build workflow](https://github.c
 
 ## Connect your screen
 
-1. Plug the screen into USB. Close the manufacturer's application or any other program using the same serial port.
-2. In the first-run assistant, choose **Detect and connect screen**.
+1. Plug the screen into USB. Close the manufacturer's application or any other program using the same screen.
+2. Choose **3.5-inch** or **5.2-inch** in the main window top bar, then use **Detect and connect screen** or **Start display**.
 3. Choose **Info Screen**, **Photo Frame**, or **Hybrid**. For an Info Screen, the starter theme provides CPU, GPU, and RAM widgets.
 4. Choose **Finish setup**. Use **Start display** in the top bar to connect and begin sending updates when needed.
 
 You can finish setup without a device and edit a theme first. Use **Settings** in the top bar to select the port, detect the screen again, change orientation, or rerun the setup assistant. Stop output with **Stop display**.
 
-The current hardware focus is 3.5-inch Revision-A USB-CDC displays, including the USB35INCHIPSV2 compatibility profile. Other sizes and revisions are not a verified compatibility promise. The app supports 480 x 320 landscape and 320 x 480 portrait layouts, plus physical rotation at 0, 90, 180, and 270 degrees.
+The app supports 3.5-inch Revision-A USB-CDC displays, including the USB35INCHIPSV2 profile, and experimental TURZX 5.2-inch smart-screen WinUSB output. Canvas sizes are 480 × 320 or 1280 × 720 in landscape, with corresponding portrait sizes and physical rotation at 0, 90, 180 and 270 degrees. See [TURZX setup and limitations](docs/TURZX-52.md). The selected device family remains selected when both screens are plugged in; a missing screen does not silently switch to the other family.
 
 If the port is busy or access is denied, close other screen software, including its tray process. For a sideways image or incorrect colours, check rotation and compatibility options in **Settings**; the display colour test is an optional diagnostic.
 
@@ -123,6 +123,8 @@ The app opens in a larger window, automatically fitting within the monitor work 
 **Live view** hides editing controls for a clean preview. **Back to edit** returns to the editor. This is separate from starting or stopping physical display output.
 
 ### Photo Frame and Hybrid
+
+Each mode keeps its own photo list, folder, timing and caption settings. Changing Hybrid photos does not change Photo Frame photos.
 
 - Under **ADD PHOTOS**, add multiple files or a folder. Save the mode theme to remember the folder for next time; use a playlist preset to preserve individually selected files or a custom order. Drag playlist entries to reorder; use previous, pause/play, next, and remove controls.
 - Set a shared display duration, transition duration, loop, shuffle, and Fit/Fill/Stretch behaviour.
