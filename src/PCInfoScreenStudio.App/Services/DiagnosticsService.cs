@@ -11,6 +11,11 @@ public static class DiagnosticsService
 {
     private static readonly object Sync = new();
     private static readonly Queue<DiagnosticError> Errors = new();
+    private static readonly Queue<VideoDecoderDetails> VideoSessions = new();
+    public static void RecordVideoSession(VideoDecoderDetails details)
+    {
+        lock (Sync) { VideoSessions.Enqueue(details); while (VideoSessions.Count > 10) VideoSessions.Dequeue(); }
+    }
     public sealed record DiagnosticError(DateTimeOffset TimeUtc, string Category, string ExceptionType, string HResult, VideoDecoderDetails? Video);
     public static void RecordError(string category, Exception error, VideoDecoderDetails? video = null)
     {
@@ -23,15 +28,17 @@ public static class DiagnosticsService
     public static object CreateReport(object display, object runtime, string? startupLogPath = null)
     {
         using var process = Process.GetCurrentProcess();
-        DiagnosticError[] errors; lock (Sync) errors = Errors.ToArray();
+        DiagnosticError[] errors; VideoDecoderDetails[] videoSessions;
+        lock (Sync) { errors = Errors.ToArray(); videoSessions = VideoSessions.ToArray(); }
         return new {
-            schemaVersion = 2, exportedUtc = DateTimeOffset.UtcNow,
+            schemaVersion = 3, exportedUtc = DateTimeOffset.UtcNow,
             appVersion = typeof(DiagnosticsService).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
                 .Cast<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion,
             windows = RuntimeInformation.OSDescription, architecture = RuntimeInformation.ProcessArchitecture.ToString(),
             dotnet = RuntimeInformation.FrameworkDescription, display, runtime,
             memory = new { workingSetBytes = process.WorkingSet64, privateBytes = process.PrivateMemorySize64 },
             videoPlayback = VideoFrameProvider.GetDiagnostics(),
+            recentVideoSessions = videoSessions,
             recentErrors = errors, previousStartupErrors = ReadStartupErrorTypes(startupLogPath),
             privacy = "No media, theme content, account names, personal paths or raw log text. Saved locally only; attach this file yourself if needed."
         };
@@ -64,4 +71,17 @@ public static class DiagnosticsService
 
 // Only application-controlled stages/codes and numeric decoder metadata, never file names or messages.
 public sealed record VideoDecoderDetails(string Stage, string Code, int SourceWidth, int SourceHeight,
-    int OutputWidth, int OutputHeight, int Stride, int FormatChanges, long PublishedFrames, int LastFlags);
+    int OutputWidth, int OutputHeight, int Stride, int FormatChanges, long PublishedFrames, int LastFlags)
+{
+    public int RequestedFps { get; init; }
+    public int EffectiveFps { get; init; }
+    public bool Automatic { get; init; }
+    public bool Paused { get; init; }
+    public bool Loop { get; init; }
+    public double Speed { get; init; }
+    public long ReadSamples { get; init; }
+    public long SampleTimeTicks { get; init; }
+    public long MediaClockTicks { get; init; }
+    public double? MillisecondsSinceLastFrame { get; init; }
+    public bool Stopped { get; init; }
+}

@@ -37,7 +37,7 @@ public static class VideoFrameProvider
         var path = asset is not null ? workspace.GetAbsolutePath(asset) : widget.MediaSourcePath;
         if (string.IsNullOrWhiteSpace(path)) { status = "Video file missing"; return null; }
         var request = new Request(path, workspace.Document.CanvasWidth, workspace.Document.CanvasHeight,
-            VideoPlaybackProfile.FramesPerSecond(display, widget.TargetFps, widget.AutoOptimize, transferMs), widget.PlaybackSpeed, widget.Loop, widget.MediaPaused);
+            VideoPlaybackProfile.FramesPerSecond(display, widget.TargetFps, widget.AutoOptimize, transferMs), widget.PlaybackSpeed, widget.Loop, widget.MediaPaused, widget.TargetFps, widget.AutoOptimize);
         lock (Sync)
         {
             var key = Key(workspace, widget);
@@ -58,7 +58,7 @@ public static class VideoFrameProvider
     }
     public static void Suspend(ThemeWorkspace workspace) => Synchronize(workspace, []);
     public static void Clear() { lock (Sync) { foreach (var p in Active.Values) p.Dispose(); Active.Clear(); } }
-    private sealed record Request(string Path, int Width, int Height, int Fps, double Speed, bool Loop, bool Paused);
+    private sealed record Request(string Path, int Width, int Height, int Fps, double Speed, bool Loop, bool Paused, int RequestedFps, bool Automatic);
 
     private sealed class Playback : IDisposable
     {
@@ -68,8 +68,16 @@ public static class VideoFrameProvider
         private SKBitmap? _frame;
         private string _status = "Opening video…";
         private bool _disposed;
+        private bool _stopped;
+        private long _lastFrameTick;
         private VideoDecoderDetails _details = new("Queued", "None", 0, 0, 0, 0, 0, 0, 0, 0);
-        public VideoDecoderDetails GetDiagnostics() { lock (_sync) return _details; }
+        public VideoDecoderDetails GetDiagnostics()
+        {
+            var request = Volatile.Read(ref _request);
+            lock (_sync) return _details with { RequestedFps = request.RequestedFps, EffectiveFps = request.Fps,
+                Automatic = request.Automatic, Paused = request.Paused, Loop = request.Loop, Speed = request.Speed,
+                Stopped = _stopped, MillisecondsSinceLastFrame = _lastFrameTick == 0 ? null : Math.Round(Stopwatch.GetElapsedTime(_lastFrameTick).TotalMilliseconds) };
+        }
         private void SetDetails(VideoDecoderDetails details) { lock (_sync) _details = details; }
         public long FrameBytes { get { lock (_sync) return _frame?.ByteCount ?? 0; } }
         public Playback(Request request)
@@ -77,12 +85,20 @@ public static class VideoFrameProvider
             _request = request;
             _ = Task.Factory.StartNew(Run, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         }
-        public bool NeedsNewDecoder(Request request) { var current = Volatile.Read(ref _request); return current.Path != request.Path || current.Width != request.Width || current.Height != request.Height; }
+        public bool NeedsNewDecoder(Request request)
+        {
+            var current = Volatile.Read(ref _request);
+            if (current.Path != request.Path || current.Width != request.Width || current.Height != request.Height) return true;
+            // A stopped worker cannot observe later settings. Reopen only on an
+            // explicit control edit, never on transfer-time changes or every render.
+            lock (_sync) return _stopped && (current.RequestedFps != request.RequestedFps || current.Automatic != request.Automatic
+                || current.Speed != request.Speed || current.Loop != request.Loop || current.Paused != request.Paused);
+        }
         public void Update(Request request) => Volatile.Write(ref _request, request);
         public SKBitmap? CopyFrame(out string status) { lock (_sync) { status = _status; return _frame?.Copy(); } }
         private void Publish(SKBitmap frame, string status, VideoDecoderDetails details)
         {
-            lock (_sync) { if (_disposed) { frame.Dispose(); return; } _frame?.Dispose(); _frame = frame; _status = status; _details = details; }
+            lock (_sync) { if (_disposed) { frame.Dispose(); return; } _frame?.Dispose(); _frame = frame; _status = status; _details = details; _lastFrameTick = Stopwatch.GetTimestamp(); }
         }
         private void Run()
         {
@@ -107,7 +123,9 @@ public static class VideoFrameProvider
                 using var native = reader.GetNativeMediaType(SourceReaderIndex.FirstVideoStream, 0);
                 MFGetAttributeSize(native, MediaTypeAttributeKeys.FrameSize, out var sourceWidth, out var sourceHeight).CheckError();
                 details = details with { Stage = "SourceMetadata", SourceWidth = (int)sourceWidth, SourceHeight = (int)sourceHeight }; SetDetails(details);
-                var size = VideoPlaybackProfile.DecodeSize((int)sourceWidth, (int)sourceHeight, request.Width, request.Height);
+                (int Width, int Height) size;
+                try { size = VideoPlaybackProfile.DecodeSize((int)sourceWidth, (int)sourceHeight, request.Width, request.Height); }
+                catch (InvalidDataException) { details = details with { Code = "UnsupportedSourceDimensions" }; throw; }
                 details = details with { Stage = "ConfigureOutput" }; SetDetails(details);
                 using var output = MFCreateMediaType();
                 output.Set(MediaTypeAttributeKeys.MajorType, new Guid("73646976-0000-0010-8000-00aa00389b71")).CheckError();
@@ -136,17 +154,19 @@ public static class VideoFrameProvider
                     {
                         request = Volatile.Read(ref _request);
                         if (!loopHadFrame) throw Reject("NoFrames", "Video contains no frames.");
-                        if (!request.Loop) { lock (_sync) _status = "Video ended · Restart to play again"; details = details with { Stage = "Ended" }; SetDetails(details); break; }
+                        if (!request.Loop) { lock (_sync) { _stopped = true; _status = "Video ended · Restart to play again"; } details = details with { Stage = "Ended" }; SetDetails(details); break; }
                         reader.SetCurrentPosition(0); mediaTicks = 0; lastMs = clock.Elapsed.TotalMilliseconds; origin = null; loopHadFrame = false; continue;
                     }
                     if (sample is null || sample.NativePointer == IntPtr.Zero) { if (++emptyReads > 120) throw Reject("NoReadableFrames", "Video contains no readable frames."); continue; }
                     emptyReads = 0; loopHadFrame = true; origin ??= timestamp;
+                    details = details with { Stage = "WaitForTimestamp", ReadSamples = details.ReadSamples + 1, SampleTimeTicks = timestamp - origin.Value }; SetDetails(details);
                     while (true)
                     {
                         request = Volatile.Read(ref _request);
                         var now = clock.Elapsed.TotalMilliseconds;
                         if (!request.Paused) mediaTicks += (now - lastMs) * 10000 * request.Speed;
                         lastMs = now;
+                        details = details with { MediaClockTicks = double.IsFinite(mediaTicks) ? (long)Math.Clamp(mediaTicks, 0, long.MaxValue) : 0 }; SetDetails(details);
                         if (first || (!request.Paused && timestamp - origin.Value <= mediaTicks)) break;
                         lock (_sync) if (!_disposed) _status = request.Paused ? "Video paused" : $"Playing · {request.Fps} fps limit";
                         if (_stop.Token.WaitHandle.WaitOne(15)) return;
@@ -183,9 +203,10 @@ public static class VideoFrameProvider
             {
                 if (details.Code == "None") details = details with { Code = ex is InvalidDataException ? "InvalidMediaData" : "NativeOrFileError" };
                 SetDetails(details);
-                DiagnosticsService.RecordError("Video decoder", ex, details);
+                lock (_sync) _stopped = true;
+                DiagnosticsService.RecordError("Video decoder", ex, GetDiagnostics());
                 Console.Error.WriteLine($"Video decoder: {ex.GetType().Name}, HRESULT 0x{ex.HResult:X8}");
-                lock (_sync) if (!_disposed) _status = ex is FileNotFoundException or DirectoryNotFoundException ? "Video file missing · Restore the file and Restart video" : ex is InvalidDataException ? ex.Message : "Cannot play video · Try H.264 MP4 or install Windows Media Feature Pack";
+                lock (_sync) { _stopped = true; if (!_disposed) _status = ex is FileNotFoundException or DirectoryNotFoundException ? "Video file missing · Restore the file and Restart video" : ex is InvalidDataException ? ex.Message : "Cannot play video · Try H.264 MP4 or install Windows Media Feature Pack"; }
             }
             finally
             {
@@ -218,6 +239,7 @@ public static class VideoFrameProvider
         public void Dispose()
         {
             lock (_sync) { if (_disposed) return; _disposed = true; try { _stop.Cancel(); } catch (ObjectDisposedException) { } _frame?.Dispose(); _frame = null; }
+            DiagnosticsService.RecordVideoSession(GetDiagnostics());
         }
     }
     [DllImport("ole32.dll")] private static extern int CoInitializeEx(IntPtr reserved, uint model);

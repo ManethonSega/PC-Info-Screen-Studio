@@ -530,7 +530,7 @@ public sealed class ThemeRenderer
         var display = Math.Max(workspace.Document.CanvasWidth, workspace.Document.CanvasHeight) > 480 ? DisplayCanvasSize.Turing52 : DisplayCanvasSize.Serial35;
         using var frame = VideoFrameProvider.GetFrame(workspace, w, display, VideoTransferMilliseconds, out var status);
         w.RuntimeMediaStatus = status;
-        if (frame is null) { DrawCenteredText(canvas, workspace, w, status.StartsWith("Opening") ? "OPENING VIDEO" : "VIDEO UNAVAILABLE", 12, w.ForegroundColor, (float)(w.Height / 2)); return; }
+        if (frame is null) { DrawCenteredText(canvas, workspace, w, status.StartsWith("Opening") ? "OPENING VIDEO" : status, 12, w.ForegroundColor, (float)(w.Height / 2)); return; }
         var dest = new SKRect(0, 0, (float)w.Width, (float)w.Height);
         var src = SourceRectForFit(frame.Width, frame.Height, dest.Width, dest.Height, w.MediaFit);
         if (w.MediaFit is MediaFit.Fit or MediaFit.Original)

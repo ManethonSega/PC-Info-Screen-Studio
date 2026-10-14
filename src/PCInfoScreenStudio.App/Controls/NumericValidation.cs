@@ -22,6 +22,13 @@ public static class NumericValidation
 
     public static NumericField GetField(DependencyObject target) => (NumericField)target.GetValue(FieldProperty);
     public static void SetField(DependencyObject target, NumericField value) => target.SetValue(FieldProperty, value);
+    public static readonly DependencyProperty MaximumProperty = DependencyProperty.RegisterAttached(
+        "Maximum", typeof(double), typeof(NumericValidation), new PropertyMetadata(60d, (target, _) =>
+        {
+            if (target.GetValue(StateProperty) is FieldState state) state.ValidateDraft();
+        }));
+    public static double GetMaximum(DependencyObject target) => (double)target.GetValue(MaximumProperty);
+    public static void SetMaximum(DependencyObject target, double value) => target.SetValue(MaximumProperty, value);
 
     private static readonly DependencyProperty StateProperty = DependencyProperty.RegisterAttached(
         "State", typeof(FieldState), typeof(NumericValidation));
@@ -97,10 +104,10 @@ public static class NumericValidation
         }
         private void OnModelChanged(object? sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName is nameof(Models.WidgetModel.Minimum) or nameof(Models.WidgetModel.Maximum))
+            if (e.PropertyName is nameof(Models.WidgetModel.Minimum) or nameof(Models.WidgetModel.Maximum) or nameof(Models.WidgetModel.Type))
                 ValidateDraft();
         }
-        private void ValidateDraft() => box.GetBindingExpression(TextBox.TextProperty)?.ValidateWithoutUpdate();
+        public void ValidateDraft() => box.GetBindingExpression(TextBox.TextProperty)?.ValidateWithoutUpdate();
     }
 
     private sealed class NumberRule(TextBox box) : ValidationRule(ValidationStep.RawProposedValue, false)
@@ -130,6 +137,8 @@ public static class NumericValidation
                 NumericField.Transparency => (0d, 100d, false, "%"),
                 _ => (double.NegativeInfinity, double.PositiveInfinity, false, "")
             };
+            if (field == NumericField.Fps && box.DataContext is Models.WidgetModel { Type: Models.WidgetType.Video })
+                maximum = Math.Min(maximum, GetMaximum(box));
             if (integer && number != Math.Truncate(number)) return Invalid("Enter a whole number.");
             if (number < minimum || number > maximum)
             {
