@@ -183,12 +183,12 @@ internal static class UiPolishChecks
         pump(() => popup.IsOpen && slider.IsVisible);
         Assert(slider.Value == 50 && slider.Minimum == 0 && slider.Maximum == 100 && slider.IsEnabled,
             "Top-bar brightness must expose an accessible 0..100 slider, including disconnected presets.");
-        slider.Value = 32;
+        slider.SetCurrentValue(Slider.ValueProperty, 32d);
         pump(() => vm.DisplayBrightness == 32 && settings.SerialBrightness == 32);
         Assert(vm.BrightnessLabel == "Brightness 32%" && !slider.GetBindingExpression(Slider.ValueProperty)!.HasError,
             "Slider binding and toolbar percentage must update the selected family's saved level.");
-        if (captureDirectory is not null) Capture((FrameworkElement)popup.Child, captureDirectory, "Brightness-control.png");
-        slider.Value = 41;
+        if (captureDirectory is not null) Capture((FrameworkElement)popup.Child, captureDirectory, "Brightness-control.png", naturalSize: true);
+        slider.SetCurrentValue(Slider.ValueProperty, 41d);
         popup.IsOpen = false;
         Flush();
         Assert(settings.SerialBrightness == 41, "Closing the popup must commit a final slider edit without waiting for its binding delay.");
@@ -199,7 +199,7 @@ internal static class UiPolishChecks
         var usbBefore = System.Text.Json.JsonSerializer.Serialize(vm.Document);
         button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         pump(() => popup.IsOpen && slider.IsVisible);
-        slider.Value = 72;
+        slider.SetCurrentValue(Slider.ValueProperty, 72d);
         pump(() => settings.UsbBrightness == 72);
         reset.Command.Execute(null);
         Flush();
@@ -273,15 +273,19 @@ internal static class UiPolishChecks
         Assert(value() == expected && !Validation.GetHasError(box), "Valid input must commit exactly as entered: " + valid);
     }
 
-    private static void Capture(FrameworkElement root, string directory, string name)
+    private static void Capture(FrameworkElement root, string directory, string name, bool naturalSize = false)
     {
         Directory.CreateDirectory(directory);
         // The runner's desktop can be smaller than the app's normal editor size.
         // Capture the full control tree rather than a clipped monitor viewport.
-        root.Measure(new Size(1560, 1040));
-        root.Arrange(new Rect(0, 0, 1560, 1040));
+        if (!naturalSize)
+        {
+            root.Measure(new Size(1560, 1040));
+            root.Arrange(new Rect(0, 0, 1560, 1040));
+        }
         root.UpdateLayout();
-        var bitmap = new RenderTargetBitmap(1560, 1040, 96, 96, PixelFormats.Pbgra32);
+        var bitmap = new RenderTargetBitmap(naturalSize ? (int)Math.Ceiling(root.ActualWidth) : 1560,
+            naturalSize ? (int)Math.Ceiling(root.ActualHeight) : 1040, 96, 96, PixelFormats.Pbgra32);
         bitmap.Render(root);
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
