@@ -2,11 +2,11 @@
 
 A visual Windows editor and runtime for 3.5-inch Turing/TURZX-style serial screens, with experimental TURZX 5.2-inch USB support. Create a sensor dashboard, use the screen as a photo frame, or combine photos with information overlays.
 
-> **Status:** `0.10.0-alpha.14`. Actively developed alpha. A permanent Windows x64 [portable download](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/tag/v0.10.0-alpha.14) is available. Development builds are also available through GitHub Actions. There is no installer, code signing or automatic updater.
+> **Status:** `0.10.0-alpha.15`. Actively developed alpha. A permanent Windows x64 [portable download](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/tag/v0.10.0-alpha.15) is available. Development builds are also available through GitHub Actions. There is no installer, code signing or automatic updater.
 
 The priorities are an intuitive interface, lightweight operation, and a clear preview of the physical screen.
 
-Alpha.14 adds silent video playback with separate serial/USB limits and a local diagnostics export. Alpha.13 added automatic hardware-name widgets with editable names and colour emoji in rendered text. The interface uses the shared MechKeyMesh navy/slate palette, silver text and cyan accents while preserving the editor layout. Both 3.5-inch serial output and [experimental TURZX 5.2-inch WinUSB output](docs/TURZX-52.md) are available. The owner reports alpha.11 working correctly on their setup, including mode switching and the large-font and independent-playlist fixes. Long-duration operation and broader device compatibility still need recorded validation.
+Alpha.15 fixes playback of valid fragmented 720p H.264 MP4 files and adds decoder metadata to diagnostics. Alpha.14 added silent video playback with separate serial/USB limits and a local diagnostics export. Alpha.13 added automatic hardware-name widgets with editable names and colour emoji in rendered text. The interface uses the shared MechKeyMesh navy/slate palette, silver text and cyan accents while preserving the editor layout. Both 3.5-inch serial output and [experimental TURZX 5.2-inch WinUSB output](docs/TURZX-52.md) are available. The owner reports alpha.11 working correctly on their setup, including mode switching and the large-font and independent-playlist fixes. Long-duration operation and broader device compatibility still need recorded validation.
 
 [Download and run](#download-and-run) · [Connect your screen](#connect-your-screen) · [Choose your mode](#choose-your-mode)
 
@@ -80,11 +80,11 @@ Photo Frame (`.pcphoto`) and Hybrid (`.pchybrid`) themes save settings in their 
 
 ## Download and run
 
-1. Download [PCInfoScreenStudio-0.10.0-alpha.14-win-x64.zip](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/download/v0.10.0-alpha.14/PCInfoScreenStudio-0.10.0-alpha.14-win-x64.zip) from the [portable alpha release](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/tag/v0.10.0-alpha.14).
+1. Download [PCInfoScreenStudio-0.10.0-alpha.15-win-x64.zip](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/download/v0.10.0-alpha.15/PCInfoScreenStudio-0.10.0-alpha.15-win-x64.zip) from the [portable alpha release](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/tag/v0.10.0-alpha.15).
 2. Extract the **entire folder** to a permanent location, then run `PCInfoScreenStudio.exe`. Keep all extracted files together.
 3. Read `START-HERE.txt` for connection, startup and tray instructions. The build is self-contained; no separate .NET runtime installation is required.
 
-The release includes [SHA256SUMS.txt](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/download/v0.10.0-alpha.14/SHA256SUMS.txt), matching source archives and `build-info.json` with the exact source commit. This is an **unsigned alpha**, with [documented device limits](docs/COMPATIBILITY.md) and [validation results and remaining checks](docs/VALIDATION.md).
+The release includes [SHA256SUMS.txt](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/download/v0.10.0-alpha.15/SHA256SUMS.txt), matching source archives and `build-info.json` with the exact source commit. This is an **unsigned alpha**, with [documented device limits](docs/COMPATIBILITY.md) and [validation results and remaining checks](docs/VALIDATION.md).
 
 For newer development builds, open the [Windows build workflow](https://github.com/ManethonSega/PC-Info-Screen-Studio/actions/workflows/build.yml), select the latest successful `main` run, then download `PCInfoScreenStudio-win-x64` under **Artifacts**. GitHub may require sign-in. These artifacts expire after **3 days**; the release download above is permanent.
 

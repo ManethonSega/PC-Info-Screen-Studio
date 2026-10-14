@@ -1,6 +1,6 @@
 # Roadmap
 
-Current source version: **0.10.0-alpha.14**.
+Current source version: **0.10.0-alpha.15**.
 
 The next milestone is product polish, not another broad feature category. Priorities remain **easy to use, lightweight, intuitive, and visually clear**. Checked items below describe implemented functionality, not a claim that every device or workload has been validated.
 

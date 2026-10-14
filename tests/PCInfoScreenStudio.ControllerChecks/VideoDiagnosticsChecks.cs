@@ -19,6 +19,7 @@ internal static class VideoDiagnosticsChecks
         Require(VideoPlaybackProfile.DecodeSize(1080, 1920, 720, 1280) == (720, 1280), "Portrait USB decode size");
         try { VideoPlaybackProfile.DecodeSize(3840, 2160, 1280, 720); throw new Exception("4K must not be admitted"); }
         catch (InvalidDataException) { }
+        CheckFragmentedVideo(pump);
         using var workspace = new ThemePackageService().CreateNewWorkspace();
         var fixture = Path.Combine(AppContext.BaseDirectory, "Fixtures", "video-colours.mp4");
         var asset = new AssetImportService().Import(workspace, fixture, ThemeAssetKind.Video);
@@ -84,13 +85,18 @@ internal static class VideoDiagnosticsChecks
         Require(status.Contains("Cannot play") || status.Contains("Video"), "Unsupported media has an actionable status");
         VideoFrameProvider.Clear(); pump(() => VideoFrameProvider.RunningDecoders == 0, TimeSpan.FromSeconds(5));
         DiagnosticsService.RecordError("Test decoder", new FileNotFoundException("Secret account Alice at C:\\Users\\Alice\\Private\\holiday.mp4"));
+        DiagnosticsService.RecordError("Video decoder", new InvalidDataException("Private media at C:\\Users\\Alice\\holiday.mp4"),
+            new VideoDecoderDetails("RefreshOutput", "OutputSizeMismatch", 1280, 720, 1920, 1080, 7680, 1, 0, 32));
         var oldLog = Path.Combine(root, "private-startup.log");
         File.WriteAllText(oldLog, "System.IO.FileNotFoundException: Secret account Alice at C:\\Users\\Alice\\Private\\holiday.mp4\n   at C:\\private\\System.CustomerNameException.cs\n");
         var report = DiagnosticsService.CreateReport(new { connected = false, family = "Serial35" }, new { activeVideos = 0 }, oldLog);
         var reportPath = Path.Combine(root, "diagnostics.json"); DiagnosticsService.ExportAsync(reportPath, report).GetAwaiter().GetResult();
         var json = File.ReadAllText(reportPath);
         using var parsed = JsonDocument.Parse(json);
-        Require(parsed.RootElement.GetProperty("schemaVersion").GetInt32() == 1, "Diagnostics schema");
+        Require(parsed.RootElement.GetProperty("schemaVersion").GetInt32() == 2, "Diagnostics schema");
+        Require(parsed.RootElement.GetProperty("videoPlayback").GetArrayLength() == 0, "Inactive decoder diagnostics cleared");
+        var videoError = parsed.RootElement.GetProperty("recentErrors").EnumerateArray().Last().GetProperty("Video");
+        Require(videoError.GetProperty("Stage").GetString() == "RefreshOutput" && videoError.GetProperty("Code").GetString() == "OutputSizeMismatch" && videoError.GetProperty("FormatChanges").GetInt32() == 1, "Decoder diagnostic stage, stable code and numeric metadata");
         Require(parsed.RootElement.GetProperty("memory").GetProperty("workingSetBytes").GetInt64() > 0, "Memory counters");
         Require(json.Contains("FileNotFoundException") && !json.Contains("Alice") && !json.Contains("holiday.mp4") && !json.Contains("C:\\\\Users") && !json.Contains("CustomerName"), "Diagnostics excludes messages and personal paths");
         Require(!Directory.EnumerateFiles(root, "diagnostics.json.*.tmp").Any(), "Diagnostics export removes temporary files");
@@ -147,5 +153,60 @@ internal static class VideoDiagnosticsChecks
         pump(() => VideoFrameProvider.RunningDecoders == 0, TimeSpan.FromSeconds(5));
         var clone = widget.Clone(); Require(clone.MediaPaused == widget.MediaPaused && clone.PlaybackSpeed == 2, "Playback controls persist in clones");
         Console.WriteLine("PASS: real H.264 decoding, RGB/stride/orientation, bounded frames, pause, playback, EOF, loop, speed, two-video limit, inactive cleanup, bad media and private local diagnostics.");
+    }
+
+    private static void CheckFragmentedVideo(Action<Func<bool>, TimeSpan> pump)
+    {
+        // Matches the reported clip's fragmented MP4, High-profile H.264, B-frames,
+        // BT.709 and 1280x720 at 30000/1001 fps without using customer media.
+        foreach (var display in new[] { DisplayCanvasSize.Turing52, DisplayCanvasSize.Serial35 })
+        {
+            using var workspace = new ThemePackageService().CreateNewWorkspace();
+            workspace.Document.CanvasWidth = display == DisplayCanvasSize.Turing52 ? 1280 : 480;
+            workspace.Document.CanvasHeight = display == DisplayCanvasSize.Turing52 ? 720 : 320;
+            var asset = new AssetImportService().Import(workspace, Path.Combine(AppContext.BaseDirectory, "Fixtures", "video-fragmented-720p.mp4"), ThemeAssetKind.Video);
+            var widget = new WidgetModel { Type = WidgetType.Video, AssetId = asset.Id, MediaPaused = true, Loop = false, PlaybackSpeed = 2 };
+            VideoFrameProvider.Clear(); VideoFrameProvider.Synchronize(workspace, [widget]);
+            string status = "";
+            pump(() => {
+                using var frame = VideoFrameProvider.GetFrame(workspace, widget, display, 0, out status);
+                if (frame is null)
+                {
+                    if (!status.StartsWith("Opening")) throw new InvalidOperationException($"Fragmented 720p {display}: {status}");
+                    return false;
+                }
+                Require(frame.Width == workspace.Document.CanvasWidth && frame.Height == (display == DisplayCanvasSize.Turing52 ? 720 : 270), "Fragmented video output respects canvas bounds");
+                var top = frame.GetPixel(frame.Width / 2, 10); var bottom = frame.GetPixel(frame.Width / 2, frame.Height - 10);
+                Require(top.Red > 180 && top.Blue < 70 && bottom.Blue > 180 && bottom.Red < 70, "Fragmented 720p RGB orientation");
+                return true;
+            }, TimeSpan.FromSeconds(15));
+            Require(status.Contains("paused"), "Fragmented video paused first frame");
+            var details = VideoFrameProvider.GetDiagnostics().Single();
+            Require(details.SourceWidth == 1280 && details.SourceHeight == 720 && details.OutputWidth == workspace.Document.CanvasWidth && details.PublishedFrames == 1, "Active decoder diagnostics describe bounded first frame");
+            if (display == DisplayCanvasSize.Turing52) Require(details.FormatChanges > 0, "Regression fixture must exercise the formerly rejected output-format notification");
+            Console.WriteLine($"Fragmented {display}: output {details.OutputWidth}x{details.OutputHeight}, stride {details.Stride}, format notifications {details.FormatChanges}");
+            var activeJson = JsonSerializer.Serialize(DiagnosticsService.CreateReport(new { connected = false }, new { activeVideos = 1 }));
+            Require(activeJson.Contains("videoPlayback") && activeJson.Contains("PublishedFrames") && !activeJson.Contains(workspace.RootDirectory) && !activeJson.Contains("video-fragmented"), "Active diagnostics exclude source and workspace paths");
+            widget.MediaPaused = false;
+            pump(() => {
+                using var frame = VideoFrameProvider.GetFrame(workspace, widget, display, 0, out status);
+                if (frame is null) throw new InvalidOperationException("Fragmented playback failed: " + status);
+                var colour = frame.GetPixel(frame.Width / 2, 10);
+                return colour.Green > 70 && colour.Red < 70;
+            }, TimeSpan.FromSeconds(10));
+            pump(() => { using var frame = VideoFrameProvider.GetFrame(workspace, widget, display, 0, out status); return status.Contains("ended"); }, TimeSpan.FromSeconds(5));
+            widget.Loop = true; VideoFrameProvider.Restart(workspace, widget);
+            var sawGreen = false;
+            pump(() => {
+                using var frame = VideoFrameProvider.GetFrame(workspace, widget, display, 0, out status);
+                if (frame is null) return false;
+                var colour = frame.GetPixel(frame.Width / 2, 10);
+                if (colour.Green > 70 && colour.Red < 70) sawGreen = true;
+                return sawGreen && colour.Red > 180 && colour.Green < 70;
+            }, TimeSpan.FromSeconds(10));
+            VideoFrameProvider.Suspend(workspace);
+            pump(() => VideoFrameProvider.RunningDecoders == 0, TimeSpan.FromSeconds(5));
+        }
+        Console.WriteLine("PASS: fragmented High-profile 720p H.264, 29.97 fps/B-frames/BT.709, USB native size, serial scaling, pause, movement, EOF, loop and cleanup.");
     }
 }

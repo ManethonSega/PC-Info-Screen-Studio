@@ -19,6 +19,7 @@ public static class VideoFrameProvider
     public static int RunningDecoders => Volatile.Read(ref _running);
     public static int ActiveCount { get { lock (Sync) return Active.Count; } }
     public static long CachedFrameBytes { get { lock (Sync) return Active.Values.Sum(p => p.FrameBytes); } }
+    public static VideoDecoderDetails[] GetDiagnostics() { lock (Sync) return Active.Values.Select(p => p.GetDiagnostics()).ToArray(); }
     private static string Key(ThemeWorkspace workspace, WidgetModel widget) => workspace.RootDirectory + "|" + widget.Id;
 
     public static void Synchronize(ThemeWorkspace workspace, IEnumerable<WidgetModel> widgets)
@@ -67,6 +68,9 @@ public static class VideoFrameProvider
         private SKBitmap? _frame;
         private string _status = "Opening video…";
         private bool _disposed;
+        private VideoDecoderDetails _details = new("Queued", "None", 0, 0, 0, 0, 0, 0, 0, 0);
+        public VideoDecoderDetails GetDiagnostics() { lock (_sync) return _details; }
+        private void SetDetails(VideoDecoderDetails details) { lock (_sync) _details = details; }
         public long FrameBytes { get { lock (_sync) return _frame?.ByteCount ?? 0; } }
         public Playback(Request request)
         {
@@ -76,21 +80,25 @@ public static class VideoFrameProvider
         public bool NeedsNewDecoder(Request request) { var current = Volatile.Read(ref _request); return current.Path != request.Path || current.Width != request.Width || current.Height != request.Height; }
         public void Update(Request request) => Volatile.Write(ref _request, request);
         public SKBitmap? CopyFrame(out string status) { lock (_sync) { status = _status; return _frame?.Copy(); } }
-        private void Publish(SKBitmap frame, string status)
+        private void Publish(SKBitmap frame, string status, VideoDecoderDetails details)
         {
-            lock (_sync) { if (_disposed) { frame.Dispose(); return; } _frame?.Dispose(); _frame = frame; _status = status; }
+            lock (_sync) { if (_disposed) { frame.Dispose(); return; } _frame?.Dispose(); _frame = frame; _status = status; _details = details; }
         }
         private void Run()
         {
             var slot = false; var com = false; var foundation = false;
+            var details = GetDiagnostics();
+            InvalidDataException Reject(string code, string message) { details = details with { Code = code }; return new(message); }
             try
             {
                 DecoderSlots.Wait(_stop.Token); slot = true; Interlocked.Increment(ref _running);
+                details = details with { Stage = "Initialize" }; SetDetails(details);
                 Marshal.ThrowExceptionForHR(CoInitializeEx(IntPtr.Zero, 0)); com = true;
                 MFStartup().CheckError(); foundation = true;
                 var request = Volatile.Read(ref _request);
+                details = details with { Stage = "OpenSource" }; SetDetails(details);
                 if (!Path.IsPathFullyQualified(request.Path) || !File.Exists(request.Path)) throw new FileNotFoundException();
-                if (new FileInfo(request.Path).Length > AssetImportService.MaximumVideoBytes) throw new InvalidDataException("Use a video smaller than 512 MiB.");
+                if (new FileInfo(request.Path).Length > AssetImportService.MaximumVideoBytes) throw Reject("FileTooLarge", "Use a video smaller than 512 MiB.");
                 using var attributes = MFCreateAttributes(2);
                 attributes.Set(SourceReaderAttributeKeys.EnableAdvancedVideoProcessing, true).CheckError();
                 using var reader = MFCreateSourceReaderFromURL(request.Path, attributes);
@@ -98,32 +106,40 @@ public static class VideoFrameProvider
                 reader.SetStreamSelection(SourceReaderIndex.FirstVideoStream, true); // Never decode or play audio.
                 using var native = reader.GetNativeMediaType(SourceReaderIndex.FirstVideoStream, 0);
                 MFGetAttributeSize(native, MediaTypeAttributeKeys.FrameSize, out var sourceWidth, out var sourceHeight).CheckError();
+                details = details with { Stage = "SourceMetadata", SourceWidth = (int)sourceWidth, SourceHeight = (int)sourceHeight }; SetDetails(details);
                 var size = VideoPlaybackProfile.DecodeSize((int)sourceWidth, (int)sourceHeight, request.Width, request.Height);
+                details = details with { Stage = "ConfigureOutput" }; SetDetails(details);
                 using var output = MFCreateMediaType();
                 output.Set(MediaTypeAttributeKeys.MajorType, new Guid("73646976-0000-0010-8000-00aa00389b71")).CheckError();
                 output.Set(MediaTypeAttributeKeys.Subtype, new Guid("00000016-0000-0010-8000-00aa00389b71")).CheckError();
                 MFSetAttributeSize(output, MediaTypeAttributeKeys.FrameSize, (uint)size.Width, (uint)size.Height).CheckError();
                 reader.SetCurrentMediaType(SourceReaderIndex.FirstVideoStream, output);
-                using var actual = reader.GetCurrentMediaType(SourceReaderIndex.FirstVideoStream);
-                MFGetAttributeSize(actual, MediaTypeAttributeKeys.FrameSize, out var width, out var height).CheckError();
-                if (width != size.Width || height != size.Height) throw new InvalidDataException("The video decoder did not accept the bounded output size.");
-                var stride = unchecked((int)MFGetAttributeUInt32(actual, MediaTypeAttributeKeys.DefaultStride, width * 4));
+                var (width, height, stride) = ReadOutputFormat(reader, size, ref details); SetDetails(details);
                 var clock = Stopwatch.StartNew();
                 double mediaTicks = 0; double lastMs = 0; double nextPublish = 0;
                 long? origin = null; var first = true; var emptyReads = 0; var loopHadFrame = false;
                 while (!_stop.IsCancellationRequested)
                 {
+                    details = details with { Stage = "ReadSample" }; SetDetails(details);
                     using var sample = reader.ReadSample(SourceReaderIndex.FirstVideoStream, 0, out _, out var flags, out var timestamp);
-                    if ((flags & SourceReaderFlag.Error) != 0) throw new InvalidDataException("Video stream error.");
-                    if ((flags & SourceReaderFlag.CurrentMediaTypeChanged) != 0) throw new InvalidDataException("Changing video dimensions are not supported.");
+                    details = details with { LastFlags = (int)flags };
+                    if ((flags & SourceReaderFlag.Error) != 0) throw Reject("StreamError", "Video stream error.");
+                    if ((flags & SourceReaderFlag.CurrentMediaTypeChanged) != 0)
+                    {
+                        // Decoders can refine colour/stride metadata after reading H.264
+                        // headers. This notification does not mean dimensions changed.
+                        // Refresh the negotiated layout before reading this very sample.
+                        details = details with { Stage = "RefreshOutput", FormatChanges = details.FormatChanges + 1 }; SetDetails(details);
+                        (width, height, stride) = ReadOutputFormat(reader, size, ref details); SetDetails(details);
+                    }
                     if ((flags & SourceReaderFlag.EndOfStream) != 0)
                     {
                         request = Volatile.Read(ref _request);
-                        if (!loopHadFrame) throw new InvalidDataException("Video contains no frames.");
-                        if (!request.Loop) { lock (_sync) _status = "Video ended · Restart to play again"; break; }
+                        if (!loopHadFrame) throw Reject("NoFrames", "Video contains no frames.");
+                        if (!request.Loop) { lock (_sync) _status = "Video ended · Restart to play again"; details = details with { Stage = "Ended" }; SetDetails(details); break; }
                         reader.SetCurrentPosition(0); mediaTicks = 0; lastMs = clock.Elapsed.TotalMilliseconds; origin = null; loopHadFrame = false; continue;
                     }
-                    if (sample is null || sample.NativePointer == IntPtr.Zero) { if (++emptyReads > 120) throw new InvalidDataException("Video contains no readable frames."); continue; }
+                    if (sample is null || sample.NativePointer == IntPtr.Zero) { if (++emptyReads > 120) throw Reject("NoReadableFrames", "Video contains no readable frames."); continue; }
                     emptyReads = 0; loopHadFrame = true; origin ??= timestamp;
                     while (true)
                     {
@@ -137,14 +153,15 @@ public static class VideoFrameProvider
                     }
                     if (first || clock.Elapsed.TotalMilliseconds >= nextPublish)
                     {
+                        details = details with { Stage = "CopyFrame" }; SetDetails(details);
                         using var buffer = sample.ConvertToContiguousBuffer();
                         buffer.Lock(out var pixels, out _, out var length);
                         SKBitmap? frame = null;
                         try
                         {
                             var rowBytes = checked((int)width * 4);
-                            if (stride == 0 || Math.Abs((long)stride) < rowBytes || (long)Math.Abs(stride) * height > length)
-                                throw new InvalidDataException("Invalid video frame stride or buffer length.");
+                            if (stride == 0 || Math.Abs((long)stride) < rowBytes || Math.Abs((long)stride) * (height - 1) + rowBytes > length)
+                                throw Reject("InvalidBufferLayout", "Invalid video frame stride or buffer length.");
                             frame = new SKBitmap((int)width, (int)height, SKColorType.Bgra8888, SKAlphaType.Opaque);
                             var row = new byte[rowBytes];
                             for (var y = 0; y < height; y++)
@@ -153,7 +170,8 @@ public static class VideoFrameProvider
                                 Marshal.Copy(IntPtr.Add(pixels, offset), row, 0, rowBytes);
                                 Marshal.Copy(row, 0, IntPtr.Add(frame.GetPixels(), y * frame.RowBytes), rowBytes);
                             }
-                            Publish(frame, request.Paused ? "Video paused" : $"Playing · {request.Fps} fps limit"); frame = null;
+                            details = details with { PublishedFrames = details.PublishedFrames + 1 };
+                            Publish(frame, request.Paused ? "Video paused" : $"Playing · {request.Fps} fps limit", details); frame = null;
                         }
                         finally { frame?.Dispose(); buffer.Unlock(); }
                         first = false; nextPublish = clock.Elapsed.TotalMilliseconds + 1000d / request.Fps;
@@ -163,7 +181,9 @@ public static class VideoFrameProvider
             catch (OperationCanceledException) { }
             catch (Exception ex)
             {
-                DiagnosticsService.RecordError("Video decoder", ex);
+                if (details.Code == "None") details = details with { Code = ex is InvalidDataException ? "InvalidMediaData" : "NativeOrFileError" };
+                SetDetails(details);
+                DiagnosticsService.RecordError("Video decoder", ex, details);
                 Console.Error.WriteLine($"Video decoder: {ex.GetType().Name}, HRESULT 0x{ex.HResult:X8}");
                 lock (_sync) if (!_disposed) _status = ex is FileNotFoundException or DirectoryNotFoundException ? "Video file missing · Restore the file and Restart video" : ex is InvalidDataException ? ex.Message : "Cannot play video · Try H.264 MP4 or install Windows Media Feature Pack";
             }
@@ -174,6 +194,26 @@ public static class VideoFrameProvider
                 if (slot) { Interlocked.Decrement(ref _running); DecoderSlots.Release(); }
                 _stop.Dispose();
             }
+        }
+        private static (uint Width, uint Height, int Stride) ReadOutputFormat(IMFSourceReader reader, (int Width, int Height) size, ref VideoDecoderDetails details)
+        {
+            using var actual = reader.GetCurrentMediaType(SourceReaderIndex.FirstVideoStream);
+            MFGetAttributeSize(actual, MediaTypeAttributeKeys.FrameSize, out var width, out var height).CheckError();
+            // Save numeric metadata even if validation below rejects this layout.
+            details = details with { OutputWidth = (int)width, OutputHeight = (int)height };
+            if (width != size.Width || height != size.Height)
+            {
+                details = details with { Code = "OutputSizeMismatch" };
+                throw new InvalidDataException("The video decoder did not accept the bounded output size.");
+            }
+            if (actual.GetGUID(MediaTypeAttributeKeys.Subtype) != new Guid("00000016-0000-0010-8000-00aa00389b71"))
+            {
+                details = details with { Code = "OutputNotRgb32" };
+                throw new InvalidDataException("The video decoder did not provide RGB32 frames.");
+            }
+            var stride = unchecked((int)MFGetAttributeUInt32(actual, MediaTypeAttributeKeys.DefaultStride, width * 4));
+            details = details with { Stride = stride };
+            return (width, height, stride);
         }
         public void Dispose()
         {
