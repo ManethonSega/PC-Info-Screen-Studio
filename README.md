@@ -6,13 +6,13 @@ A visual Windows editor and runtime for 3.5-inch Turing/TURZX-style serial scree
 
 The priorities are an intuitive interface, lightweight operation, and a clear preview of the physical screen.
 
-This release adds [experimental TURZX 5.2-inch support](docs/TURZX-52.md), including a 1280 × 720 canvas and direct WinUSB image output. The owner has confirmed basic output in all three modes; follow-up reliability and animation testing is pending. The large-font and separate-playlist fixes were confirmed by the owner. The owner reports alpha.11 working correctly on their setup, including mode switching. This is one confirmed setup, not broad device certification. Alpha.12 refines the interface using the shared MechKeyMesh palette while preserving the editor structure.
+Alpha.13 adds automatic hardware-name widgets with editable names and colour emoji in rendered text. The interface uses the shared MechKeyMesh navy/slate palette, silver text and cyan accents while preserving the editor layout. Both 3.5-inch serial output and [experimental TURZX 5.2-inch WinUSB output](docs/TURZX-52.md) are available. The owner reports alpha.11 working correctly on their setup, including mode switching and the large-font and independent-playlist fixes. Long-duration operation and broader device compatibility still need recorded validation.
 
 [Download and run](#download-and-run) · [Connect your screen](#connect-your-screen) · [Choose your mode](#choose-your-mode)
 
 ## Interface tour
 
-These previews show the app's controls and layout. Hardware readings are sample data; editor content is illustrative.
+These screenshots were captured from the actual alpha.13 WPF interface in the [successful Windows release checks](https://github.com/ManethonSega/PC-Info-Screen-Studio/actions/runs/38543047505). Hardware readings are sample data; editor content is illustrative. They show the current styling and controls, not physical-device validation.
 
 ### Hardware overview
 
@@ -68,7 +68,7 @@ Selected layers, dropdown choices, tooltips and checkboxes use explicit dark sty
 
 Open **Settings** from the top bar to manage screen connection, runtime, sensor access and editor preferences. Hardware and Settings pages use the shared navy and slate palette with silver text and cyan accents. **Use live sensor data** stays checked because live readings are always enabled.
 
-![Settings window with charcoal background, readable silver and white text, and the checked live-sensor indicator](docs/images/settings-window.png)
+![Settings window with navy and slate panels, silver text, cyan accents and the checked live-sensor indicator](docs/images/settings-window.png)
 
 ## Editor and Hardware pages
 
@@ -103,7 +103,7 @@ If the port is busy or access is denied, close other screen software, including 
 
 ## Choose your mode
 
-The prominent **SCREEN MODE** selector changes the left panel to show controls relevant to that mode.
+The top-bar **Mode** selector changes the left panel to show controls relevant to that mode.
 
 | Mode | What you create | Saved theme |
 | --- | --- | --- |
@@ -141,7 +141,7 @@ Each mode keeps its own photo list, folder, timing and caption settings. Changin
 - Configure captions globally: none, filename, date taken, location, or custom text. Missing date/location metadata leaves the caption blank.
 - **Caption font**, **Caption font size**, text colour, outline colour, and outline width control readability. Caption font selection includes bundled fonts and fonts installed on your PC; the choice is saved in the mode theme. Set outline width to zero for no outline; there is no fixed caption highlight.
 - Folder watching and playlist presets are grouped under **WATCHED FOLDER & PLAYLISTS**.
-- Hybrid adds text, values, circles, clocks, bars, graphs, and shapes over the photos.
+- Hybrid adds text, values, circles, clocks, bars, graphs, shapes and hardware names over the photos.
 
 EXIF orientation is corrected when preparing photos. Per-photo crop, focal point, duration controls, blurred backgrounds, and scheduling are deliberately excluded from the current interface.
 

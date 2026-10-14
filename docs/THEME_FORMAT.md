@@ -20,7 +20,7 @@ Small package header used for quick compatibility checks.
 {
   "format": "PCInfoScreenStudio",
   "formatVersion": 1,
-  "minimumAppVersion": "0.1.0",
+  "minimumAppVersion": "0.10.0-alpha.13",
   "themeName": "Example"
 }
 ```
@@ -48,4 +48,10 @@ Custom fonts are embedded as passive TTF/OTF assets. A theme author is responsib
 
 ## Video
 
-The final media pipeline will store a silent display-optimized representation. Audio is explicitly outside the theme format's functional scope.
+Video assets can currently be stored but render as a placeholder. There is no decoding, playback or silent-video optimization pipeline in alpha.13.
+
+## Feature compatibility and other formats
+
+Hardware Name widgets record `0.10.0-alpha.13` as their minimum app version. The example above shows a package using current features; older packages may have an older minimum. Format version remains 1. New and loaded canvases fit the selected 3.5-inch or 5.2-inch display in the editor.
+
+Photo Frame uses `.pcphoto` settings; Hybrid uses `.pchybrid` settings and overlays. `.pcalbum` saves linked photo references and playlist settings. These files do not embed the photo collection. See the [product specification](PRODUCT_SPEC.md#saving-and-sharing).
