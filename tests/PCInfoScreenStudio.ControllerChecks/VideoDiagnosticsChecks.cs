@@ -42,6 +42,13 @@ internal static class VideoDiagnosticsChecks
             ThemeRenderer.ClearCaches();
             Require(VideoFrameProvider.ActiveCount == 1 && VideoFrameProvider.CachedFrameBytes > 0, "Other workspaces and image/font cleanup must not restart a video");
         }
+        workspace.Document.CanvasWidth = 80; workspace.Document.CanvasHeight = 48;
+        pump(() => {
+            using var resized = VideoFrameProvider.GetFrame(workspace, widget, DisplayCanvasSize.Serial35, 0, out _);
+            return resized is not null && resized.Width == 80 && resized.Height == 48 && resized.GetPixel(40, 5).Red > 180;
+        }, TimeSpan.FromSeconds(10));
+        workspace.Document.CanvasWidth = 480; workspace.Document.CanvasHeight = 320;
+        pump(() => { using var restored = VideoFrameProvider.GetFrame(workspace, widget, DisplayCanvasSize.Turing52, 0, out _); return restored is not null && restored.Width == 160; }, TimeSpan.FromSeconds(10));
         widget.MediaPaused = false;
         pump(() => {
             using var frame = VideoFrameProvider.GetFrame(workspace, widget, DisplayCanvasSize.Turing52, 0, out status);

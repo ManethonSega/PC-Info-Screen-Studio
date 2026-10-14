@@ -90,6 +90,7 @@ public static class VideoFrameProvider
                 MFStartup().CheckError(); foundation = true;
                 var request = Volatile.Read(ref _request);
                 if (!Path.IsPathFullyQualified(request.Path) || !File.Exists(request.Path)) throw new FileNotFoundException();
+                if (new FileInfo(request.Path).Length > AssetImportService.MaximumVideoBytes) throw new InvalidDataException("Use a video smaller than 512 MiB.");
                 using var attributes = MFCreateAttributes(2);
                 attributes.Set(SourceReaderAttributeKeys.EnableAdvancedVideoProcessing, true).CheckError();
                 using var reader = MFCreateSourceReaderFromURL(request.Path, attributes);

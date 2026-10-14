@@ -297,6 +297,7 @@
                     <Button Content="Hardware name" Command="{Binding AddWidgetCommand}" CommandParameter="HardwareName" ToolTip="Automatically show a CPU, GPU, SSD or RAM name over your photos." />
                     <Button Content="Video" Command="{Binding ImportVideoCommand}" ToolTip="Add a silent video overlay. Windows-supported H.264 MP4 is recommended." />
                   </UniformGrid>
+                  <TextBlock Text="{Binding VideoImportStatus}" Foreground="{StaticResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="4,3,4,0" />
                 </StackPanel>
               </Expander>
 

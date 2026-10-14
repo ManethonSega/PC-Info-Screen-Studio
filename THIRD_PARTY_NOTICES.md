@@ -324,6 +324,10 @@ SOFTWARE.
 
 Windows Media Foundation bindings from https://github.com/amerkoleci/Vortice.Windows, NuGet version 3.8.3. MIT License, copyright (c) Amer Koleci and Contributors. The full licence is included at `ThirdPartyLicenses/Vortice.Windows-LICENSE.txt` in the portable package. Windows supplies the actual video decoders; this app does not bundle FFmpeg or Windows codec binaries.
 
-## SharpGen.Runtime
+## Vortice.Mathematics
+
+Transitive mathematics dependency from https://github.com/amerkoleci/Vortice.Mathematics. MIT License, copyright (c) Amer Koleci and contributors. The full licence is included at `ThirdPartyLicenses/Vortice.Mathematics-LICENSE.txt`.
+
+## SharpGen.Runtime and SharpGen.Runtime.COM
 
 Transitive runtime dependency of Vortice. Source: https://github.com/SharpGenTools/SharpGenTools. MIT License, copyright (c) 2010-2017 Alexandre Mutel, 2017 Jeremy Koritzinsky. The full licence is included at `ThirdPartyLicenses/SharpGenTools-LICENSE.txt` in the portable package.

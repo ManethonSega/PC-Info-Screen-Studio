@@ -53,7 +53,7 @@ public static class DiagnosticsService
         var temporary = destination + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {
-            await File.WriteAllTextAsync(temporary, JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }));
+            await File.WriteAllTextAsync(temporary, JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true })).ConfigureAwait(false);
             File.Move(temporary, destination, overwrite: true);
         }
         finally { if (File.Exists(temporary)) File.Delete(temporary); }
