@@ -51,6 +51,8 @@ public sealed class WidgetModel : ObservableObject
     private Guid? _assetId;
     private MediaFit _mediaFit = MediaFit.Fill;
     private bool _loop = true;
+    private bool _mediaPaused;
+    private string _runtimeMediaStatus = string.Empty;
     private double _playbackSpeed = 1.0;
     private int _targetFps;
     private bool _autoOptimize = true;
@@ -191,6 +193,9 @@ public sealed class WidgetModel : ObservableObject
     public bool Loop { get => _loop; set => SetProperty(ref _loop, value); }
     public double PlaybackSpeed { get => _playbackSpeed; set => SetProperty(ref _playbackSpeed, Math.Clamp(value, 0.1, 4.0)); }
     public int TargetFps { get => _targetFps; set => SetProperty(ref _targetFps, Math.Clamp(value, 0, 60)); }
+    [JsonIgnore]
+    public string RuntimeMediaStatus { get => _runtimeMediaStatus; set => SetProperty(ref _runtimeMediaStatus, value); }
+    public bool MediaPaused { get => _mediaPaused; set => SetProperty(ref _mediaPaused, value); }
     public bool AutoOptimize { get => _autoOptimize; set => SetProperty(ref _autoOptimize, value); }
     public double CropX { get => _cropX; set => SetProperty(ref _cropX, value); }
     public double CropY { get => _cropY; set => SetProperty(ref _cropY, value); }
@@ -245,6 +250,7 @@ public sealed class WidgetModel : ObservableObject
             AssetId = AssetId,
             MediaFit = MediaFit,
             Loop = Loop,
+            MediaPaused = MediaPaused,
             PlaybackSpeed = PlaybackSpeed,
             TargetFps = TargetFps,
             AutoOptimize = AutoOptimize,

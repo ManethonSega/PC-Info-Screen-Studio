@@ -188,6 +188,7 @@ public partial class App : Application
 
     private static string WriteCrashLog(string context, Exception ex)
     {
+        DiagnosticsService.RecordError(context, ex);
         try
         {
             var directory = Path.Combine(

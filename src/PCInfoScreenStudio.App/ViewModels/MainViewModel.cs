@@ -85,6 +85,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _editor = new EditorController(() => Document);
         _photos = new PhotoPlaybackController(() => Workspace, _settings);
         AttachControllers();
+        InitializeMediaCommands();
         Themes = [];
         ModeThemes = [];
         FontAssets = [];
@@ -165,9 +166,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _animationTimer.Tick += (_, _) =>
         {
             if (!IsCanvasActive && !LivePreview)
+            {
+                VideoFrameProvider.Clear();
                 return;
+            }
             var animations = RuntimeWidgets
-                .Where(w => w.IsVisible && w.Type == WidgetType.AnimatedImage)
+                .Where(w => w.IsVisible && w.Type is WidgetType.AnimatedImage or WidgetType.Video)
                 .ToArray();
             var photoActive = Document.RuntimeMode is RuntimeScreenMode.PhotoFrame or RuntimeScreenMode.Hybrid
                 && Document.PhotoFrame.Photos.Count > 0;
@@ -176,11 +180,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             if (animations.Length == 0 && !photoNeedsRender)
                 return;
 
+            ThemeRenderer.VideoTransferMilliseconds = LivePreview ? _device.AverageTransferMilliseconds : 0;
             var requestedFps = animations.Length == 0
                 ? 10
-                : animations.Max(w => w.TargetFps > 0
-                    ? Math.Clamp(w.TargetFps, 1, 60)
-                    : 30);
+                : animations.Max(w => w.Type == WidgetType.Video
+                    ? VideoPlaybackProfile.FramesPerSecond(CanvasSize, w.TargetFps, w.AutoOptimize, ThemeRenderer.VideoTransferMilliseconds)
+                    : w.TargetFps > 0 ? Math.Clamp(w.TargetFps, 1, 60) : 30);
             if (photoActive && Document.PhotoFrame.RuntimeTransitionProgress < 1)
                 requestedFps = Math.Max(requestedFps, 20);
             _animationTimer.Interval = TimeSpan.FromMilliseconds(1000d / requestedFps);
@@ -721,6 +726,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         if (_isEditorActive == active) return;
         _isEditorActive = active;
+        if (!active && !LivePreview) VideoFrameProvider.Clear();
         RaisePropertyChanged(nameof(IsEditorActive));
         RaisePropertyChanged(nameof(IsCanvasActive));
 
@@ -980,6 +986,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 _ => WidgetType.Video
             };
             var widget = NewWidget(type);
+            if (type == WidgetType.Video) Document.MinimumAppVersion = "0.10.0-alpha.14";
             widget.Name = asset.DisplayName;
             widget.AssetId = asset.Id;
             widget.X = 0;
@@ -1354,7 +1361,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             {
                 using var workspace = await _packageService.LoadAsync(item.FilePath!);
                 var renderer = new ThemeRenderer();
-                using var bitmap = renderer.Render(workspace);
+                using var bitmap = renderer.Render(workspace, animateVideo: false);
                 var source = BitmapSource.Create(
                     bitmap.Width,
                     bitmap.Height,
@@ -1668,7 +1675,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             RaisePropertyChanged(nameof(CanSearchSources));
             RaisePropertyChanged(nameof(SourceSearchHint));
         }
-        if (e.PropertyName is nameof(WidgetModel.IsSelected) or nameof(WidgetModel.RuntimeValue) or nameof(WidgetModel.RuntimeText) or nameof(WidgetModel.RuntimeUnit) or nameof(WidgetModel.HardwareNameText) or nameof(WidgetModel.BackgroundTransparency)) return;
+        if (e.PropertyName is nameof(WidgetModel.RuntimeMediaStatus) or nameof(WidgetModel.IsSelected) or nameof(WidgetModel.RuntimeValue) or nameof(WidgetModel.RuntimeText) or nameof(WidgetModel.RuntimeUnit) or nameof(WidgetModel.HardwareNameText) or nameof(WidgetModel.BackgroundTransparency)) return;
         if (e.PropertyName == nameof(WidgetModel.DataSource) && sender is WidgetModel widget)
             ApplyDataSourceDefaults(widget);
         MarkDirtyAndRefresh();

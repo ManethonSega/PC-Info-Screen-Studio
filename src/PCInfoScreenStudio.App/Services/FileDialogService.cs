@@ -110,7 +110,7 @@ public sealed class FileDialogService
         => OpenFile("Add animated image", "Animated GIF|*.gif|All files|*.*");
 
     public string? OpenVideo()
-        => OpenFile("Add silent video", "Video|*.mp4;*.webm;*.mov;*.avi;*.mkv|All files|*.*");
+        => OpenFile("Add silent video", "H.264 MP4 (recommended)|*.mp4|Windows-supported video|*.mp4;*.m4v;*.mov;*.wmv;*.avi;*.webm;*.mkv|All files|*.*");
 
     public string? OpenFont()
         => OpenFile("Add custom font", "Fonts|*.ttf;*.otf|All files|*.*");

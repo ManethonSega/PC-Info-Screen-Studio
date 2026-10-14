@@ -9,9 +9,11 @@ public sealed class ThemeRenderer
 {
     public static void ClearCaches() => RenderResourceCache.Clear();
 
-    public SKBitmap Render(ThemeWorkspace workspace)
+    public SKBitmap Render(ThemeWorkspace workspace, bool animateVideo = true)
     {
         var doc = workspace.Document;
+        var videoWidgets = doc.RuntimeMode == RuntimeScreenMode.Hybrid ? doc.HybridWidgets : doc.Widgets;
+        if (animateVideo) VideoFrameProvider.Synchronize(workspace, doc.RuntimeMode is RuntimeScreenMode.InfoScreen or RuntimeScreenMode.Hybrid ? videoWidgets : []);
         var bitmap = new SKBitmap(doc.CanvasWidth, doc.CanvasHeight, SKColorType.Bgra8888, SKAlphaType.Premul);
         using var canvas = new SKCanvas(bitmap);
         if (doc.RuntimeMode == RuntimeScreenMode.Off)
@@ -28,7 +30,7 @@ public sealed class ThemeRenderer
 
         if (doc.RuntimeMode is RuntimeScreenMode.InfoScreen or RuntimeScreenMode.Hybrid)
             foreach (var widget in (doc.RuntimeMode == RuntimeScreenMode.Hybrid ? doc.HybridWidgets : doc.Widgets).Where(w => w.IsVisible).OrderBy(w => w.ZIndex))
-                DrawWidget(canvas, workspace, widget);
+                DrawWidget(canvas, workspace, widget, animateVideo);
 
         return bitmap;
     }
@@ -162,7 +164,7 @@ public sealed class ThemeRenderer
         canvas.DrawImage(image, destination, sampling, paint);
     }
 
-    private static void DrawWidget(SKCanvas canvas, ThemeWorkspace workspace, WidgetModel w)
+    private static void DrawWidget(SKCanvas canvas, ThemeWorkspace workspace, WidgetModel w, bool animateVideo)
     {
         canvas.Save();
         canvas.Translate((float)(w.X + w.Width / 2), (float)(w.Y + w.Height / 2));
@@ -200,7 +202,7 @@ public sealed class ThemeRenderer
                 DrawAnimatedImage(canvas, workspace, w);
                 break;
             case WidgetType.Video:
-                DrawVideoPlaceholder(canvas, workspace, w);
+                DrawVideo(canvas, workspace, w, animateVideo);
                 break;
             case WidgetType.Shape:
                 DrawShape(canvas, w);
@@ -521,13 +523,30 @@ public sealed class ThemeRenderer
         canvas.DrawBitmap(bitmap, src, dest);
     }
 
-    private static void DrawVideoPlaceholder(SKCanvas canvas, ThemeWorkspace workspace, WidgetModel w)
+    private static void DrawVideo(SKCanvas canvas, ThemeWorkspace workspace, WidgetModel w, bool animateVideo)
     {
         FillBackground(canvas, w);
-        using var border = Paint(w.AccentColor, 2, SKPaintStyle.Stroke);
-        canvas.DrawRect(new SKRect(2, 2, (float)w.Width - 2, (float)w.Height - 2), border);
-        DrawCenteredText(canvas, workspace, w, "VIDEO", Math.Max(10, (float)w.FontSize * .6f), w.ForegroundColor, (float)(w.Height / 2));
+        if (!animateVideo) { DrawCenteredText(canvas, workspace, w, "VIDEO", 12, w.ForegroundColor, (float)(w.Height / 2)); return; }
+        var display = Math.Max(workspace.Document.CanvasWidth, workspace.Document.CanvasHeight) > 480 ? DisplayCanvasSize.Turing52 : DisplayCanvasSize.Serial35;
+        using var frame = VideoFrameProvider.GetFrame(workspace, w, display, DeviceControllerTransferMilliseconds(), out var status);
+        w.RuntimeMediaStatus = status;
+        if (frame is null) { DrawCenteredText(canvas, workspace, w, status.StartsWith("Opening") ? "OPENING VIDEO" : "VIDEO UNAVAILABLE", 12, w.ForegroundColor, (float)(w.Height / 2)); return; }
+        var dest = new SKRect(0, 0, (float)w.Width, (float)w.Height);
+        var src = SourceRectForFit(frame.Width, frame.Height, dest.Width, dest.Height, w.MediaFit);
+        if (w.MediaFit is MediaFit.Fit or MediaFit.Original)
+        {
+            var scale = Math.Min(dest.Width / frame.Width, dest.Height / frame.Height);
+            if (w.MediaFit == MediaFit.Original) scale = Math.Min(1, scale);
+            var width = frame.Width * scale; var height = frame.Height * scale;
+            dest = new SKRect((dest.Width - width) / 2, (dest.Height - height) / 2, (dest.Width + width) / 2, (dest.Height + height) / 2);
+        }
+        using var paint = new SKPaint { Color = new SKColor(255, 255, 255, (byte)(255 * w.Opacity)), IsAntialias = true };
+        using var image = SKImage.FromBitmap(frame);
+        canvas.DrawImage(image, src, dest, new SKSamplingOptions(SKFilterMode.Linear), paint);
     }
+
+    public static double VideoTransferMilliseconds { get; set; }
+    private static double DeviceControllerTransferMilliseconds() => VideoTransferMilliseconds;
 
     private static SKRect SourceRectForFit(int sourceW, int sourceH, float destW, float destH, MediaFit fit)
     {

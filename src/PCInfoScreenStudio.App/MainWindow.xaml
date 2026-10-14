@@ -140,7 +140,7 @@
             <UniformGrid Columns="2">
               <Button Content="Image" Command="{Binding ImportImageCommand}" ToolTip="Import a still image and add it to the canvas." />
               <Button Content="GIF" Command="{Binding ImportGifCommand}" ToolTip="Import an animated GIF and add it to the canvas." />
-              <Button Content="Video" Command="{Binding ImportVideoCommand}" ToolTip="Import a video asset as a placeholder. Video playback is not available in this alpha." />
+              <Button Content="Video" Command="{Binding ImportVideoCommand}" ToolTip="Play a silent video using Windows codecs. H.264 MP4 is recommended. Serial and USB screens have separate frame-rate limits." />
               <Button Content="Font" Command="{Binding ImportFontCommand}" ToolTip="Embed a redistributable font inside the theme file." />
             </UniformGrid>
             </StackPanel>
@@ -799,7 +799,14 @@
                       <TextBlock Text="Fit" Foreground="{StaticResource MutedTextBrush}" />
                       <ComboBox ItemsSource="{Binding DataContext.MediaFits, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding MediaFit}" Margin="0,3,0,5" ToolTip="Choose how media is fitted inside the widget bounds." />
                       <CheckBox Content="Loop" IsChecked="{Binding Loop}" ToolTip="Restart animated media when it reaches the end." />
-                      <CheckBox Content="Automatic optimization" IsChecked="{Binding AutoOptimize}" ToolTip="Reduce media workload automatically for smoother display updates." />
+                      <StackPanel>
+                        <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.Video}"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></StackPanel.Style>
+                        <CheckBox Content="Pause video" IsChecked="{Binding MediaPaused}" />
+                        <Button Content="Restart video" Command="{Binding DataContext.RestartVideoCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalAlignment="Left" />
+                        <TextBlock Text="{Binding RuntimeMediaStatus}" TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,4,0,4" />
+                        <TextBlock Text="Silent playback, up to two videos. 3.5-inch: 3 fps Auto, 5 fps maximum. 5.2-inch: 12 fps Auto, 20 fps maximum. USB transfer speed may lower these limits." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,0,0,5" />
+                      </StackPanel>
+                      <CheckBox Content="Automatic optimization" IsChecked="{Binding AutoOptimize}" ToolTip="For video, use the conservative display-specific Auto frame rate. Output remains bounded when disabled." />
                       <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                         <StackPanel Margin="0,0,5,0"><TextBlock Text="Speed" Foreground="{StaticResource MutedTextBrush}" /><TextBox controls:NumericValidation.Field="PlaybackSpeed" Text="{Binding PlaybackSpeed, UpdateSourceTrigger=LostFocus}" ToolTip="Playback speed multiplier, for example 0.5 for half speed or 2 for double speed." /></StackPanel>
