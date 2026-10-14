@@ -38,12 +38,12 @@ public sealed class HardwareDashboardViewModel : ObservableObject
     private string _updatedLabel = "Waiting for the first reading";
     public ObservableCollection<HardwareCardViewModel> Cards { get; } =
     [
-        new("CPU", "\uE950", "#81A8FF", "Processor usage"),
-        new("GPU", "\uE7F4", "#B79AFF", "Graphics usage"),
-        new("RAM", "\uE964", "#64D6BF", "Memory usage"),
-        new("Storage", "\uE7F1", "#E7B67D", "System drive usage"),
-        new("Network", "\uE968", "#7CC8ED", "Download"),
-        new("Cooling", "\uE9CA", "#D1A2CB", "Detected fan readings")
+        new("CPU", "\uE950", "#21E6E8", "Processor usage"),
+        new("GPU", "\uE7F4", "#18D7F1", "Graphics usage"),
+        new("RAM", "\uE964", "#21E6E8", "Memory usage"),
+        new("Storage", "\uE7F1", "#18D7F1", "System drive usage"),
+        new("Network", "\uE968", "#18D7F1", "Download"),
+        new("Cooling", "\uE9CA", "#21E6E8", "Detected fan readings")
     ];
     public string UpdatedLabel { get => _updatedLabel; private set => SetProperty(ref _updatedLabel, value); }
 
