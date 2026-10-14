@@ -11,7 +11,7 @@ $root = Split-Path $PSScriptRoot -Parent
 $version = [string]$project.Project.PropertyGroup.Version
 if ($version -notmatch '^\d+\.\d+\.\d+-alpha\.\d+$') { throw 'Only a clearly labelled alpha version can be packaged here.' }
 $publish = (Resolve-Path $PublishDirectory).Path
-foreach ($name in @('PCInfoScreenStudio.exe', 'PCInfoScreenStudio.dll', 'PCInfoScreenStudio.runtimeconfig.json', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'Prerequisites\PawnIO_setup.exe', 'Assets\Fonts\OFL-1.1.txt')) {
+foreach ($name in @('PCInfoScreenStudio.exe', 'PCInfoScreenStudio.dll', 'PCInfoScreenStudio.runtimeconfig.json', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'Prerequisites\PawnIO_setup.exe', 'Assets\Fonts\OFL-1.1.txt', 'Vortice.MediaFoundation.dll', 'Vortice.DirectX.dll', 'SharpGen.Runtime.dll', 'ThirdPartyLicenses\Vortice.Windows-LICENSE.txt', 'ThirdPartyLicenses\SharpGenTools-LICENSE.txt', 'ThirdPartyLicenses\Vortice.Mathematics-LICENSE.txt')) {
     if (!(Test-Path (Join-Path $publish $name))) { throw "Required portable file is missing: $name" }
 }
 if (@(Get-ChildItem $publish -Filter libSkiaSharp.dll -Recurse).Count -eq 0) { throw 'The native renderer is missing.' }

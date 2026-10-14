@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/PCInfoScreenStudio.App/PCInfoScreenStudio.App.csproj" />
+    <Content Include="Fixtures/*.mp4" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Fixtures/*.gif" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -18,6 +18,11 @@ public sealed class DeviceController : ObservableObject, IDisposable
     private PendingDisplayFrame? _pendingFrame;
     private bool _frameSenderRunning;
     private bool _disposed;
+    private long _sentFrames;
+    private long _droppedFrames;
+    private double _averageTransferMilliseconds;
+    public double AverageTransferMilliseconds => Volatile.Read(ref _averageTransferMilliseconds);
+    public object GetDiagnostics() => new { selectedFamily = PreferredCanvasSize.ToString(), connected = IsConnected, protocol = DisplayProtocol.ToString(), connectedProtocol = _deviceService.ConnectedProtocol.ToString(), transport = PreferredCanvasSize == DisplayCanvasSize.Turing52 ? "WinUSB JPEG" : "USB-CDC RGB565", usbId = GetUsbId(), colourMode = DisplayColorMode.ToString(), baudRate = _deviceService.ConnectedBaudRate, sentFrames = Interlocked.Read(ref _sentFrames), replacedFrames = Interlocked.Read(ref _droppedFrames), averageTransferMilliseconds = AverageTransferMilliseconds };
     private bool _refreshingPorts;
     private long _connectionGeneration;
     private string? _selectedPort;
@@ -27,6 +32,13 @@ public sealed class DeviceController : ObservableObject, IDisposable
     private DisplayProtocolProfile _displayProtocol;
     private DisplayColorMode _displayColorMode;
     private DateTimeOffset _suspendLiveDisplayUntil = DateTimeOffset.MinValue;
+
+    private string? GetUsbId()
+    {
+        var id = Ports.FirstOrDefault(p => p.PortName == SelectedPort)?.HardwareId ?? _settings.LastDisplayHardwareId ?? string.Empty;
+        var match = System.Text.RegularExpressions.Regex.Match(id, @"VID_[0-9A-F]{4}&PID_[0-9A-F]{4}", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        return match.Success ? match.Value.ToUpperInvariant() : null;
+    }
 
     public DeviceController(Func<ThemeDocument> document, SettingsController settings,
         IDisplayDevice? device = null, Func<IReadOnlyList<SerialPortOption>>? discoverPorts = null)
@@ -204,6 +216,7 @@ public sealed class DeviceController : ObservableObject, IDisposable
         lock (_frameQueueSync)
         {
             _connectionGeneration++;
+            Volatile.Write(ref _averageTransferMilliseconds, 0);
             _pendingFrame?.Bitmap.Dispose();
             _pendingFrame = null;
         }
@@ -286,6 +299,7 @@ public sealed class DeviceController : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
+            DiagnosticsService.RecordError("Display operation", ex);
             await ReleaseFailedConnectionAsync();
             DeviceStatus = FriendlyConnectionError(ex, SelectedPort);
         }
@@ -382,6 +396,7 @@ public sealed class DeviceController : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
+            DiagnosticsService.RecordError("Display operation", ex);
             DeviceStatus = "Screen test failed";
             MessageBox.Show(ex.Message, "Screen test failed", MessageBoxButton.OK, MessageBoxImage.Error);
         }
@@ -434,6 +449,7 @@ public sealed class DeviceController : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
+            DiagnosticsService.RecordError("Display operation", ex);
             DeviceStatus = "Display compatibility error: " + ex.Message;
         }
         finally
@@ -452,6 +468,7 @@ public sealed class DeviceController : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
+            DiagnosticsService.RecordError("Display operation", ex);
             DeviceStatus = "Rotation error: " + ex.Message;
         }
     }
@@ -476,6 +493,7 @@ public sealed class DeviceController : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
+            DiagnosticsService.RecordError("Display operation", ex);
             DeviceStatus = "Benchmark failed";
             MessageBox.Show(ex.Message, "Benchmark failed", MessageBoxButton.OK, MessageBoxImage.Error);
         }
@@ -499,6 +517,7 @@ public sealed class DeviceController : ObservableObject, IDisposable
                 return;
             }
 
+            if (_pendingFrame is not null) Interlocked.Increment(ref _droppedFrames);
             // USB transmission is slower than preview rendering. Keep only the
             // newest waiting frame so the display never builds up animation lag.
             _pendingFrame?.Bitmap.Dispose();
@@ -533,8 +552,13 @@ public sealed class DeviceController : ObservableObject, IDisposable
             try
             {
                 if (frame.Generation != _connectionGeneration || !_deviceService.IsConnected || frame.Mode != Document.Mode) continue;
+                var transferStart = System.Diagnostics.Stopwatch.GetTimestamp();
                 await _deviceService.DisplayAsync(frame.Bitmap, frame.Rotation);
                 if (frame.Generation != _connectionGeneration) continue;
+                Interlocked.Increment(ref _sentFrames);
+                var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(transferStart).TotalMilliseconds;
+                var previous = AverageTransferMilliseconds;
+                Volatile.Write(ref _averageTransferMilliseconds, previous == 0 ? elapsed : previous * .8 + elapsed * .2);
                 if (_disposed || Application.Current.Dispatcher.HasShutdownStarted) return;
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                     DeviceStatus = BuildConnectionStatus());
@@ -543,6 +567,7 @@ public sealed class DeviceController : ObservableObject, IDisposable
             {
                 if (frame.Generation != _connectionGeneration) continue;
                 if (_disposed || Application.Current.Dispatcher.HasShutdownStarted) return;
+                DiagnosticsService.RecordError("Display transfer", ex);
                 await ReleaseFailedConnectionAsync();
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {

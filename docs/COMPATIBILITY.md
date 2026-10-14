@@ -10,7 +10,7 @@ This catalogue separates owner observations from repeatable automated checks. Br
 | TURZX 5.2-inch display with a desktop-monitor function | Owner confirmed initial smart-screen output in all three modes in alpha.7, with stoppage/animation/selection issues reported | Experimental WinUSB backend; alpha.11 retains JPEG output and removes mode-change setup that disconnected playback in alpha.10. The owner confirmed the large-font and independent-playlist fixes; the owner reports alpha.11 working correctly on their setup, including mode switching. Broader compatibility and long-duration evidence are still limited. Desktop Mode is not controlled by the app. |
 | CPU/GPU/cooling/storage sensors | LibreHardwareMonitor, optional PawnIO and HWiNFO sources | Availability varies by hardware, driver and permissions. Unavailable readings are labelled rather than invented. |
 | GIF playback and photo transitions | Software playback checks, owner feedback from earlier builds | Physical speed depends on the device and USB bandwidth. |
-| Video | Import and placeholder only | Full decoding/playback is not implemented. |
+| Video | Windows Media Foundation decoding with generated H.264/AAC pixel/timing checks | Silent PC-decoded widgets. H.264 MP4 recommended; other codecs depend on Windows. Serial/WinUSB video output needs physical validation. Native-device H.264 remains unimplemented. |
 
 When reporting a working device, include the exact model, USB VID/PID, selected protocol, orientation/rotation, colour mode, Windows version and app version. Also record whether reconnecting and Windows sign-in startup work on that setup.
 

@@ -338,7 +338,7 @@ public sealed class EditorController : ObservableObject
     public void AddWidgetToCanvas(WidgetType type, string? dataSource)
     {
         var widget = NewWidget(type);
-        if (type == WidgetType.HardwareName) Document.MinimumAppVersion = "0.10.0-alpha.13";
+        if (type == WidgetType.HardwareName && !Document.Widgets.Concat(Document.HybridWidgets).Any(w => w.Type == WidgetType.Video)) Document.MinimumAppVersion = "0.10.0-alpha.13";
         if (!string.IsNullOrWhiteSpace(dataSource))
         {
             widget.DataSource = dataSource;

@@ -1,6 +1,6 @@
 # Product specification
 
-This describes the current **0.10.0-alpha.13** product. Remaining work is tracked in the [roadmap](ROADMAP.md) and [GitHub issues](https://github.com/ManethonSega/PC-Info-Screen-Studio/issues). A listed feature does not certify every device or workload; see [compatibility](COMPATIBILITY.md) and [validation](VALIDATION.md).
+This describes the current **0.10.0-alpha.14** product. Remaining work is tracked in the [roadmap](ROADMAP.md) and [GitHub issues](https://github.com/ManethonSega/PC-Info-Screen-Studio/issues). A listed feature does not certify every device or workload; see [compatibility](COMPATIBILITY.md) and [validation](VALIDATION.md).
 
 ## Product and interface
 
@@ -27,7 +27,7 @@ The owner confirms basic output and alpha.11 mode switching on their setup. Sust
 
 The editor supports selection, dragging, resize handles, rotation, keyboard movement, layers, hide/lock, duplication, multi-selection, grouping, alignment/distribution, grid snapping, smart guides, zoom and undo/redo. Resizing a widget retains its explicit font size. Live view provides a clean preview; physical output is controlled separately with Start/Stop.
 
-Implemented widget types are Text, Value, Circular Gauge, Analog Clock, Bar Gauge, Graph, Shape, Image, Animated Image and Hardware Name. Video is an import placeholder, with no decoding or playback. Shapes and gauges expose relevant fill, track, outline, range and text controls; graph styles include line, area and history bars. Widget background transparency affects only the background fill.
+Implemented widget types are Text, Value, Circular Gauge, Analog Clock, Bar Gauge, Graph, Shape, Image, Animated Image and Hardware Name. Silent Video widgets use Windows decoding with display-specific output limits and pause/restart controls. Shapes and gauges expose relevant fill, track, outline, range and text controls; graph styles include line, area and history bars. Widget background transparency affects only the background fill.
 
 Hardware Name detects CPU, GPU, SSD/drive or RAM brand/model once in the background. Users can choose a component, edit Displayed name or restore Use detected name. Custom names persist in themes, clones and session resume. Firmware may omit meaningful RAM names; the app does not guess them.
 
@@ -41,7 +41,7 @@ Data sources include Windows CPU/RAM, drive/network readings, date/time, Open-Me
 
 Photo Frame and Hybrid support file/folder import, playlist reordering, previous/play/pause/next, shared timing, loop/shuffle, Fit/Fill/Stretch/Original sizing, solid backgrounds and Crossfade/Slide/Zoom/Instant/Random transitions between photos. EXIF orientation is corrected. Global captions support filename, date, location or custom text with configurable font, size, colour and outline. Missing metadata leaves a caption blank. Folder watching and linked playlist presets are available.
 
-PNG, JPEG, WebP, BMP and GIF assets are supported. Animated GIFs play; video assets currently show a placeholder. Prepared photos use a bounded display-sized cache, and compressed GIF data is limited to 64 MiB per file. General image/GIF cache memory is not yet governed by a complete shared budget; this is tracked work.
+PNG, JPEG, WebP, BMP and GIF assets are supported. Animated GIFs and Windows-supported silent videos play. H.264 MP4 is recommended. Video imports are limited to 512 MiB and Full HD, with at most two active decoders and one bounded current frame each. Serial Auto is 3 fps (maximum 5); 5.2-inch USB Auto is 12 fps (maximum 20), reduced when measured transfers are slower. Prepared photos use a bounded display-sized cache, and compressed GIF data is limited to 64 MiB per file. General image/GIF cache memory is not yet governed by a complete shared budget; this is tracked work.
 
 Scheduling, blurred backgrounds, continuous Ken Burns motion and per-photo crop, focal-point or duration controls are outside the current simplified workflow. There is no implemented video optimizer, media-trimming pipeline or one-click USB benchmark profile.
 
@@ -51,7 +51,7 @@ Scheduling, blurred backgrounds, continuous Ken Burns motion and per-photo crop,
 | --- | --- | --- |
 | `.t3theme` | Info Screen layout, bindings, styles, imported fonts/images/GIFs and passive assets | Shareable ZIP-compatible package; [format details](THEME_FORMAT.md) |
 | `.pcphoto` | Photo Frame settings and remembered folder | Photos remain on the PC |
-| `.pchybrid` | Hybrid settings and overlay widgets | Linked photos/assets can depend on local paths |
+| `.pchybrid` | Hybrid settings and overlay widgets | Linked photos and video overlays depend on local paths |
 | `.pcalbum` | Photo references and playlist settings | Linked preset, not a portable photo bundle |
 
 New/Open/Save/Save as and library actions use the active mode's format. Opening a folder-based mode theme reloads that folder; a theme without a folder retains the current playlist. Exit/logoff saves a private resume snapshot of modes, layouts, photo links and unsaved edits without overwriting reusable themes. Backup/recovery hardening is still pending.
@@ -66,4 +66,4 @@ The app is GPL-3.0-or-later, self-contained and distributed as an unsigned Windo
 
 ## Next milestone
 
-Prioritize settings/session recovery, safe long-running commands, total asset-memory bounds, physical reliability evidence and first-time/DPI/accessibility validation. Keep the current interface structure. Architecture, diagnostics and test-reporting improvements follow; installer/signing/update decisions remain deferred. Full video playback is a separate future feature, not an alpha.13 promise.
+Prioritize settings/session recovery, safe long-running commands, total asset-memory bounds, physical reliability evidence and first-time/DPI/accessibility validation. Keep the current interface structure. Architecture, diagnostics and test-reporting improvements follow; installer/signing/update decisions remain deferred. Native 5.2-inch H.264 playback and advanced video editing remain separate future features. Local diagnostic export is available under Settings, without media or personal paths.

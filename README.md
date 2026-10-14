@@ -2,11 +2,11 @@
 
 A visual Windows editor and runtime for 3.5-inch Turing/TURZX-style serial screens, with experimental TURZX 5.2-inch USB support. Create a sensor dashboard, use the screen as a photo frame, or combine photos with information overlays.
 
-> **Status:** `0.10.0-alpha.13`. Actively developed alpha. A permanent Windows x64 [portable download](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/tag/v0.10.0-alpha.13) is available. Development builds are also available through GitHub Actions. There is no installer, code signing or automatic updater.
+> **Status:** `0.10.0-alpha.14`. Actively developed alpha. A permanent Windows x64 [portable download](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/tag/v0.10.0-alpha.14) is available. Development builds are also available through GitHub Actions. There is no installer, code signing or automatic updater.
 
 The priorities are an intuitive interface, lightweight operation, and a clear preview of the physical screen.
 
-Alpha.13 adds automatic hardware-name widgets with editable names and colour emoji in rendered text. The interface uses the shared MechKeyMesh navy/slate palette, silver text and cyan accents while preserving the editor layout. Both 3.5-inch serial output and [experimental TURZX 5.2-inch WinUSB output](docs/TURZX-52.md) are available. The owner reports alpha.11 working correctly on their setup, including mode switching and the large-font and independent-playlist fixes. Long-duration operation and broader device compatibility still need recorded validation.
+Alpha.14 adds silent video playback with separate serial/USB limits and a local diagnostics export. Alpha.13 added automatic hardware-name widgets with editable names and colour emoji in rendered text. The interface uses the shared MechKeyMesh navy/slate palette, silver text and cyan accents while preserving the editor layout. Both 3.5-inch serial output and [experimental TURZX 5.2-inch WinUSB output](docs/TURZX-52.md) are available. The owner reports alpha.11 working correctly on their setup, including mode switching and the large-font and independent-playlist fixes. Long-duration operation and broader device compatibility still need recorded validation.
 
 [Download and run](#download-and-run) · [Connect your screen](#connect-your-screen) · [Choose your mode](#choose-your-mode)
 
@@ -80,11 +80,11 @@ Photo Frame (`.pcphoto`) and Hybrid (`.pchybrid`) themes save settings in their 
 
 ## Download and run
 
-1. Download [PCInfoScreenStudio-0.10.0-alpha.13-win-x64.zip](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/download/v0.10.0-alpha.13/PCInfoScreenStudio-0.10.0-alpha.13-win-x64.zip) from the [portable alpha release](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/tag/v0.10.0-alpha.13).
+1. Download [PCInfoScreenStudio-0.10.0-alpha.14-win-x64.zip](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/download/v0.10.0-alpha.14/PCInfoScreenStudio-0.10.0-alpha.14-win-x64.zip) from the [portable alpha release](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/tag/v0.10.0-alpha.14).
 2. Extract the **entire folder** to a permanent location, then run `PCInfoScreenStudio.exe`. Keep all extracted files together.
 3. Read `START-HERE.txt` for connection, startup and tray instructions. The build is self-contained; no separate .NET runtime installation is required.
 
-The release includes [SHA256SUMS.txt](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/download/v0.10.0-alpha.13/SHA256SUMS.txt), matching source archives and `build-info.json` with the exact source commit. This is an **unsigned alpha**, with [documented device limits](docs/COMPATIBILITY.md) and [validation results and remaining checks](docs/VALIDATION.md).
+The release includes [SHA256SUMS.txt](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/download/v0.10.0-alpha.14/SHA256SUMS.txt), matching source archives and `build-info.json` with the exact source commit. This is an **unsigned alpha**, with [documented device limits](docs/COMPATIBILITY.md) and [validation results and remaining checks](docs/VALIDATION.md).
 
 For newer development builds, open the [Windows build workflow](https://github.com/ManethonSega/PC-Info-Screen-Studio/actions/workflows/build.yml), select the latest successful `main` run, then download `PCInfoScreenStudio-win-x64` under **Artifacts**. GitHub may require sign-in. These artifacts expire after **3 days**; the release download above is permanent.
 
@@ -145,6 +145,23 @@ Each mode keeps its own photo list, folder, timing and caption settings. Changin
 
 EXIF orientation is corrected when preparing photos. Per-photo crop, focal point, duration controls, blurred backgrounds, and scheduling are deliberately excluded from the current interface.
 
+## Silent video and diagnostics
+
+Choose **Video** under Media in Info Screen or Hybrid overlays. H.264 MP4 is the recommended starting format. The imported file becomes a video widget; adjust Fit, Loop, Speed and FPS under Media properties. **Pause video** freezes its current frame; **Restart video** returns to the beginning. Non-looping clips hold their final displayed frame. Failed or unsupported media shows an inline status. Photo Frame remains a photo playlist; videos are widgets in Info Screen and Hybrid.
+
+| Display | Auto video rate | Maximum requested rate | Output |
+| --- | --- | --- | --- |
+| 3.5-inch | 3 fps | 5 fps | RGB565 frames over serial |
+| 5.2-inch | 12 fps | 20 fps | JPEG frames over WinUSB |
+
+These are conservative application limits, not measured hardware guarantees. Observed USB transfer time can lower them further, and the newest-frame queue replaces stale frames rather than accumulating delay. The PC decodes the video without selecting audio. At most two active decoders keep one current display-sized frame each. This first version accepts up to 1920 × 1080 (or portrait equivalent) and 512 MiB per imported clip. Info Screen imports are embedded in `.t3theme` packages. Hybrid video overlays link to the original file, so keep that file available when reopening a `.pchybrid` theme. Existing video placeholders now attempt playback. See [video implementation and limits](docs/VIDEO_PLAYBACK.md).
+
+![Silent video controls in the actual alpha.14 WPF editor](docs/images/video-playback.png)
+
+For troubleshooting, choose **Settings > Troubleshooting > Export diagnostics**, select a location and attach the saved JSON file to your bug report. It contains versions, selected transport/protocol, counters, memory usage and recent exception types/error codes. It excludes photos, theme content, account names, personal paths and raw error messages. Nothing is uploaded automatically.
+
+![Export diagnostics panel in Settings](docs/images/export-diagnostics.png)
+
 ## Data sources and sensors
 
 The app combines Windows CPU/RAM, system-drive and network readings with hardware sensors from LibreHardwareMonitor. Optional HWiNFO shared-memory sources require HWiNFO to be running and configured separately. Sensor availability depends on your hardware and permissions; unavailable readings are shown as unavailable rather than invented zeroes.
@@ -172,7 +189,7 @@ Photo preparation uses a bounded display-sized cache. Memory usage varies with t
 ## Known alpha limitations
 
 - Device compatibility beyond the current Revision-A focus needs verification.
-- **Video import currently stores an asset and displays a placeholder; video playback is not implemented.** Animated GIF playback is implemented.
+- Video uses installed Windows codecs. H.264 MP4 is recommended; other containers/codecs and Windows N editions may need additional Windows media support. Sources are limited to Full HD and imports to 512 MiB, with at most two active videos. There is no native 5.2-inch H.264/SD-card playback.
 - Physical animation speed depends on USB display bandwidth.
 - Photo presets and linked Hybrid assets can depend on local paths.
 - Successful builds and startup smoke checks do not establish long-duration hardware reliability.

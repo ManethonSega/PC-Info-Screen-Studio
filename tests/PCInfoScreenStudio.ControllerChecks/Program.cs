@@ -13,7 +13,7 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
-        var app = new PCInfoScreenStudio.App();
+        var app = new PCInfoScreenStudio.App { SuppressNormalStartup = true };
         app.InitializeComponent();
         app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
         SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
@@ -21,6 +21,7 @@ internal static class Program
         Directory.CreateDirectory(root);
         try
         {
+            RunCheck("VideoDiagnosticsChecks", () => VideoDiagnosticsChecks.Check(root, PumpUntil));
             RunCheck("HardwareNameEmojiChecks", () => Await(HardwareNameEmojiChecks.RunAsync(root, PumpUntil, args.Length == 2 && args[0] == "--capture-ui" ? args[1] : null)));
             RunCheck("RegressionFixChecks", () => Await(RegressionFixChecks.RunAsync()));
             RunCheck("EditingRecoveryChecks.Check", () => EditingRecoveryChecks.Check(root, Await));
@@ -615,19 +616,25 @@ internal static class Program
         task.GetAwaiter().GetResult();
     }
 
-    private static void PumpUntil(Func<bool> completed)
+    private static void PumpUntil(Func<bool> completed) => PumpUntil(completed, TimeSpan.FromSeconds(10));
+
+    private static void PumpUntil(Func<bool> completed, TimeSpan timeout)
     {
         var deadline = Stopwatch.StartNew();
         while (!completed())
         {
-            if (deadline.Elapsed > TimeSpan.FromSeconds(10)) throw new TimeoutException("Controller check timed out.");
+            if (deadline.Elapsed > timeout) throw new TimeoutException("Controller check timed out.");
             var frame = new DispatcherFrame();
             Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => frame.Continue = false));
             Dispatcher.PushFrame(frame);
         }
     }
 
-    private static void ThemeRendererCleanup() => PCInfoScreenStudio.Rendering.ThemeRenderer.ClearCaches();
+    private static void ThemeRendererCleanup()
+    {
+        PCInfoScreenStudio.Rendering.VideoFrameProvider.Clear();
+        PCInfoScreenStudio.Rendering.ThemeRenderer.ClearCaches();
+    }
 
     private static void Assert(bool condition, string message)
     {

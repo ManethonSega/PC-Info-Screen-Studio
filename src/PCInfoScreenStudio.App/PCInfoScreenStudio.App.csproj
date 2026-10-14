@@ -6,11 +6,11 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>disable</ImplicitUsings>
     <AssemblyName>PCInfoScreenStudio</AssemblyName>
-    <Version>0.10.0-alpha.13</Version>
+    <Version>0.10.0-alpha.14</Version>
     <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
     <Copyright>Copyright (c) 2026 PCInfoScreenStudio contributors</Copyright>
     <AssemblyVersion>0.10.0.0</AssemblyVersion>
-    <FileVersion>0.10.0.13</FileVersion>
+    <FileVersion>0.10.0.14</FileVersion>
     <RootNamespace>PCInfoScreenStudio</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\PCInfoScreenStudio.ico</ApplicationIcon>
@@ -28,6 +28,10 @@
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="..\Tedd.TuringScreen\LICENSE" Link="ThirdPartyLicenses\Tedd.TuringScreen-LICENSE.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="ThirdPartyLicenses\*.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
@@ -49,6 +53,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Tedd.TuringScreen\Tedd.TuringScreen.csproj" />
+    <PackageReference Include="Vortice.MediaFoundation" Version="3.8.3" />
     <PackageReference Include="SkiaSharp" Version="3.119.1" />
     <PackageReference Include="SkiaSharp.HarfBuzz" Version="3.119.1" />
     <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6" />

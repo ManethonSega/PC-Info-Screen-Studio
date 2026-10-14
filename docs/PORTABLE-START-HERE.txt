@@ -28,8 +28,9 @@ needed to update a reusable theme. Original photos stay on your PC.
 Keep all files in this folder together. Opening the app from a moved folder may
 need approval to update its Windows startup task. Automatic updating is not included.
 
-This is an unsigned alpha, not a finished consumer release. Video import shows
-a placeholder; full video playback is not available. Device support includes
+This is an unsigned alpha, not a finished consumer release. Silent video widgets use
+Windows codecs; H.264 MP4 is recommended. Serial and 5.2-inch USB output use
+different frame-rate limits. At most two videos play; use Full HD or smaller. Device support includes
 Revision-A 480 x 320 USB serial displays and experimental TURZX 5.2-inch
 1280 x 720 WinUSB output. See DEVICE-COMPATIBILITY.md and
 VALIDATION.md for evidence and remaining physical-device checks.
@@ -48,3 +49,12 @@ If the device is missing or WinUSB access is unavailable, check its hardware
 IDs and current Windows driver before changing anything. The app does not
 install or replace a display driver. Desktop Mode and SD-card playback are
 separate vendor features and are not controlled by this alpha.
+
+VIDEO AND TROUBLESHOOTING
+Choose Video under Media in Info Screen or Hybrid overlays. Use Media properties
+for Fit, Loop, Speed, FPS, Pause video and Restart video. Sources must be Full HD
+or smaller and under 512 MiB. Audio is never played. Physical rates depend on USB
+bandwidth. Native 5.2-inch H.264/SD-card playback is not implemented.
+Settings > Troubleshooting > Export diagnostics saves a local JSON report.
+Attach it yourself to a bug report if needed. No photos, theme content, account
+names, personal paths or raw error messages are included; nothing is sent automatically.
