@@ -183,6 +183,7 @@ internal static class VideoDiagnosticsChecks
             Require(status.Contains("paused"), "Fragmented video paused first frame");
             var details = VideoFrameProvider.GetDiagnostics().Single();
             Require(details.SourceWidth == 1280 && details.SourceHeight == 720 && details.OutputWidth == workspace.Document.CanvasWidth && details.PublishedFrames == 1, "Active decoder diagnostics describe bounded first frame");
+            if (display == DisplayCanvasSize.Turing52) Require(details.FormatChanges > 0, "Regression fixture must exercise the formerly rejected output-format notification");
             Console.WriteLine($"Fragmented {display}: output {details.OutputWidth}x{details.OutputHeight}, stride {details.Stride}, format notifications {details.FormatChanges}");
             var activeJson = JsonSerializer.Serialize(DiagnosticsService.CreateReport(new { connected = false }, new { activeVideos = 1 }));
             Require(activeJson.Contains("videoPlayback") && activeJson.Contains("PublishedFrames") && !activeJson.Contains(workspace.RootDirectory) && !activeJson.Contains("video-fragmented"), "Active diagnostics exclude source and workspace paths");

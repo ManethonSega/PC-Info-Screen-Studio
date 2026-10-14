@@ -80,9 +80,9 @@ public static class VideoFrameProvider
         public bool NeedsNewDecoder(Request request) { var current = Volatile.Read(ref _request); return current.Path != request.Path || current.Width != request.Width || current.Height != request.Height; }
         public void Update(Request request) => Volatile.Write(ref _request, request);
         public SKBitmap? CopyFrame(out string status) { lock (_sync) { status = _status; return _frame?.Copy(); } }
-        private void Publish(SKBitmap frame, string status)
+        private void Publish(SKBitmap frame, string status, VideoDecoderDetails details)
         {
-            lock (_sync) { if (_disposed) { frame.Dispose(); return; } _frame?.Dispose(); _frame = frame; _status = status; }
+            lock (_sync) { if (_disposed) { frame.Dispose(); return; } _frame?.Dispose(); _frame = frame; _status = status; _details = details; }
         }
         private void Run()
         {
@@ -170,8 +170,8 @@ public static class VideoFrameProvider
                                 Marshal.Copy(IntPtr.Add(pixels, offset), row, 0, rowBytes);
                                 Marshal.Copy(row, 0, IntPtr.Add(frame.GetPixels(), y * frame.RowBytes), rowBytes);
                             }
-                            Publish(frame, request.Paused ? "Video paused" : $"Playing · {request.Fps} fps limit"); frame = null;
-                            details = details with { PublishedFrames = details.PublishedFrames + 1 }; SetDetails(details);
+                            details = details with { PublishedFrames = details.PublishedFrames + 1 };
+                            Publish(frame, request.Paused ? "Video paused" : $"Playing · {request.Fps} fps limit", details); frame = null;
                         }
                         finally { frame?.Dispose(); buffer.Unlock(); }
                         first = false; nextPublish = clock.Elapsed.TotalMilliseconds + 1000d / request.Fps;
