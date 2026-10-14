@@ -15,7 +15,8 @@ public interface IDisplayDevice : IDisposable
 
     Task ConnectAsync(string portName, ThemeOrientation theme, DeviceRotation rotation,
         DisplayProtocolProfile requestedProtocol, DisplayColorMode requestedColorMode,
-        SerialPortOption? deviceInfo = null, CancellationToken cancellationToken = default);
+        SerialPortOption? deviceInfo = null, CancellationToken cancellationToken = default, int brightness = 50);
+    Task SetBrightnessAsync(int level, CancellationToken cancellationToken = default);
     Task DisconnectAsync(CancellationToken cancellationToken = default);
     Task ApplyCompatibilityAsync(DisplayProtocolProfile requestedProtocol, DisplayColorMode requestedColorMode,
         SerialPortOption? deviceInfo, ThemeOrientation theme, DeviceRotation rotation,

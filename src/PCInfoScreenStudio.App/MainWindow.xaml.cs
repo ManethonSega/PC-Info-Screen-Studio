@@ -136,6 +136,30 @@ public partial class MainWindow : Window
             SourceSearchResults.IsDropDownOpen = vm.CanSearchSources && !string.IsNullOrWhiteSpace(SourceSearchBox.Text);
     }
 
+    private void OnBrightnessClick(object sender, RoutedEventArgs e)
+        => BrightnessPopup.IsOpen = !BrightnessPopup.IsOpen;
+
+    private void OnBrightnessOpened(object sender, EventArgs e)
+        => BrightnessSlider.Focus();
+
+    private void OnBrightnessClosed(object sender, EventArgs e)
+        => CommitBrightnessEdit();
+
+    private void CommitBrightnessEdit()
+    {
+        _viewModel.DisplayBrightness = (int)Math.Round(BrightnessSlider.Value);
+        BrightnessSlider.GetBindingExpression(System.Windows.Controls.Primitives.RangeBase.ValueProperty)?.UpdateSource();
+    }
+
+    private void OnBrightnessKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Escape) return;
+        CommitBrightnessEdit();
+        BrightnessPopup.IsOpen = false;
+        BrightnessButton.Focus();
+        e.Handled = true;
+    }
+
     private void OnSettingsClick(object sender, RoutedEventArgs e)
     {
         var window = new SettingsWindow

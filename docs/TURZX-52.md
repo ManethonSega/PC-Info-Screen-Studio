@@ -185,7 +185,7 @@ selected. Hardware/Windows UI checks remain pending.
 The owner confirmed that two alpha.10 problems were resolved, but switching
 mode changed Stop display to Start display and left the physical screen on its
 old image. Alpha.10 incorrectly sent sync (10) and brightness (14) commands at
-mode boundaries. These are connection initialization commands; all three app
+mode boundaries. That combined setup belongs at connection time; all three app
 modes use the same full-frame JPEG output protocol.
 
 The regression test models a screen that rejects initialization commands once
@@ -201,6 +201,12 @@ colour, and rejects any attempted mid-session initialization. This is a
 simulated firmware condition, not a confirmed diagnosis of the physical
 screen's internal behaviour. Actual mode switching and long-duration output
 still require the owner test.
+
+## Brightness control, alpha.19
+
+The top-bar Brightness button sends command 14 only for an explicit brightness change or initial connection, without a sync/reset command. The 1CBE:0050 family retains the exact-model Python reference's 0..102 byte mapping for a 0..100% UI value. It does not use the serial family's inverted 0..255 mapping. Initial setup applies the saved USB value directly. Slider edits are debounced and share the image I/O gate. Changing modes still sends no brightness command. A rejected brightness request reports failure and preserves the image session; software checks exercise subsequent JPEG output even on the earlier simulated rejecting firmware. Physical dimming and firmware response remain to be confirmed.
+
+Reference: [exact-family SetBrightness implementation](https://github.com/mathoudebine/turing-smart-screen-python/blob/main/library/lcd/lcd_comm_turing_usb.py).
 
 ## Owner follow-up, 2026-10-14
 

@@ -21,7 +21,7 @@ public sealed class TuringUsbDisplayDevice(Func<ITuringUsbTransport>? transportF
 
     public Task ConnectAsync(string portName, ThemeOrientation theme, DeviceRotation rotation,
         DisplayProtocolProfile requestedProtocol, DisplayColorMode requestedColorMode,
-        SerialPortOption? deviceInfo = null, CancellationToken cancellationToken = default)
+        SerialPortOption? deviceInfo = null, CancellationToken cancellationToken = default, int brightness = 50)
         => RunAsync(() =>
         {
             DisconnectCore();
@@ -31,8 +31,7 @@ public sealed class TuringUsbDisplayDevice(Func<ITuringUsbTransport>? transportF
             {
                 transport.Open(portName);
                 RequireResponse(transport.Exchange(TuringUsbProtocol.Packet(10), cancellationToken));
-                // Match the reference's 50% brightness mapping (0..102).
-                RequireResponse(transport.Exchange(TuringUsbProtocol.Packet(14, new byte[] { 51 }), cancellationToken));
+                RequireResponse(transport.Exchange(BrightnessPacket(brightness), cancellationToken));
                 _orientation = theme;
                 _rotation = rotation;
                 ConnectedPort = portName;
@@ -43,6 +42,17 @@ public sealed class TuringUsbDisplayDevice(Func<ITuringUsbTransport>? transportF
 
     public Task DisconnectAsync(CancellationToken cancellationToken = default)
         => RunAsync(DisconnectCore, cancellationToken);
+
+    public Task SetBrightnessAsync(int level, CancellationToken cancellationToken = default)
+        => RunAsync(() =>
+        {
+            if (_transport is not null)
+                RequireResponse(_transport.Exchange(BrightnessPacket(level), cancellationToken));
+        }, cancellationToken);
+
+    private static byte[] BrightnessPacket(int level)
+        // Keep the exact-family Python reference's 0..102 scale, not serial's inverted 0..255.
+        => TuringUsbProtocol.Packet(14, new byte[] { (byte)(Math.Clamp(level, 0, 100) * 102 / 100) });
 
     public Task ApplyCompatibilityAsync(DisplayProtocolProfile requestedProtocol, DisplayColorMode requestedColorMode,
         SerialPortOption? deviceInfo, ThemeOrientation theme, DeviceRotation rotation, CancellationToken cancellationToken = default)

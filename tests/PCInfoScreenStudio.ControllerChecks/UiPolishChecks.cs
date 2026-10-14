@@ -29,6 +29,7 @@ internal static class UiPolishChecks
             window.Show();
             pump(() => window.IsEnabled);
             vm.SetEditorActive(false);
+            CheckBrightnessControl(window, vm, settings, pump, captureDirectory);
             var surface = All<DesignerSurface>(window).Single();
             var photoHint = (Border)surface.FindName("PhotoEmptyState");
             var hybridHint = (Border)surface.FindName("HybridEmptyState");
@@ -170,6 +171,59 @@ internal static class UiPolishChecks
         vm.SelectedWidget = widget; Flush();
     }
 
+    private static void CheckBrightnessControl(PCInfoScreenStudio.MainWindow window, MainViewModel vm,
+        SettingsController settings, Action<Func<bool>> pump, string? captureDirectory)
+    {
+        var button = (Button)window.FindName("BrightnessButton");
+        var popup = (System.Windows.Controls.Primitives.Popup)window.FindName("BrightnessPopup");
+        var slider = (Slider)window.FindName("BrightnessSlider");
+        var reset = (Button)window.FindName("ResetBrightnessButton");
+        var before = System.Text.Json.JsonSerializer.Serialize(vm.Document);
+        button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        pump(() => popup.IsOpen && slider.IsVisible);
+        Assert(slider.Value == 50 && slider.Minimum == 0 && slider.Maximum == 100 && slider.IsEnabled,
+            "Top-bar brightness must expose an accessible 0..100 slider, including disconnected presets.");
+        slider.SetCurrentValue(Slider.ValueProperty, 32d);
+        pump(() => vm.DisplayBrightness == 32 && settings.SerialBrightness == 32);
+        Assert(vm.BrightnessLabel == "Brightness 32%" && !slider.GetBindingExpression(Slider.ValueProperty)!.HasError,
+            "Slider binding and toolbar percentage must update the selected family's saved level.");
+        if (captureDirectory is not null) Capture((FrameworkElement)popup.Child, captureDirectory, "Brightness-control.png", naturalSize: true);
+        slider.SetCurrentValue(Slider.ValueProperty, 41d);
+        popup.IsOpen = false;
+        Flush();
+        Assert(settings.SerialBrightness == 41, "Closing the popup must commit a final slider edit without waiting for its binding delay.");
+        Assert(System.Text.Json.JsonSerializer.Serialize(vm.Document) == before, "Brightness edits must not change theme content.");
+        vm.CanvasSize = DisplayCanvasSize.Turing52;
+        pump(() => !vm.IsDeviceBusy);
+        Assert(vm.DisplayBrightness == 50 && vm.BrightnessLabel == "Brightness 50%", "Changing screen family must refresh the toolbar brightness.");
+        var usbBefore = System.Text.Json.JsonSerializer.Serialize(vm.Document);
+        button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        pump(() => popup.IsOpen && slider.IsVisible);
+        slider.SetCurrentValue(Slider.ValueProperty, 72d);
+        pump(() => settings.UsbBrightness == 72);
+        reset.Command.Execute(null);
+        Flush();
+        Assert(slider.Value == 50 && settings.UsbBrightness == 50 && settings.SerialBrightness == 41,
+            "Reset must affect only the selected family and immediately refresh the slider.");
+        var key = new System.Windows.Input.KeyEventArgs(System.Windows.Input.Keyboard.PrimaryDevice,
+            PresentationSource.FromVisual(slider), 0, System.Windows.Input.Key.Escape)
+            { RoutedEvent = System.Windows.Input.Keyboard.PreviewKeyDownEvent };
+        slider.RaiseEvent(key);
+        Assert(!popup.IsOpen && key.Handled, "Escape must close brightness controls and return to the toolbar.");
+        Assert(System.Text.Json.JsonSerializer.Serialize(vm.Document) == usbBefore, "USB brightness edits must also stay outside theme content.");
+        vm.CanvasSize = DisplayCanvasSize.Serial35;
+        pump(() => !vm.IsDeviceBusy);
+        Assert(vm.DisplayBrightness == 41, "Returning to the serial family must restore its brightness.");
+        var originalWidth = window.Width;
+        window.Width = window.MinWidth;
+        Flush();
+        var position = button.TranslatePoint(new Point(0, 0), (UIElement)window.Content);
+        Assert(position.X >= 0 && position.X + button.ActualWidth <= ((FrameworkElement)window.Content).ActualWidth,
+            "Brightness must fit in the toolbar at the minimum supported window width.");
+        window.Width = originalWidth;
+        Flush();
+    }
+
     private static void CheckVideoControls(PCInfoScreenStudio.MainWindow window, MainViewModel vm)
     {
         var originalSize = vm.CanvasSize;
@@ -219,15 +273,19 @@ internal static class UiPolishChecks
         Assert(value() == expected && !Validation.GetHasError(box), "Valid input must commit exactly as entered: " + valid);
     }
 
-    private static void Capture(FrameworkElement root, string directory, string name)
+    private static void Capture(FrameworkElement root, string directory, string name, bool naturalSize = false)
     {
         Directory.CreateDirectory(directory);
         // The runner's desktop can be smaller than the app's normal editor size.
         // Capture the full control tree rather than a clipped monitor viewport.
-        root.Measure(new Size(1560, 1040));
-        root.Arrange(new Rect(0, 0, 1560, 1040));
+        if (!naturalSize)
+        {
+            root.Measure(new Size(1560, 1040));
+            root.Arrange(new Rect(0, 0, 1560, 1040));
+        }
         root.UpdateLayout();
-        var bitmap = new RenderTargetBitmap(1560, 1040, 96, 96, PixelFormats.Pbgra32);
+        var bitmap = new RenderTargetBitmap(naturalSize ? (int)Math.Ceiling(root.ActualWidth) : 1560,
+            naturalSize ? (int)Math.Ceiling(root.ActualHeight) : 1040, 96, 96, PixelFormats.Pbgra32);
         bitmap.Render(root);
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));

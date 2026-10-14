@@ -67,8 +67,23 @@ internal static class TuringUsbChecks
         Assert(transport.Commands.Last() == 101, "The selected display must receive a JPEG image command for dashboard output.");
         for (var i = 0; i < 20; i++) awaitTask(device.DisplayAsync(source, DeviceRotation.Degrees0));
         Assert(transport.Commands.Skip(2).All(command => command == 101), "Repeated Info Screen updates must never switch to the PNG decoder.");
+        foreach (var level in new[] { -10, 0, 1, 25, 50, 99, 100, 120 })
+        {
+            awaitTask(device.SetBrightnessAsync(level));
+            Assert(transport.Commands.Last() == 14 && transport.Brightness.Last() == Math.Clamp(level, 0, 100) * 102 / 100,
+                "Live USB brightness must use command 14 and the exact-family 0..102 scale.");
+            awaitTask(device.DisplayAsync(source, DeviceRotation.Degrees0));
+        }
+        Assert(device.IsConnected && transport.Commands.Count(c => c == 10) == 1 && transport.Commands.Last() == 101,
+            "Changing brightness must not send sync, reset the session or stop following JPEG output.");
         awaitTask(device.DisconnectAsync());
         Assert(!device.IsConnected && transport.Closed, "Disconnect must release USB access.");
+        var savedTransport = new FakeTransport();
+        using (var savedDevice = new TuringUsbDisplayDevice(() => savedTransport))
+        {
+            awaitTask(savedDevice.ConnectAsync("usb#vid_1cbe&pid_0050#two", ThemeOrientation.Landscape, DeviceRotation.Degrees0, DisplayProtocolProfile.Auto, DisplayColorMode.Auto, brightness: 75));
+            Assert(savedTransport.Brightness.SequenceEqual(new byte[] { 76 }), "USB connection setup must apply the saved level directly, without flashing the 50% default first.");
+        }
         transport.Fail = true;
         var failure = device.ConnectAsync("usb#vid_1cbe&pid_0050#one", ThemeOrientation.Landscape, DeviceRotation.Degrees0, DisplayProtocolProfile.Auto, DisplayColorMode.Auto);
         try { awaitTask(failure); throw new InvalidOperationException("Failed handshake was accepted."); }
@@ -141,13 +156,16 @@ internal static class TuringUsbChecks
     private sealed class FakeTransport : ITuringUsbTransport
     {
         public List<byte> Commands { get; } = [];
+        public List<byte> Brightness { get; } = [];
         public bool Closed { get; private set; }
         public bool Fail { get; set; }
         public void Open(string path) { Closed = false; }
         public byte[] Exchange(byte[] payload, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            Commands.Add(Decrypt(payload)[0]);
+            var header = Decrypt(payload);
+            Commands.Add(header[0]);
+            if (header[0] == 14) Brightness.Add(header[8]);
             // Model a device whose working image command is JPEG, not PNG.
             return Fail || Commands.Last() == 102 ? new byte[512] : new byte[] { 10, 0xC8 };
         }
