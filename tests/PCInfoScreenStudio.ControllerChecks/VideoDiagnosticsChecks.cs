@@ -110,6 +110,23 @@ internal static class VideoDiagnosticsChecks
         var serialized = JsonSerializer.Serialize(widget);
         var reopened = JsonSerializer.Deserialize<WidgetModel>(serialized)!;
         Require(reopened.MediaPaused == widget.MediaPaused && reopened.PlaybackSpeed == widget.PlaybackSpeed && !serialized.Contains("Transient status"), "Playback settings serialize; runtime status does not");
+        using (var info = new ThemePackageService().CreateNewWorkspace())
+        {
+            var embedded = importer.Import(info, fixture, ThemeAssetKind.Video);
+            info.Document.Widgets.Add(new WidgetModel { Type = WidgetType.Video, AssetId = embedded.Id, MediaPaused = true });
+            info.Document.MinimumAppVersion = "0.10.0-alpha.14";
+            var package = new ThemePackageService(); var themePath = Path.Combine(root, "video-package.t3theme");
+            var saving = package.SaveAsync(info, themePath);
+            pump(() => saving.IsCompleted, TimeSpan.FromSeconds(10)); saving.GetAwaiter().GetResult();
+            var loading = package.LoadAsync(themePath);
+            pump(() => loading.IsCompleted, TimeSpan.FromSeconds(10));
+            using var reopenedInfo = loading.GetAwaiter().GetResult();
+            reopenedInfo.Document.RuntimeMode = RuntimeScreenMode.InfoScreen;
+            Require(reopenedInfo.Document.Widgets.Single().MediaPaused && File.Exists(reopenedInfo.GetAbsolutePath(reopenedInfo.Document.Assets.Single())), "Info Screen package preserves video bytes and pause settings");
+            pump(() => { using var frame = new ThemeRenderer().Render(reopenedInfo); return reopenedInfo.Document.Widgets.Single().RuntimeMediaStatus.Contains("paused"); }, TimeSpan.FromSeconds(10));
+            VideoFrameProvider.Suspend(reopenedInfo);
+        }
+        pump(() => VideoFrameProvider.RunningDecoders == 0, TimeSpan.FromSeconds(5));
         using (var hybrid = new ThemePackageService().CreateNewWorkspace())
         {
             hybrid.Document.Mode = ScreenMode.Hybrid;
