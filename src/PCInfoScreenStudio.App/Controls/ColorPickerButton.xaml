@@ -21,7 +21,7 @@
                 Stroke="#FFD04444"
                 StrokeThickness="2"
                 Visibility="Collapsed" />
-          <Border x:Name="Swatch" CornerRadius="3" BorderBrush="#55606E" BorderThickness="1" />
+          <Border x:Name="Swatch" CornerRadius="3" BorderBrush="{StaticResource StrongBorderBrush}" BorderThickness="1" />
         </Grid>
         <TextBlock Grid.Column="1" Text="{Binding HexColor, ElementName=Root}" VerticalAlignment="Center" Margin="4,0,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding HexColor, ElementName=Root}" />
       </Grid>

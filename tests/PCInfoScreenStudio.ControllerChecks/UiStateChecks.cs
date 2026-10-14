@@ -8,7 +8,7 @@ internal static class UiStateChecks
     public static FrameworkElement Gallery()
     {
         var panel = new StackPanel();
-        panel.Children.Add(new TextBlock { Text = "Readable dark controls", FontSize = 20, Margin = new Thickness(0, 0, 0, 14) });
+        panel.Children.Add(new TextBlock { Text = "Studio controls", FontSize = 20, Margin = new Thickness(0, 0, 0, 14) });
         var row = new StackPanel { Orientation = Orientation.Horizontal };
         row.Children.Add(new Button { Content = "Save theme", Style = (Style)Application.Current.Resources["PrimaryButtonStyle"] });
         row.Children.Add(new Button { Content = "Disabled action", IsEnabled = false });
@@ -18,6 +18,7 @@ internal static class UiStateChecks
         panel.Children.Add(new ComboBoxItem { Content = "Selected source: CPU temperature", IsSelected = true, Margin = new Thickness(0, 8, 0, 4) });
         panel.Children.Add(new ListBoxItem { Content = "Selected layer: Clock overlay", IsSelected = true });
         panel.Children.Add(new TextBox { Text = "Type a sensor name or change a value", Margin = new Thickness(0, 8, 0, 8) });
+        panel.Children.Add(new Slider { Value = 60, Minimum = 0, Maximum = 100 });
         var tip = CreateToolTip();
         tip.ApplyTemplate();
         tip.Measure(new Size(520, double.PositiveInfinity));
@@ -38,6 +39,21 @@ internal static class UiStateChecks
         {
             host.Show();
             host.UpdateLayout();
+            var primary = (Button)Find(gallery, typeof(Button))!;
+            primary.ApplyTemplate();
+            var primaryBorder = (Border)primary.Template.FindName("ButtonBorder", primary);
+            Assert(Contrast((SolidColorBrush)primary.Foreground, (SolidColorBrush)primaryBorder.Background) >= 4.5,
+                "The primary action needs dark, readable text on its actual cyan background.");
+            Assert(Contrast((SolidColorBrush)Application.Current.Resources["MutedTextBrush"],
+                (SolidColorBrush)Application.Current.Resources["PanelBrush"]) >= 4.5,
+                "Helper labels must remain readable on the panel background.");
+            var slider = (Slider)Find(gallery, typeof(Slider))!;
+            slider.ApplyTemplate();
+            var track = (System.Windows.Controls.Primitives.Track)slider.Template.FindName("PART_Track", slider);
+            slider.Value = 75;
+            host.UpdateLayout();
+            Assert(Math.Abs(track.Value - 75) < .001 && track.Thumb.ActualWidth > 0,
+                "The styled slider must track the bound value and retain its drag handle.");
             foreach (var type in new[] { typeof(ComboBoxItem), typeof(ListBoxItem) })
             {
                 var item = (Control)Find(gallery, type)!;
@@ -59,7 +75,7 @@ internal static class UiStateChecks
                     "The actual popup tooltip text and background must remain readable.");
             }
             finally { tip.IsOpen = false; }
-            Console.WriteLine("PASS: actual dark selected-item templates and tooltip contrast.");
+            Console.WriteLine("PASS: primary action, helper labels, selected items, tooltip contrast and styled slider.");
         }
         finally { host.Close(); }
     }

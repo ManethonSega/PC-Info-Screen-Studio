@@ -12,9 +12,9 @@
                 VerticalScrollBarVisibility="Auto"
                 CanContentScroll="False">
     <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16">
-      <Border BorderBrush="#444B58"
+      <Border BorderBrush="{StaticResource StrongBorderBrush}"
               BorderThickness="1"
-              Background="#050608"
+              Background="{StaticResource CanvasWellBrush}"
               Width="{Binding Document.CanvasWidth}"
               Height="{Binding Document.CanvasHeight}">
         <Border.LayoutTransform>
@@ -81,7 +81,7 @@
           <!-- Editor-only hints. They are WPF overlays, never part of USB rendering. -->
           <StackPanel Panel.ZIndex="9000" HorizontalAlignment="Center" VerticalAlignment="Center"
                       MaxWidth="360" Margin="16" IsHitTestVisible="False">
-            <Border x:Name="PhotoEmptyState" Background="#E8171A1F" CornerRadius="6" Padding="18" Margin="0,4">
+            <Border x:Name="PhotoEmptyState" Background="{StaticResource EmptyStateBrush}" CornerRadius="6" Padding="18" Margin="0,4">
               <Border.Style>
                 <Style TargetType="Border">
                   <Setter Property="Visibility" Value="Collapsed" />
@@ -112,7 +112,7 @@
                            TextAlignment="Center" TextWrapping="Wrap" Margin="0,6,0,0" />
               </StackPanel>
             </Border>
-            <Border x:Name="HybridEmptyState" Background="#E8171A1F" CornerRadius="6" Padding="18" Margin="0,4">
+            <Border x:Name="HybridEmptyState" Background="{StaticResource EmptyStateBrush}" CornerRadius="6" Padding="18" Margin="0,4">
               <Border.Style>
                 <Style TargetType="Border">
                   <Setter Property="Visibility" Value="Collapsed" />
@@ -138,8 +138,8 @@
 
           <Canvas Panel.ZIndex="9999" IsHitTestVisible="False">
             <Rectangle x:Name="SelectionMarquee"
-                       Fill="#285B8CFF"
-                       Stroke="#FF5B8CFF"
+                       Fill="{StaticResource SelectionFillBrush}"
+                       Stroke="{StaticResource AccentBrush}"
                        StrokeThickness="1"
                        StrokeDashArray="3,2"
                        Visibility="Collapsed" />
@@ -150,8 +150,8 @@
                   Height="{Binding Document.CanvasHeight}"
                   Panel.ZIndex="10000"
                   IsHitTestVisible="False">
-            <Line x:Name="VerticalGuide" Stroke="#FFFF4F79" StrokeThickness="1" Visibility="Collapsed" />
-            <Line x:Name="HorizontalGuide" Stroke="#FFFF4F79" StrokeThickness="1" Visibility="Collapsed" />
+            <Line x:Name="VerticalGuide" Stroke="{StaticResource AquaBrush}" StrokeThickness="1" Visibility="Collapsed" />
+            <Line x:Name="HorizontalGuide" Stroke="{StaticResource AquaBrush}" StrokeThickness="1" Visibility="Collapsed" />
           </Canvas>
         </Grid>
       </Border>

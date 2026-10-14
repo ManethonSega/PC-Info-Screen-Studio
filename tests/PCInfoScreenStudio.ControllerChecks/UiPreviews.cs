@@ -26,6 +26,7 @@ internal static class UiPreviews
             {
                 vm.Document.Mode = mode;
                 CaptureElement(root, 1560, 1040, Path.Combine(directory, mode + ".png"));
+                CaptureElement(root, 1080, 680, Path.Combine(directory, mode + "-compact.png"));
             }
             vm.ShowPage(true);
             vm.HardwareDashboard.Update(new Dictionary<string, MetricValue>
