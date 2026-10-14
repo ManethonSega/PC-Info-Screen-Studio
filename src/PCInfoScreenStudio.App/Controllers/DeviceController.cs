@@ -153,6 +153,36 @@ public sealed class DeviceController : ObservableObject, IDisposable
             ?? (candidates.Length == 1 ? candidates[0] : null);
     }
 
+    public bool TrySelectReplacementScreen()
+    {
+        // Called only by automatic reconnect, after its manual Stop guard.
+        // An explicit family choice clears the remembered identity; keep waiting for it.
+        if (_disposed || IsConnected || IsDeviceBusy ||
+            string.IsNullOrWhiteSpace(_settings.LastDisplayPort) ||
+            string.IsNullOrWhiteSpace(_settings.LastDisplayHardwareId) ||
+            FindPreferredDisplay() is not null) return false;
+
+        var screens = Ports.Where(IsRecognizedScreen).ToArray();
+        if (screens.Length != 1 || MatchesScreen(screens[0])) return false;
+
+        DisplayProtocol = DisplayProtocolProfile.Auto;
+        SelectedPort = screens[0].PortName;
+        DeviceStatus = $"Screen changed: {screens[0].DisplayName}";
+        return true;
+    }
+
+    private static bool IsRecognizedScreen(SerialPortOption port)
+    {
+        if (port.IsUsbScreen) return true;
+        var identity = $"{port.HardwareId} {port.FriendlyName} {port.Manufacturer}";
+        // Generic USB-SERIAL/CH340/FTDI scores also match unrelated peripherals.
+        return identity.Contains("VID_1A86&PID_5722", StringComparison.OrdinalIgnoreCase) ||
+            identity.Contains("USB35INCHIPSV2", StringComparison.OrdinalIgnoreCase) ||
+            identity.Contains("TURING", StringComparison.OrdinalIgnoreCase) ||
+            identity.Contains("TURZX", StringComparison.OrdinalIgnoreCase) ||
+            identity.Contains("USBMONITOR", StringComparison.OrdinalIgnoreCase);
+    }
+
     public void RefreshPorts()
     {
         var discovered = _discoverPorts();
