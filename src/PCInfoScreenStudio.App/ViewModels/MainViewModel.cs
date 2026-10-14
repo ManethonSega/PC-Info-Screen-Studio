@@ -107,7 +107,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         MoveLayerDownCommand = new RelayCommand(() => MoveLayer(-1), () => IsEditorPage && SelectedWidget is not null);
         ImportImageCommand = new RelayCommand(() => ImportMedia(ThemeAssetKind.Image));
         ImportGifCommand = new RelayCommand(() => ImportMedia(ThemeAssetKind.Gif));
-        ImportVideoCommand = new RelayCommand(() => ImportMedia(ThemeAssetKind.Video));
+        ImportVideoCommand = new RelayCommand(async () => await ImportVideoAsync(), () => !_videoImportBusy);
         ImportFontCommand = new RelayCommand(ImportFont);
         ToggleOrientationCommand = new RelayCommand(ToggleOrientation);
         RotateDeviceCommand = new RelayCommand(RotateDevice);
@@ -979,29 +979,34 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         try
         {
             var asset = _assetService.Import(Workspace, path, kind);
-            var type = kind switch
-            {
-                ThemeAssetKind.Image => WidgetType.Image,
-                ThemeAssetKind.Gif => WidgetType.AnimatedImage,
-                _ => WidgetType.Video
-            };
-            var widget = NewWidget(type);
-            if (type == WidgetType.Video) Document.MinimumAppVersion = "0.10.0-alpha.14";
-            widget.Name = asset.DisplayName;
-            widget.AssetId = asset.Id;
-            widget.X = 0;
-            widget.Y = 0;
-            widget.Width = Document.CanvasWidth;
-            widget.Height = Document.CanvasHeight;
-            Document.EditorWidgets.Insert(0, widget);
-            NormalizeZIndices();
-            SelectedWidget = widget;
-            MarkDirtyAndRefresh();
+            AttachImportedMedia(asset, kind);
         }
         catch (Exception ex)
         {
             MessageBox.Show(ex.Message, "Could not import media", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    private void AttachImportedMedia(ThemeAsset asset, ThemeAssetKind kind)
+    {
+        var type = kind switch
+        {
+            ThemeAssetKind.Image => WidgetType.Image,
+            ThemeAssetKind.Gif => WidgetType.AnimatedImage,
+            _ => WidgetType.Video
+        };
+        var widget = NewWidget(type);
+        if (type == WidgetType.Video) Document.MinimumAppVersion = "0.10.0-alpha.14";
+        widget.Name = asset.DisplayName;
+        widget.AssetId = asset.Id;
+        widget.X = 0;
+        widget.Y = 0;
+        widget.Width = Document.CanvasWidth;
+        widget.Height = Document.CanvasHeight;
+        Document.EditorWidgets.Insert(0, widget);
+        NormalizeZIndices();
+        SelectedWidget = widget;
+        MarkDirtyAndRefresh();
     }
 
     private void AddPhotos() => _photos.AddPhotos();
@@ -1532,6 +1537,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private void ReplaceWorkspace(ThemeWorkspace workspace)
     {
         DetachWorkspace(_workspace);
+        CancelVideoImport();
         _workspace.Dispose();
         ThemeRenderer.ClearCaches();
         _workspace = workspace;
@@ -2259,6 +2265,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _isDisposed = true;
+        CancelVideoImport();
         StopAutoDisplay();
         _dataTimer.Stop();
         _animationTimer.Stop();

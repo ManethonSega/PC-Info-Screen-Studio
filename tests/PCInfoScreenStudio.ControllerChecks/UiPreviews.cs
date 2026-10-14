@@ -78,6 +78,25 @@ internal static class UiPreviews
             vm.SelectedWidget.X = 8; vm.SelectedWidget.Y = 4; vm.SelectedWidget.Width = 460; vm.SelectedWidget.Height = 44;
             FlushBindings();
             CaptureElement(root, 1560, 1040, Path.Combine(directory, "Hardware-name-widget.png"));
+            CapturePanel((Border)settingsWindow.FindName("DiagnosticsPanel"), vm, 660, 175,
+                Path.Combine(directory, "Export-diagnostics.png"));
+            var export = Find<Button>(settingsWindow, b => Equals(b.Content, "Export diagnostics"));
+            if (export is null || !ReferenceEquals(export.Command, vm.ExportDiagnosticsCommand)) throw new InvalidOperationException("Diagnostics button is not bound.");
+            vm.AutoStartDisplay = false;
+            vm.CanvasSize = DisplayCanvasSize.Turing52;
+            vm.Document.Widgets.Clear();
+            vm.ImportMediaFile(Path.Combine(AppContext.BaseDirectory, "Fixtures", "video-colours.mp4"), ThemeAssetKind.Video);
+            vm.SelectedWidget!.MediaPaused = true; vm.MediaPanelExpanded = true;
+            var deadline = System.Diagnostics.Stopwatch.StartNew();
+            while (true)
+            {
+                using var frame = PCInfoScreenStudio.Rendering.VideoFrameProvider.GetFrame(vm.Workspace, vm.SelectedWidget, vm.CanvasSize, 0, out _);
+                if (frame is not null) break;
+                if (deadline.Elapsed > TimeSpan.FromSeconds(10)) throw new TimeoutException("Video UI capture failed to decode.");
+                FlushBindings(); Thread.Sleep(5);
+            }
+            vm.NotifyDesignerChange(); FlushBindings();
+            CaptureElement(root, 1560, 1040, Path.Combine(directory, "Video-playback.png"));
             // Exercise native startup sizing, including monitor/DPI detection, without showing the editor.
             _ = new System.Windows.Interop.WindowInteropHelper(window).EnsureHandle();
         }

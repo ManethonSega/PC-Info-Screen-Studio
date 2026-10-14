@@ -114,14 +114,14 @@ public static class VideoFrameProvider
                     using var sample = reader.ReadSample(SourceReaderIndex.FirstVideoStream, 0, out _, out var flags, out var timestamp);
                     if ((flags & SourceReaderFlag.Error) != 0) throw new InvalidDataException("Video stream error.");
                     if ((flags & SourceReaderFlag.CurrentMediaTypeChanged) != 0) throw new InvalidDataException("Changing video dimensions are not supported.");
-                    if ((flags & SourceReaderFlag.EndOfStream) != 0 && sample is null)
+                    if ((flags & SourceReaderFlag.EndOfStream) != 0)
                     {
                         request = Volatile.Read(ref _request);
                         if (!loopHadFrame) throw new InvalidDataException("Video contains no frames.");
                         if (!request.Loop) { lock (_sync) _status = "Video ended · Restart to play again"; break; }
                         reader.SetCurrentPosition(0); mediaTicks = 0; lastMs = clock.Elapsed.TotalMilliseconds; origin = null; loopHadFrame = false; continue;
                     }
-                    if (sample is null) { if (++emptyReads > 120) throw new InvalidDataException("Video contains no readable frames."); continue; }
+                    if (sample is null || sample.NativePointer == IntPtr.Zero) { if (++emptyReads > 120) throw new InvalidDataException("Video contains no readable frames."); continue; }
                     emptyReads = 0; loopHadFrame = true; origin ??= timestamp;
                     while (true)
                     {
@@ -162,6 +162,7 @@ public static class VideoFrameProvider
             catch (Exception ex)
             {
                 DiagnosticsService.RecordError("Video decoder", ex);
+                Console.Error.WriteLine($"Video decoder: {ex.GetType().Name}, HRESULT 0x{ex.HResult:X8}");
                 lock (_sync) if (!_disposed) _status = ex is InvalidDataException ? ex.Message : "Cannot play video · Try H.264 MP4 or install Windows Media Feature Pack";
             }
             finally

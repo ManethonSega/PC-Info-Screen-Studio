@@ -92,7 +92,7 @@
         </Border>
 
         <TextBlock Text="TROUBLESHOOTING" Style="{StaticResource PageSectionTitleStyle}" Margin="0,20,0,9" />
-        <Border Style="{StaticResource CardStyle}" Padding="14"><StackPanel>
+        <Border x:Name="DiagnosticsPanel" Style="{StaticResource CardStyle}" Padding="14"><StackPanel>
           <TextBlock Text="Save app and Windows versions, connection settings, performance counters and recent error codes. Photos, theme content, account names and personal paths are excluded. Nothing is sent automatically." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" />
           <Button Content="Export diagnostics" Command="{Binding ExportDiagnosticsCommand}" HorizontalAlignment="Left" Margin="2,8,2,2" ToolTip="Save a local JSON report to attach to a bug report." />
           <TextBlock Text="{Binding DiagnosticsStatus}" TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="3,4,3,0" />

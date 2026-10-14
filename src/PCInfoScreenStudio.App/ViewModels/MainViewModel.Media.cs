@@ -8,6 +8,34 @@ namespace PCInfoScreenStudio.ViewModels;
 public sealed partial class MainViewModel
 {
     private bool _exportingDiagnostics;
+    private bool _videoImportBusy;
+    private CancellationTokenSource? _videoImportCancellation;
+    private string _videoImportStatus = string.Empty;
+    public string VideoImportStatus { get => _videoImportStatus; private set => SetProperty(ref _videoImportStatus, value); }
+    private async Task ImportVideoAsync()
+    {
+        if (_videoImportBusy) return;
+        var path = _dialogs.OpenVideo(); if (path is null) return;
+        var workspace = Workspace; var mode = Document.Mode;
+        _videoImportBusy = true; ImportVideoCommand.RaiseCanExecuteChanged(); VideoImportStatus = "Importing video…";
+        using var cancellation = new CancellationTokenSource(); _videoImportCancellation = cancellation;
+        ThemeAsset? asset = null;
+        try
+        {
+            asset = await _assetService.PrepareVideoAsync(workspace, path, cancellation.Token);
+            if (_isDisposed || Workspace != workspace || Document.Mode != mode) { VideoImportStatus = "Import cancelled because the workspace changed."; return; }
+            workspace.Document.Assets.Add(asset); workspace.IsDirty = true;
+            AttachImportedMedia(asset, ThemeAssetKind.Video); asset = null; VideoImportStatus = string.Empty;
+        }
+        catch (OperationCanceledException) { VideoImportStatus = "Video import cancelled."; }
+        catch (Exception ex) { DiagnosticsService.RecordError("Video import", ex); VideoImportStatus = ex is InvalidDataException ? ex.Message : "Could not import video. Check the file and available disk space."; }
+        finally
+        {
+            if (asset is not null && File.Exists(asset.LocalPath)) { try { File.Delete(asset.LocalPath!); } catch { } }
+            _videoImportCancellation = null; _videoImportBusy = false; ImportVideoCommand.RaiseCanExecuteChanged();
+        }
+    }
+    private void CancelVideoImport() => _videoImportCancellation?.Cancel();
     private string _diagnosticsStatus = string.Empty;
     public RelayCommand ExportDiagnosticsCommand { get; private set; } = null!;
     public RelayCommand RestartVideoCommand { get; private set; } = null!;
