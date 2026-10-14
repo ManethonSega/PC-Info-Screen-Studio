@@ -249,7 +249,7 @@
         <ControlTemplate TargetType="TextBox">
           <StackPanel>
             <Border x:Name="InputBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
-                    BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" MinHeight="30" Padding="{TemplateBinding Padding}">
+                    BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" MinHeight="30">
               <ScrollViewer x:Name="PART_ContentHost" />
             </Border>
             <TextBlock x:Name="InlineValidationError" Visibility="Collapsed" Foreground="{StaticResource AlertBrush}"
