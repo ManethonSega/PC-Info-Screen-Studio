@@ -44,6 +44,9 @@ internal static class UiStateChecks
             var primaryBorder = (Border)primary.Template.FindName("ButtonBorder", primary);
             Assert(Contrast((SolidColorBrush)primary.Foreground, (SolidColorBrush)primaryBorder.Background) >= 4.5,
                 "The primary action needs dark, readable text on its actual cyan background.");
+            var primaryText = (TextBlock)Find(primary, typeof(TextBlock))!;
+            Assert(Contrast((SolidColorBrush)primaryText.Foreground, (SolidColorBrush)primaryBorder.Background) >= 4.5,
+                "The rendered primary-action label must inherit the dark action text colour.");
             Assert(Contrast((SolidColorBrush)Application.Current.Resources["MutedTextBrush"],
                 (SolidColorBrush)Application.Current.Resources["PanelBrush"]) >= 4.5,
                 "Helper labels must remain readable on the panel background.");
