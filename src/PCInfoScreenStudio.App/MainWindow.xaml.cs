@@ -143,11 +143,18 @@ public partial class MainWindow : Window
         => BrightnessSlider.Focus();
 
     private void OnBrightnessClosed(object sender, EventArgs e)
-        => BrightnessSlider.GetBindingExpression(System.Windows.Controls.Primitives.RangeBase.ValueProperty)?.UpdateSource();
+        => CommitBrightnessEdit();
+
+    private void CommitBrightnessEdit()
+    {
+        _viewModel.DisplayBrightness = (int)Math.Round(BrightnessSlider.Value);
+        BrightnessSlider.GetBindingExpression(System.Windows.Controls.Primitives.RangeBase.ValueProperty)?.UpdateSource();
+    }
 
     private void OnBrightnessKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key != Key.Escape) return;
+        CommitBrightnessEdit();
         BrightnessPopup.IsOpen = false;
         BrightnessButton.Focus();
         e.Handled = true;

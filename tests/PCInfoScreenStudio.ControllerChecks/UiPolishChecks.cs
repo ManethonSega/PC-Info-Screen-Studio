@@ -190,6 +190,7 @@ internal static class UiPolishChecks
         if (captureDirectory is not null) Capture((FrameworkElement)popup.Child, captureDirectory, "Brightness-control.png");
         slider.Value = 41;
         popup.IsOpen = false;
+        Flush();
         Assert(settings.SerialBrightness == 41, "Closing the popup must commit a final slider edit without waiting for its binding delay.");
         Assert(System.Text.Json.JsonSerializer.Serialize(vm.Document) == before, "Brightness edits must not change theme content.");
         vm.CanvasSize = DisplayCanvasSize.Turing52;
