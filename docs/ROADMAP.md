@@ -1,6 +1,6 @@
 # Roadmap
 
-Current source version: **0.10.0-alpha.17**.
+Current source version: **0.10.0-alpha.18**.
 
 The next milestone is product polish, not another broad feature category. Priorities remain **easy to use, lightweight, intuitive, and visually clear**. Checked items below describe implemented functionality, not a claim that every device or workload has been validated.
 
@@ -73,7 +73,11 @@ The owner reports approximately **150 MB RAM usage as of 5 October 2026**, repla
 
 ## Next: beta readiness
 
-The owner has supplied the alpha.11 confirmation requested earlier: basic output, mode switching, large fonts and independent playlists work on their setup. Do not repeat that request. The remaining evidence concerns sustained operation, reconnects, additional devices and new users.
+The owner has supplied the alpha.11 confirmation requested earlier: basic output, mode switching, large fonts and independent playlists work on their setup. On 14 October 2026 they also reported overnight tray operation, restart, sleep/wake, unplug/replug, both screens connected and repeated mode changes passing. Everyday functional hardware checks are complete on that setup. The tested build, exact duration and CPU/memory traces were not supplied. Broader device and first-time-user evidence remains separate.
+
+- [x] Owner's everyday hardware checks, including overnight tray operation and reconnects.
+- [x] Automatic family handoff when a remembered screen is absent and exactly one recognized screen of the other family is present; both attached retains the selection. Software checked; physical retest of this new behavior remains pending.
+- [ ] Measure video output on each display; owner reports slow, visibly progressive full-screen video on the 3.5-inch serial screen.
 
 Remaining work is tracked in [labelled GitHub issues](https://github.com/ManethonSega/PC-Info-Screen-Studio/issues?q=is%3Aissue+is%3Aopen). Each issue has completion criteria. The [beta-readiness queue](https://github.com/ManethonSega/PC-Info-Screen-Studio/issues?q=is%3Aissue+is%3Aopen+label%3Abeta-readiness) contains the high-priority stability and validation work; medium and low priorities are follow-ups.
 
@@ -82,7 +86,7 @@ Remaining work is tracked in [labelled GitHub issues](https://github.com/Manetho
 | High | Back up and recover settings and the last session without discarding valid data | `area: persistence` |
 | High | Prevent overlapping saves/loads/imports and keep long operations understandable | `area: runtime` |
 | High | Bound total image/GIF memory and release unused assets | `area: memory` |
-| High | Record real display startup, reconnect and long-duration results | `area: hardware` |
+| High | Complete device/build records, measured resource trends and new handoff/video evidence; everyday functional checks passed | `area: hardware` |
 | High | Validate first-time setup, Windows scaling and keyboard accessibility | `area: usability` |
 | Medium | Extract remaining coordinator responsibilities and reusable mode panels | `area: architecture` |
 | Medium | Improve conventional unit-test and CI result reporting | `area: tests` |

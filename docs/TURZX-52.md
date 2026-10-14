@@ -204,4 +204,6 @@ still require the owner test.
 
 ## Owner follow-up, 2026-10-14
 
-The owner reports alpha.11 working correctly on their setup. This confirms the mode-switch fix for that setup; it does not replace broader device, reboot, sleep/resume or long-duration compatibility evidence. Alpha.12 changes interface styling only, keeping the alpha.11 USB and rendering paths.
+The owner reports alpha.11 working correctly on their setup. This confirms the mode-switch fix for that setup. Alpha.12 changes interface styling only, keeping the alpha.11 USB and rendering paths.
+
+In a subsequent 14 October report, the owner confirmed overnight tray operation, restart, sleep/wake, unplug/replug, both screens connected and repeated mode changes passed. Exact build/duration, model revisions and CPU/memory traces were not supplied. Switching families still needed manual model selection. Alpha.18 adds automatic handoff when the remembered device is gone and only one recognized screen of the other family is attached, while preserving selection when both are present. That new behavior has simulated-device checks and awaits physical verification. Broader firmware compatibility remains unverified.

@@ -26,7 +26,7 @@ UI-polish candidate checks passed on **6 October 2026** in [Windows run 37420665
 
 ## Physical-device and first-time user checklist
 
-These checks remain pending for this release unless an explicit dated record is added. CI success is not a hardware-reliability result.
+Use dated owner records below for completed hardware checks. Uncovered checks, new changes and first-time-user validation remain pending. CI success is not a hardware-reliability result.
 
 1. With other screen software closed, detect and connect the actual display. Check orientation, colours and live values.
 2. Add a text, value and circular gauge, resize them, choose sources, save and reopen the Info Screen theme.
@@ -38,6 +38,23 @@ These checks remain pending for this release unless an explicit dated record is 
 8. Ask someone unfamiliar with the app to complete connection, adding and saving without instructions. Record where they hesitate.
 
 Report issues with app version, Windows version, device details, exact steps and whether the problem occurs on the preview, physical screen or both. Local crash/startup logs exist under `%LOCALAPPDATA%\PCInfoScreenStudio\Logs`; there is no automatic remote crash reporting.
+
+## Owner everyday hardware record, 2026-10-14
+
+The owner reports the following checks passed on their setup. The tested app build, exact overnight duration, device revisions and CPU/memory traces were not specified; this record does not attribute the overnight result to alpha.17 or alpha.18.
+
+| Check | Owner result |
+| --- | --- |
+| Overnight tray operation | Passed |
+| Restart | Passed |
+| Sleep/wake | Passed |
+| Unplug/replug | Passed |
+| Both screens connected | Passed |
+| Repeated mode changes | Passed |
+
+Switching display families still required manually choosing the model before output resumed. The 3.5-inch video looked like a slow slideshow with left-to-right frame replacement. These are separate follow-ups, not reasons to repeat the passed everyday checks. Changed-COM-number, sign-in-task details and resource trends were not separately documented.
+
+Alpha.18 adds conservative automatic handoff within the existing reconnect loop, after its manual Stop guard. Simulated devices check serial-to-USB and USB-to-serial reconnect/output, saved family/identity and notification order, both-family selection retention, live-connection retention, ambiguous replacements, unrelated serial adapters and explicit selection of an unavailable family. The existing selected-port notification resizes the canvas before connecting. Full Windows/controller/WPF and EXE/ZIP checks gate release. Physical verification of this new handoff is pending.
 
 ## TURZX 5.2-inch integration
 

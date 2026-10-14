@@ -34,6 +34,7 @@ internal static class Program
             RunCheck("CheckWidgetBackground", () => CheckWidgetBackground(root));
             RunCheck("CheckPhotos", () => CheckPhotos(root));
             RunCheck("CheckDevice", () => CheckDevice(root));
+            RunCheck("CheckDisplayFamilyHandoff", () => CheckDisplayFamilyHandoff(root));
             RunCheck("TuringUsbChecks.Check", () => TuringUsbChecks.Check(root, Await));
             RunCheck("CheckThemeModes", () => CheckThemeModes(root));
             RunCheck("CheckThemeFolderReload", () => CheckThemeFolderReload(root));
@@ -612,6 +613,70 @@ internal static class Program
             "A remembered physical screen must be preferred when Windows assigns it a new COM number.");
     }
 
+    private static void CheckDisplayFamilyHandoff(string root)
+    {
+        var serial = new SerialPortOption("COM6", "USB35INCHIPSV2", "VID_1A86&PID_5722", "Turing", 20);
+        var usb = new SerialPortOption(@"USB\VID_1CBE&PID_0050\SCREEN", "TURZX 5.2-inch", "VID_1CBE&PID_0050", "TURZX", 20);
+        var unrelated = new SerialPortOption("COM7", "USB-SERIAL CH340", "VID_1A86&PID_7523", "FTDI USB CDC", 12);
+        IReadOnlyList<SerialPortOption> present = [serial, usb];
+        var settings = Settings(root, "display-handoff");
+        settings.PreferredCanvasSize = DisplayCanvasSize.Serial35;
+        settings.AutoStartDisplay = false;
+        var hardware = new FakeDisplayDevice();
+        using var controller = new DeviceController(() => new ThemeDocument(), settings, hardware, () => present);
+        controller.RefreshPorts();
+        controller.SelectedPort = serial.PortName;
+        Await(controller.ConnectOrDisconnectAsync());
+        Assert(!controller.TrySelectReplacementScreen() && controller.SelectedPort == serial.PortName,
+            "Attaching another display must not steal a live connection.");
+        Await(controller.ConnectOrDisconnectAsync());
+        Assert(!controller.TrySelectReplacementScreen(), "Two attached families must retain the chosen family.");
+        Await(controller.ConnectOrDisconnectAsync());
+        present = [usb, unrelated];
+        Await(controller.HandleDeviceChangeAsync());
+        Assert(!controller.IsConnected, "Removing the connected serial screen must release it before handoff.");
+        controller.DisplayProtocol = DisplayProtocolProfile.RevANativePortrait;
+        var selectionSawCorrectFamily = false;
+        controller.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(DeviceController.SelectedPort))
+                selectionSawCorrectFamily = controller.PreferredCanvasSize == DisplayCanvasSize.Turing52;
+        };
+        Assert(controller.TrySelectReplacementScreen() && selectionSawCorrectFamily &&
+            settings.PreferredCanvasSize == DisplayCanvasSize.Turing52 &&
+            settings.LastDisplayHardwareId == usb.HardwareId && controller.DisplayProtocol == DisplayProtocolProfile.Auto,
+            "Serial-to-USB replacement must publish the new family/identity before canvas observers run and reset the serial protocol.");
+        Await(controller.ConnectOrDisconnectAsync(automatic: true));
+        Assert(controller.IsConnected && hardware.ConnectedPort == usb.PortName && controller.LivePreview,
+            "Replacement USB screen must reconnect and resume live output.");
+        present = [serial];
+        Await(controller.HandleDeviceChangeAsync());
+        Assert(controller.TrySelectReplacementScreen() && settings.PreferredCanvasSize == DisplayCanvasSize.Serial35,
+            "USB-to-serial replacement must update the family automatically.");
+        Await(controller.ConnectOrDisconnectAsync(automatic: true));
+        Assert(hardware.ConnectedPort == serial.PortName, "Reverse handoff must connect the serial screen.");
+        Await(controller.ConnectOrDisconnectAsync());
+        present = [usb, usb with { PortName = usb.PortName + "2", HardwareId = usb.HardwareId + "2" }];
+        controller.RefreshPorts();
+        Assert(!controller.TrySelectReplacementScreen(), "Multiple replacement screens require a user choice.");
+        present = [unrelated];
+        controller.RefreshPorts();
+        Assert(!controller.TrySelectReplacementScreen(), "Generic serial adapters cannot be treated as replacement screens.");
+        present = [usb];
+        Await(controller.SelectScreenAsync(DisplayCanvasSize.Serial35));
+        Assert(!controller.TrySelectReplacementScreen() && settings.PreferredCanvasSize == DisplayCanvasSize.Serial35,
+            "Explicitly choosing an absent family must keep waiting for that family.");
+        settings.LastDisplayPort = usb.PortName;
+        settings.LastDisplayHardwareId = usb.HardwareId;
+        settings.PreferredCanvasSize = DisplayCanvasSize.Turing52;
+        present = [unrelated];
+        controller.RefreshPorts();
+        Assert(!controller.TrySelectReplacementScreen(), "An unrelated COM device must not replace a remembered USB screen.");
+        present = [serial];
+        controller.RefreshPorts();
+        Assert(controller.TrySelectReplacementScreen(), "A single recognized replacement must also work from disconnected startup state.");
+    }
+
     private static void Await(Task task)
     {
         PumpUntil(() => task.IsCompleted);
@@ -647,7 +712,8 @@ internal static class Program
     {
         private readonly TaskCompletionSource _firstFrame = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public bool IsConnected { get; private set; }
-        public string? ConnectedPort => IsConnected ? "COM6" : null;
+        private string? _connectedPort;
+        public string? ConnectedPort => IsConnected ? _connectedPort : null;
         public int? ConnectedBaudRate => 921600;
         public string? ConnectedModel => "Controller check";
         public DisplayProtocolProfile ConnectedProtocol => DisplayProtocolProfile.Auto;
@@ -664,6 +730,7 @@ internal static class Program
         {
             if (FailNextConnection) { FailNextConnection = false; throw new IOException("Test port temporarily unavailable."); }
             IsConnected = true;
+            _connectedPort = portName;
             return Task.CompletedTask;
         }
         public Task DisconnectAsync(CancellationToken cancellationToken = default)

@@ -1,4 +1,4 @@
-# Video playback, alpha.16
+# Video playback, alpha.18
 
 Video is a silent widget in Info Screen and Hybrid. Photo Frame continues to use photo playlists. Existing themes with video assets attempt playback instead of rendering only a placeholder. Loop, speed, FPS, pause and restart controls are available. Playback state is independent for each widget, even when two widgets share a file.
 
@@ -14,6 +14,8 @@ There are at most two active decoders and one cached current bitmap per widget. 
 | 5.2-inch USB | 12 fps | 20 fps | Existing WinUSB JPEG path |
 
 Requested rates are clamped to the family maximum, then reduced using the moving average of completed frame-transfer time (with headroom). The USB sender retains only the newest pending frame. These engineering defaults do not claim measured physical frame rates. Large frames, rotation, content and device firmware can lower throughput.
+
+The owner reports slow 3.5-inch video with visible left-to-right replacement of each frame. A full 480 × 320 RGB565 frame contains 307,200 raw pixel bytes. The serial path already skips unchanged tiles and batches payload writes; when at least 45% of tiles change it sends a full frame. Full-screen motion usually defeats partial updates. Native-portrait software rotation makes a progressive row repaint consistent with the reported sideways wipe, although panel behavior has not been measured here. No verified atomic frame swap is implemented. Smaller video widgets over a static background can reduce changed pixels; smooth full-screen video is not promised. The nominal serial baud setting is not a measurement of this virtual USB-CDC device's throughput.
 
 The 5.2-inch device's native H.264/SD-card capability is a separate protocol feature. This implementation keeps PC-side compositing so video can coexist with widgets and overlays. It does not switch the display into vendor desktop mode or send native H.264 streams.
 

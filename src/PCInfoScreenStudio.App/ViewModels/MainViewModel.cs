@@ -1257,6 +1257,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 }
 
                 RefreshPorts();
+                _device.TrySelectReplacementScreen();
                 var candidate = FindRememberedDisplay();
                 if (candidate is not null && !IsDeviceBusy)
                 {
