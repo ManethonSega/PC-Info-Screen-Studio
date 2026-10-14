@@ -23,7 +23,7 @@ public static class VideoFrameProvider
 
     public static void Synchronize(ThemeWorkspace workspace, IEnumerable<WidgetModel> widgets)
     {
-        var wanted = widgets.Where(w => w.Type == WidgetType.Video && w.IsVisible).Take(DecoderLimit).Select(w => Key(workspace, w)).ToHashSet();
+        var wanted = widgets.Where(w => w.Type == WidgetType.Video && w.IsVisible).OrderBy(w => w.ZIndex).Take(DecoderLimit).Select(w => Key(workspace, w)).ToHashSet();
         lock (Sync)
         {
             foreach (var key in Active.Keys.Where(k => k.StartsWith(workspace.RootDirectory + "|", StringComparison.Ordinal) && !wanted.Contains(k)).ToArray()) { Active[key].Dispose(); Active.Remove(key); }

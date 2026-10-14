@@ -528,7 +528,7 @@ public sealed class ThemeRenderer
         FillBackground(canvas, w);
         if (!animateVideo) { DrawCenteredText(canvas, workspace, w, "VIDEO", 12, w.ForegroundColor, (float)(w.Height / 2)); return; }
         var display = Math.Max(workspace.Document.CanvasWidth, workspace.Document.CanvasHeight) > 480 ? DisplayCanvasSize.Turing52 : DisplayCanvasSize.Serial35;
-        using var frame = VideoFrameProvider.GetFrame(workspace, w, display, DeviceControllerTransferMilliseconds(), out var status);
+        using var frame = VideoFrameProvider.GetFrame(workspace, w, display, VideoTransferMilliseconds, out var status);
         w.RuntimeMediaStatus = status;
         if (frame is null) { DrawCenteredText(canvas, workspace, w, status.StartsWith("Opening") ? "OPENING VIDEO" : "VIDEO UNAVAILABLE", 12, w.ForegroundColor, (float)(w.Height / 2)); return; }
         var dest = new SKRect(0, 0, (float)w.Width, (float)w.Height);
@@ -546,7 +546,6 @@ public sealed class ThemeRenderer
     }
 
     public static double VideoTransferMilliseconds { get; set; }
-    private static double DeviceControllerTransferMilliseconds() => VideoTransferMilliseconds;
 
     private static SKRect SourceRectForFit(int sourceW, int sourceH, float destW, float destH, MediaFit fit)
     {

@@ -13,7 +13,7 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
-        var app = new CheckApplication();
+        var app = new PCInfoScreenStudio.App { SuppressNormalStartup = true };
         app.InitializeComponent();
         app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
         SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
@@ -630,11 +630,6 @@ internal static class Program
         }
     }
 
-    private sealed class CheckApplication : PCInfoScreenStudio.App
-    {
-        // Dispatcher pumping must not start the normal app or restore a user session during checks.
-        protected override void OnStartup(StartupEventArgs e) { }
-    }
     private static void ThemeRendererCleanup()
     {
         PCInfoScreenStudio.Rendering.VideoFrameProvider.Clear();

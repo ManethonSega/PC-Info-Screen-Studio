@@ -554,11 +554,11 @@ public sealed class DeviceController : ObservableObject, IDisposable
                 if (frame.Generation != _connectionGeneration || !_deviceService.IsConnected || frame.Mode != Document.Mode) continue;
                 var transferStart = System.Diagnostics.Stopwatch.GetTimestamp();
                 await _deviceService.DisplayAsync(frame.Bitmap, frame.Rotation);
+                if (frame.Generation != _connectionGeneration) continue;
                 Interlocked.Increment(ref _sentFrames);
                 var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(transferStart).TotalMilliseconds;
                 var previous = AverageTransferMilliseconds;
                 Volatile.Write(ref _averageTransferMilliseconds, previous == 0 ? elapsed : previous * .8 + elapsed * .2);
-                if (frame.Generation != _connectionGeneration) continue;
                 if (_disposed || Application.Current.Dispatcher.HasShutdownStarted) return;
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                     DeviceStatus = BuildConnectionStatus());

@@ -9,12 +9,14 @@ namespace PCInfoScreenStudio;
 
 public partial class App : Application
 {
+    internal bool SuppressNormalStartup { get; set; }
     private bool _shuttingDown;
     private SingleInstanceService? _instance;
     private DispatcherTimer? _activationTimer;
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        if (SuppressNormalStartup) return;
         base.OnStartup(e);
 
         DispatcherUnhandledException += OnDispatcherUnhandledException;
