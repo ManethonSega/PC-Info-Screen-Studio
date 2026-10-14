@@ -1,10 +1,10 @@
-# Video playback, alpha.14
+# Video playback, alpha.15
 
 Video is a silent widget in Info Screen and Hybrid. Photo Frame continues to use photo playlists. Existing themes with video assets attempt playback instead of rendering only a placeholder. Loop, speed, FPS, pause and restart controls are available. Playback state is independent for each widget, even when two widgets share a file.
 
 ## Decode and output
 
-Windows Media Foundation Source Reader runs on dedicated MTA workers through Vortice.MediaFoundation 3.8.3. Only the first video stream is selected; audio streams are deselected and no audio output is created. The advanced video processor converts to RGB32 at a bounded, aspect-preserving display size. Samples are scheduled from their presentation timestamps, with playback-speed changes integrated into the media clock. Presentation work is sampled at the selected rate, while interdependent compressed frames still need decoding.
+Windows Media Foundation Source Reader runs on dedicated MTA workers through Vortice.MediaFoundation 3.8.3. Only the first video stream is selected; audio streams are deselected and no audio output is created. The advanced video processor converts to RGB32 at a bounded, aspect-preserving display size. Output-format notifications refresh and validate the RGB32 frame size and stride before the associated sample is copied. Normal metadata negotiation, including fragmented H.264 MP4 headers, does not stop playback. A changed output that exceeds or differs from the requested bounded size is still rejected. Samples are scheduled from their presentation timestamps, with playback-speed changes integrated into the media clock. Presentation work is sampled at the selected rate, while interdependent compressed frames still need decoding.
 
 There are at most two active decoders and one cached current bitmap per widget. A semaphore also caps retiring/new workers during rapid mode or theme changes. Renderer snapshots are owned copies; a worker cannot dispose a bitmap being drawn. Hidden/inactive mode widgets, replaced workspaces and stopped preview/output release video state. A paused widget retains its frame; restart opens a fresh timeline. Non-looping clips retain their last displayed frame.
 
@@ -25,6 +25,8 @@ This first stage has no audio, trim/crop timeline, scrubbing, playlist videos, n
 
 ## Validation
 
-The original generated H.264/AAC fixture checks actual RGB pixels and vertical orientation, pause/unpause, timestamp progression, non-looping EOF, loop/speed changes, bounded frames, decoder limits, inactive cleanup and unsupported media. Windows CI also exercises the existing WPF/controller workflows and EXE/portable ZIP startup. Physical smoothness, long-duration video memory and real reconnect behaviour still need checks on both displays.
+A generated fragmented 1280 × 720 H.264 High-profile, 29.97 fps, B-frame, BT.709 fixture reproduces the alpha.14 format-notification failure. Regression checks exercise USB-size and serial-scaled output, pause, movement, EOF, looping and cleanup. The original generated H.264/AAC fixture checks actual RGB pixels and vertical orientation, pause/unpause, timestamp progression, non-looping EOF, loop/speed changes, bounded frames, decoder limits, inactive cleanup and unsupported media. Windows CI also exercises the existing WPF/controller workflows and EXE/portable ZIP startup. Physical smoothness, long-duration video memory and real reconnect behaviour still need checks on both displays.
 
 Primary implementation reference: [Microsoft, using the Source Reader](https://learn.microsoft.com/en-us/windows/win32/medfound/processing-media-data-with-the-source-reader). Binding source and licence: [Vortice.Windows](https://github.com/amerkoleci/Vortice.Windows).
+
+Diagnostics schema 2 includes active decoder stages, stable failure codes, source/output dimensions, stride, format-notification counts, published-frame counts and last reader flags. Recent decoder errors retain that numeric snapshot after the worker exits. File names, source paths and raw exception messages remain excluded.

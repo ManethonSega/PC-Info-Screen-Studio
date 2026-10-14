@@ -85,13 +85,18 @@ internal static class VideoDiagnosticsChecks
         Require(status.Contains("Cannot play") || status.Contains("Video"), "Unsupported media has an actionable status");
         VideoFrameProvider.Clear(); pump(() => VideoFrameProvider.RunningDecoders == 0, TimeSpan.FromSeconds(5));
         DiagnosticsService.RecordError("Test decoder", new FileNotFoundException("Secret account Alice at C:\\Users\\Alice\\Private\\holiday.mp4"));
+        DiagnosticsService.RecordError("Video decoder", new InvalidDataException("Private media at C:\\Users\\Alice\\holiday.mp4"),
+            new VideoDecoderDetails("RefreshOutput", "OutputSizeMismatch", 1280, 720, 1920, 1080, 7680, 1, 0, 32));
         var oldLog = Path.Combine(root, "private-startup.log");
         File.WriteAllText(oldLog, "System.IO.FileNotFoundException: Secret account Alice at C:\\Users\\Alice\\Private\\holiday.mp4\n   at C:\\private\\System.CustomerNameException.cs\n");
         var report = DiagnosticsService.CreateReport(new { connected = false, family = "Serial35" }, new { activeVideos = 0 }, oldLog);
         var reportPath = Path.Combine(root, "diagnostics.json"); DiagnosticsService.ExportAsync(reportPath, report).GetAwaiter().GetResult();
         var json = File.ReadAllText(reportPath);
         using var parsed = JsonDocument.Parse(json);
-        Require(parsed.RootElement.GetProperty("schemaVersion").GetInt32() == 1, "Diagnostics schema");
+        Require(parsed.RootElement.GetProperty("schemaVersion").GetInt32() == 2, "Diagnostics schema");
+        Require(parsed.RootElement.GetProperty("videoPlayback").GetArrayLength() == 0, "Inactive decoder diagnostics cleared");
+        var videoError = parsed.RootElement.GetProperty("recentErrors").EnumerateArray().Last().GetProperty("Video");
+        Require(videoError.GetProperty("Stage").GetString() == "RefreshOutput" && videoError.GetProperty("Code").GetString() == "OutputSizeMismatch" && videoError.GetProperty("FormatChanges").GetInt32() == 1, "Decoder diagnostic stage, stable code and numeric metadata");
         Require(parsed.RootElement.GetProperty("memory").GetProperty("workingSetBytes").GetInt64() > 0, "Memory counters");
         Require(json.Contains("FileNotFoundException") && !json.Contains("Alice") && !json.Contains("holiday.mp4") && !json.Contains("C:\\\\Users") && !json.Contains("CustomerName"), "Diagnostics excludes messages and personal paths");
         Require(!Directory.EnumerateFiles(root, "diagnostics.json.*.tmp").Any(), "Diagnostics export removes temporary files");
@@ -176,6 +181,11 @@ internal static class VideoDiagnosticsChecks
                 return true;
             }, TimeSpan.FromSeconds(15));
             Require(status.Contains("paused"), "Fragmented video paused first frame");
+            var details = VideoFrameProvider.GetDiagnostics().Single();
+            Require(details.SourceWidth == 1280 && details.SourceHeight == 720 && details.OutputWidth == workspace.Document.CanvasWidth && details.PublishedFrames == 1, "Active decoder diagnostics describe bounded first frame");
+            Console.WriteLine($"Fragmented {display}: output {details.OutputWidth}x{details.OutputHeight}, stride {details.Stride}, format notifications {details.FormatChanges}");
+            var activeJson = JsonSerializer.Serialize(DiagnosticsService.CreateReport(new { connected = false }, new { activeVideos = 1 }));
+            Require(activeJson.Contains("videoPlayback") && activeJson.Contains("PublishedFrames") && !activeJson.Contains(workspace.RootDirectory) && !activeJson.Contains("video-fragmented"), "Active diagnostics exclude source and workspace paths");
             widget.MediaPaused = false;
             pump(() => {
                 using var frame = VideoFrameProvider.GetFrame(workspace, widget, display, 0, out status);
