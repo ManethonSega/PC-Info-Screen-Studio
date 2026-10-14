@@ -26,7 +26,7 @@ public static class VideoFrameProvider
         var wanted = widgets.Where(w => w.Type == WidgetType.Video && w.IsVisible).Take(DecoderLimit).Select(w => Key(workspace, w)).ToHashSet();
         lock (Sync)
         {
-            foreach (var key in Active.Keys.Where(k => !wanted.Contains(k)).ToArray()) { Active[key].Dispose(); Active.Remove(key); }
+            foreach (var key in Active.Keys.Where(k => k.StartsWith(workspace.RootDirectory + "|", StringComparison.Ordinal) && !wanted.Contains(k)).ToArray()) { Active[key].Dispose(); Active.Remove(key); }
         }
     }
 
@@ -55,6 +55,7 @@ public static class VideoFrameProvider
     {
         lock (Sync) if (Active.Remove(Key(workspace, widget), out var playback)) playback.Dispose();
     }
+    public static void Suspend(ThemeWorkspace workspace) => Synchronize(workspace, []);
     public static void Clear() { lock (Sync) { foreach (var p in Active.Values) p.Dispose(); Active.Clear(); } }
     private sealed record Request(string Path, int Width, int Height, int Fps, double Speed, bool Loop, bool Paused);
 
@@ -112,7 +113,6 @@ public static class VideoFrameProvider
                 while (!_stop.IsCancellationRequested)
                 {
                     using var sample = reader.ReadSample(SourceReaderIndex.FirstVideoStream, 0, out _, out var flags, out var timestamp);
-                    if (Environment.GetEnvironmentVariable("CI") == "true") Console.WriteLine($"Video sample: timestamp={timestamp}, flags={flags}, loop={Volatile.Read(ref _request).Loop}, paused={Volatile.Read(ref _request).Paused}");
                     if ((flags & SourceReaderFlag.Error) != 0) throw new InvalidDataException("Video stream error.");
                     if ((flags & SourceReaderFlag.CurrentMediaTypeChanged) != 0) throw new InvalidDataException("Changing video dimensions are not supported.");
                     if ((flags & SourceReaderFlag.EndOfStream) != 0)

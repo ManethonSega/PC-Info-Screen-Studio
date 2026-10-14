@@ -167,7 +167,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             if (!IsCanvasActive && !LivePreview)
             {
-                VideoFrameProvider.Clear();
+                VideoFrameProvider.Suspend(Workspace);
                 return;
             }
             var animations = RuntimeWidgets
@@ -726,7 +726,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         if (_isEditorActive == active) return;
         _isEditorActive = active;
-        if (!active && !LivePreview) VideoFrameProvider.Clear();
+        if (!active && !LivePreview) VideoFrameProvider.Suspend(Workspace);
         RaisePropertyChanged(nameof(IsEditorActive));
         RaisePropertyChanged(nameof(IsCanvasActive));
 
@@ -1538,6 +1538,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         DetachWorkspace(_workspace);
         CancelVideoImport();
+        VideoFrameProvider.Suspend(_workspace);
         _workspace.Dispose();
         ThemeRenderer.ClearCaches();
         _workspace = workspace;
@@ -2266,6 +2267,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         _isDisposed = true;
         CancelVideoImport();
+        VideoFrameProvider.Suspend(Workspace);
         StopAutoDisplay();
         _dataTimer.Stop();
         _animationTimer.Stop();

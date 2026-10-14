@@ -35,12 +35,18 @@ internal static class VideoDiagnosticsChecks
         Require(top.Red > 180 && top.Blue < 70 && bottom.Blue > 180 && bottom.Red < 70, $"Decoded RGB colour/stride/orientation: top={top} bottom={bottom}, {status}");
         Require(VideoFrameProvider.CachedFrameBytes <= 480 * 320 * 4, "Only one bounded cached bitmap");
         Require(status.Contains("paused"), "Initially paused video shows first frame");
+        using (var unrelated = new ThemePackageService().CreateNewWorkspace())
+        {
+            VideoFrameProvider.Synchronize(unrelated, []);
+            VideoFrameProvider.Suspend(unrelated);
+            ThemeRenderer.ClearCaches();
+            Require(VideoFrameProvider.ActiveCount == 1 && VideoFrameProvider.CachedFrameBytes > 0, "Other workspaces and image/font cleanup must not restart a video");
+        }
         widget.MediaPaused = false;
         pump(() => {
             using var frame = VideoFrameProvider.GetFrame(workspace, widget, DisplayCanvasSize.Turing52, 0, out status);
             return frame is not null && frame.GetPixel(80, 10).Green > 70 && frame.GetPixel(80, 10).Red < 70;
         }, TimeSpan.FromSeconds(10));
-        Console.WriteLine("Video waiting for EOF: " + status);
         pump(() => { using var frame = VideoFrameProvider.GetFrame(workspace, widget, DisplayCanvasSize.Turing52, 0, out status); if (status.StartsWith("Cannot") || status.StartsWith("Invalid")) throw new InvalidOperationException("End-of-stream failed: " + status); return status.Contains("ended"); }, TimeSpan.FromSeconds(5));
         Console.WriteLine("PASS: video first frame, colour, pause/unpause and non-looping EOF");
         widget.Loop = true; widget.PlaybackSpeed = 2; VideoFrameProvider.Restart(workspace, widget);
@@ -79,6 +85,22 @@ internal static class VideoDiagnosticsChecks
         Require(parsed.RootElement.GetProperty("memory").GetProperty("workingSetBytes").GetInt64() > 0, "Memory counters");
         Require(json.Contains("FileNotFoundException") && !json.Contains("Alice") && !json.Contains("holiday.mp4") && !json.Contains("C:\\\\Users"), "Diagnostics excludes messages and personal paths");
         Require(!Directory.EnumerateFiles(root, "diagnostics.json.*.tmp").Any(), "Diagnostics export removes temporary files");
+        var importer = new AssetImportService();
+        var assetCount = workspace.Document.Assets.Count;
+        var prepared = importer.PrepareVideoAsync(workspace, fixture).GetAwaiter().GetResult();
+        Require(File.Exists(prepared.LocalPath) && workspace.Document.Assets.Count == assetCount, "Preparing video must not mutate UI collections");
+        var before = Directory.EnumerateFiles(workspace.AssetsDirectory, "*", SearchOption.AllDirectories).Count();
+        using (var cancellation = new CancellationTokenSource())
+        {
+            cancellation.Cancel();
+            try { importer.PrepareVideoAsync(workspace, fixture, cancellation.Token).GetAwaiter().GetResult(); throw new Exception("Cancelled import must not succeed"); }
+            catch (OperationCanceledException) { }
+        }
+        Require(Directory.EnumerateFiles(workspace.AssetsDirectory, "*", SearchOption.AllDirectories).Count() == before, "Cancelled import removes staged files");
+        widget.RuntimeMediaStatus = "Transient status";
+        var serialized = JsonSerializer.Serialize(widget);
+        var reopened = JsonSerializer.Deserialize<WidgetModel>(serialized)!;
+        Require(reopened.MediaPaused == widget.MediaPaused && reopened.PlaybackSpeed == widget.PlaybackSpeed && !serialized.Contains("Transient status"), "Playback settings serialize; runtime status does not");
         var clone = widget.Clone(); Require(clone.MediaPaused == widget.MediaPaused && clone.PlaybackSpeed == 2, "Playback controls persist in clones");
         Console.WriteLine("PASS: real H.264 decoding, RGB/stride/orientation, bounded frames, pause, playback, EOF, loop, speed, two-video limit, inactive cleanup, bad media and private local diagnostics.");
     }
