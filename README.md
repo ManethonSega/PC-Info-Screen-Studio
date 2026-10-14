@@ -26,6 +26,12 @@ Add widgets and manage layers on the left, arrange them on the canvas, and searc
 
 ![Info Screen editor with direct Add buttons and layers on the left, canvas in the centre, and sensor search and properties on the right](docs/images/info-screen-editor.png)
 
+### Hardware names and colour emoji
+
+Choose **Hardware name** under Add or Hybrid overlays, then choose CPU, GPU, SSD/drive or RAM in its properties. Edit **Displayed name** to keep custom wording, or enable **Use detected name** to follow the current PC. Emoji preserve their colours in the rendered canvas and display output.
+
+![Hardware name widget with automatic/custom controls and coloured emoji in the canvas](docs/images/hardware-name-widget.png)
+
 ### Photo Frame workspace
 
 Add photo files or a folder, arrange the playlist, and set shared timing, transitions, background and captions. The left panel shows photo controls for this mode.
