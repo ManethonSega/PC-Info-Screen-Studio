@@ -239,6 +239,7 @@ public static class VideoFrameProvider
         public void Dispose()
         {
             lock (_sync) { if (_disposed) return; _disposed = true; try { _stop.Cancel(); } catch (ObjectDisposedException) { } _frame?.Dispose(); _frame = null; }
+            DiagnosticsService.RecordVideoSession(GetDiagnostics());
         }
     }
     [DllImport("ole32.dll")] private static extern int CoInitializeEx(IntPtr reserved, uint model);

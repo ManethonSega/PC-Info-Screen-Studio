@@ -99,6 +99,8 @@ internal static class VideoDiagnosticsChecks
         using var parsed = JsonDocument.Parse(json);
         Require(parsed.RootElement.GetProperty("schemaVersion").GetInt32() == 3, "Diagnostics schema");
         Require(parsed.RootElement.GetProperty("videoPlayback").GetArrayLength() == 0, "Inactive decoder diagnostics cleared");
+        var sessions = parsed.RootElement.GetProperty("recentVideoSessions");
+        Require(sessions.GetArrayLength() is > 0 and <= 10 && sessions.EnumerateArray().Any(s => s.GetProperty("PublishedFrames").GetInt64() > 0), "Recent path-free playback progress survives removing a video");
         var videoError = parsed.RootElement.GetProperty("recentErrors").EnumerateArray().Last().GetProperty("Video");
         Require(videoError.GetProperty("Stage").GetString() == "RefreshOutput" && videoError.GetProperty("Code").GetString() == "OutputSizeMismatch" && videoError.GetProperty("FormatChanges").GetInt32() == 1, "Decoder diagnostic stage, stable code and numeric metadata");
         Require(parsed.RootElement.GetProperty("memory").GetProperty("workingSetBytes").GetInt64() > 0, "Memory counters");
