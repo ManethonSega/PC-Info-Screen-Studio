@@ -34,6 +34,7 @@ public sealed class SessionStateService
             asset.LocalPath = workspace.GetAbsolutePath(original);
         }
         var metadata = JsonSerializer.Serialize(state);
+        var photoAssetIds = GetPhotoAssetIds(state);
         return Task.Run(async () => {
             Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
             var pending = _path + ".pending";
@@ -41,7 +42,7 @@ public sealed class SessionStateService
             using var snapshot = new ThemeWorkspace(document, root);
             try
             {
-                await new ThemePackageService().SaveCopyAsync(snapshot, pending).ConfigureAwait(false);
+                await new ThemePackageService().SaveCopyAsync(snapshot, pending, additionalAssetIds: photoAssetIds).ConfigureAwait(false);
                 using (var archive = ZipFile.Open(pending, ZipArchiveMode.Update))
                 using (var writer = new StreamWriter(archive.CreateEntry("session.json").Open()))
                     await writer.WriteAsync(metadata).ConfigureAwait(false);
@@ -63,9 +64,11 @@ public sealed class SessionStateService
                 ?? throw new InvalidDataException("Saved session could not be read.");
         }
         if (state.Version != 1) throw new InvalidDataException("Saved session format is not supported.");
-        var workspace = await new ThemePackageService().LoadAsync(_path).ConfigureAwait(false);
+        var workspace = await new ThemePackageService().LoadAsync(_path, additionalAssetIds: GetPhotoAssetIds(state)).ConfigureAwait(false);
         workspace.FilePath = state.InfoThemePath;
         workspace.IsDirty = state.Themes.DirtyModes.Count > 0;
         return new RestoredSession(workspace, state);
     }
+    private static Guid[] GetPhotoAssetIds(SessionState state) => state.Themes.PhotoSettings.Values
+        .SelectMany(settings => settings.Photos).Where(photo => photo.AssetId.HasValue).Select(photo => photo.AssetId!.Value).Distinct().ToArray();
 }
