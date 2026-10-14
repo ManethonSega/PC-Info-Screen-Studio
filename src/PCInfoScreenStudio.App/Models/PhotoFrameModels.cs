@@ -48,6 +48,7 @@ public sealed class PhotoFrameSettings : ObservableObject
 
     [JsonIgnore] public int RuntimeCurrentIndex { get; set; }
     [JsonIgnore] public int RuntimePreviousIndex { get; set; } = -1;
+    [JsonIgnore] public int RuntimePreloadedIndex { get; set; } = -1;
     [JsonIgnore] public double RuntimeTransitionProgress { get; set; } = 1;
     [JsonIgnore] public double RuntimePhotoProgress { get; set; }
     [JsonIgnore] public PhotoTransition RuntimeTransition { get; set; } = PhotoTransition.Crossfade;

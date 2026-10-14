@@ -21,6 +21,9 @@ internal static class Program
         Directory.CreateDirectory(root);
         try
         {
+            RunCheck("StabilityRecoveryChecks", () => StabilityRecoveryChecks.Check(root, Await));
+            RunCheck("StabilityOperationChecks", () => StabilityOperationChecks.Check(root, Await, PumpUntil, args.Length == 2 && args[0] == "--capture-ui" ? args[1] : null));
+            RunCheck("StabilityMediaChecks", () => StabilityMediaChecks.Check(root));
             RunCheck("ThemePackageChecks", () => ThemePackageChecks.Check(root, Await));
             RunCheck("VideoDiagnosticsChecks", () => VideoDiagnosticsChecks.Check(root, PumpUntil));
             RunCheck("HardwareNameEmojiChecks", () => Await(HardwareNameEmojiChecks.RunAsync(root, PumpUntil, args.Length == 2 && args[0] == "--capture-ui" ? args[1] : null)));

@@ -2,6 +2,9 @@ namespace PCInfoScreenStudio.Models;
 
 public sealed class ThemeWorkspace : IDisposable
 {
+    private readonly object _lifetime = new();
+    private int _readers;
+    private bool _disposeRequested;
     public ThemeWorkspace(ThemeDocument document, string rootDirectory)
     {
         Document = document;
@@ -24,7 +27,35 @@ public sealed class ThemeWorkspace : IDisposable
         return Path.Combine(RootDirectory, asset.PackagePath.Replace('/', Path.DirectorySeparatorChar));
     }
 
+    public IDisposable RetainFiles()
+    {
+        lock (_lifetime)
+        {
+            ObjectDisposedException.ThrowIf(_disposeRequested, this);
+            _readers++;
+            return new FileLease(this);
+        }
+    }
+
+    private void ReleaseFiles()
+    {
+        lock (_lifetime)
+        {
+            _readers--;
+            if (_disposeRequested && _readers == 0) DeleteFiles();
+        }
+    }
+
     public void Dispose()
+    {
+        lock (_lifetime)
+        {
+            _disposeRequested = true;
+            if (_readers == 0) DeleteFiles();
+        }
+    }
+
+    private void DeleteFiles()
     {
         try
         {
@@ -35,5 +66,11 @@ public sealed class ThemeWorkspace : IDisposable
         {
             // A failed temp cleanup is harmless; Windows will eventually reclaim it.
         }
+    }
+
+    private sealed class FileLease(ThemeWorkspace workspace) : IDisposable
+    {
+        private ThemeWorkspace? _owner = workspace;
+        public void Dispose() => Interlocked.Exchange(ref _owner, null)?.ReleaseFiles();
     }
 }

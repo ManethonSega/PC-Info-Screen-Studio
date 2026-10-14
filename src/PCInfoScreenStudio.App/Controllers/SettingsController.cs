@@ -11,6 +11,7 @@ public sealed class SettingsController : ObservableObject
 {
     private readonly AppSettingsService _service;
     private readonly AppSettings _values;
+    public string RecoveryNotice => _service.RecoveryNotice;
 
     public SettingsController(AppSettingsService? service = null)
     {
@@ -196,7 +197,9 @@ public sealed class SettingsController : ObservableObject
     {
         if (EqualityComparer<T>.Default.Equals(current, value)) return;
         assign(value);
-        _service.Save(_values);
+        try { _service.Save(_values); }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+        { RaisePropertyChanged(nameof(RecoveryNotice)); }
         RaisePropertyChanged(propertyName);
     }
 }

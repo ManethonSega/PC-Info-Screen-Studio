@@ -77,7 +77,17 @@ public sealed class ModeThemeService
         };
 
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
-        File.WriteAllText(path, JsonSerializer.Serialize(preset, Options));
+        var gate = RecoveryFileStore.Gate(path);
+        gate.Wait();
+        var pending = RecoveryFileStore.Pending(path);
+        try
+        {
+            File.WriteAllText(pending, JsonSerializer.Serialize(preset, Options));
+            if (JsonSerializer.Deserialize<ModeThemePreset>(File.ReadAllText(pending), Options) is null)
+                throw new InvalidDataException("The settings theme could not be validated.");
+            File.Move(pending, path, overwrite: true);
+        }
+        finally { if (File.Exists(pending)) File.Delete(pending); gate.Release(); }
         return path;
     }
 

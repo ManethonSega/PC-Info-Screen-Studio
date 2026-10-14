@@ -41,7 +41,7 @@ Data sources include Windows CPU/RAM, drive/network readings, date/time, Open-Me
 
 Photo Frame and Hybrid support file/folder import, playlist reordering, previous/play/pause/next, shared timing, loop/shuffle, Fit/Fill/Stretch/Original sizing, solid backgrounds and Crossfade/Slide/Zoom/Instant/Random transitions between photos. EXIF orientation is corrected. Global captions support filename, date, location or custom text with configurable font, size, colour and outline. Missing metadata leaves a caption blank. Folder watching and linked playlist presets are available.
 
-PNG, JPEG, WebP, BMP and GIF assets are supported. Animated GIFs and Windows-supported silent videos play. H.264 MP4 is recommended. Video imports are limited to 512 MiB and Full HD, with at most two active decoders and one bounded current frame each. Serial Auto is 3 fps (maximum 5); 5.2-inch USB Auto is 12 fps (maximum 20), reduced when measured transfers are slower. Prepared photos use a bounded display-sized cache, and compressed GIF data is limited to 64 MiB per file. General image/GIF cache memory is not yet governed by a complete shared budget; this is tracked work.
+PNG, JPEG, WebP, BMP and GIF assets are supported. Animated GIFs and Windows-supported silent videos play. H.264 MP4 is recommended. Video imports are limited to 512 MiB and 4K, with at most two active decoders and one bounded current frame each. Serial Auto is 3 fps (maximum 5); 5.2-inch USB Auto is 12 fps (maximum 20), reduced when measured transfers are slower. Images, prepared photos and GIF resources share a 128 MiB retained-cache budget. GIF encoded data can remain in RAM up to 16 MiB per source; larger files use the codec file path. Decode bitmaps have a 64 MiB per-resource ceiling. Temporary draws/native buffers and other runtime overhead are separate; see STABILITY.md.
 
 Scheduling, blurred backgrounds, continuous Ken Burns motion and per-photo crop, focal-point or duration controls are outside the current simplified workflow. There is no implemented video optimizer, media-trimming pipeline or one-click USB benchmark profile.
 
@@ -54,7 +54,7 @@ Scheduling, blurred backgrounds, continuous Ken Burns motion and per-photo crop,
 | `.pchybrid` | Hybrid settings and overlay widgets | Linked photos and video overlays depend on local paths |
 | `.pcalbum` | Photo references and playlist settings | Linked preset, not a portable photo bundle |
 
-New/Open/Save/Save as and library actions use the active mode's format. Opening a folder-based mode theme reloads that folder; a theme without a folder retains the current playlist. Exit/logoff saves a private resume snapshot of modes, layouts, photo links and unsaved edits without overwriting reusable themes. Backup/recovery hardening is still pending.
+New/Open/Save/Save as and library actions use the active mode's format. Opening a folder-based mode theme reloads that folder; a theme without a folder retains the current playlist. Exit/logoff saves a private resume snapshot of modes, layouts, photo links and unsaved edits without overwriting reusable themes. Validated primary/backup recovery and inline notices are implemented in alpha.20. File operations have shared guards, progress/Cancel and workspace file leases; later edits during a snapshot save remain dirty.
 
 Themes contain declarative data and passive assets, never executable code. Preserve existing format compatibility during maintenance. File associations are not installed today.
 
@@ -66,4 +66,4 @@ The app is GPL-3.0-or-later, self-contained and distributed as an unsigned Windo
 
 ## Next milestone
 
-Prioritize settings/session recovery, safe long-running commands, total asset-memory bounds, physical reliability evidence and first-time/DPI/accessibility validation. Keep the current interface structure. Architecture, diagnostics and test-reporting improvements follow; installer/signing/update decisions remain deferred. Native 5.2-inch H.264 playback and advanced video editing remain separate future features. Local diagnostic export is available under Settings, without media or personal paths.
+Settings/session recovery, shared file-operation guards and retained media-memory bounds are implemented. Prioritize extended resource measurements, remaining display-family handoff evidence and first-time/DPI/accessibility validation. Keep the current interface structure. Architecture, diagnostics and test-reporting improvements follow; installer/signing/update decisions remain deferred. Native 5.2-inch H.264 playback and advanced video editing remain separate future features. Local diagnostic export is available under Settings, without media or personal paths.
