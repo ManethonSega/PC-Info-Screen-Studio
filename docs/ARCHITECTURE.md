@@ -33,7 +33,7 @@ flowchart TD
     Queue --> Device["DeviceService / USB display"]
 ```
 
-The frame queue retains only the latest waiting frame, not an unbounded animation backlog. It owns bitmap copies and releases replaced, sent, and pending-on-disposal copies. The router chooses the selected display family; each backend serializes its transport I/O. TURZX output uses bounded JPEG frames and sends sync only when connecting; initial brightness uses the saved family level, and debounced explicit brightness changes share the transport gate with images. Mode changes send no sync or brightness setup. GIF compressed data is held in RAM, with a per-file budget; prepared-photo caching remains separately bounded.
+The frame queue retains only the latest waiting frame, not an unbounded animation backlog. It owns bitmap copies and releases replaced, sent, and pending-on-disposal copies. The router chooses the selected display family; each backend serializes its transport I/O. TURZX output uses bounded JPEG frames and sends sync only when connecting; initial brightness uses the saved family level, and debounced explicit brightness changes share the transport gate with images. Mode changes send no sync or brightness setup. Images, prepared photos and GIF resources share a 128 MiB retained-cache budget. Draw leases pin resources through use; scene changes release unused decoded resources while workspace source files remain available for Undo. GIFs up to 16 MiB compressed can stay in RAM. See [STABILITY.md](STABILITY.md) for accounting and temporary-allocation limits.
 
 ## Photos and lifecycle
 
@@ -45,7 +45,7 @@ Controller subscriptions are explicitly removed during disposal. The photo watch
 
 ## Preferences and compatibility
 
-AppSettingsService preserves the existing settings JSON and migrations. Its optional settings-file path lets checks use an isolated temporary profile, not a user's real preferences. SettingsController does not know about widgets, sensors, or the USB protocol implementation.
+AppSettingsService preserves the existing settings JSON and migrations. Settings and private sessions keep validated backups and preserve unreadable files before repair. Per-destination gates serialize writes, and workspace file leases protect background readers from folder cleanup. The view model guards conflicting file operations and reports progress/recovery in the footer. Its optional settings-file path lets checks use an isolated temporary profile, not a user's real preferences. SettingsController does not know about widgets, sensors, or the USB protocol implementation.
 
 Theme serialization, file extensions, mode folders, imported assets, UI labels, and renderer logic are unchanged by the refactor.
 

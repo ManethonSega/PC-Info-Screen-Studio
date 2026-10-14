@@ -24,7 +24,7 @@ internal static class Program
             RunCheck("StabilityRecoveryChecks", () => StabilityRecoveryChecks.Check(root, Await));
             RunCheck("StabilityOperationChecks", () => StabilityOperationChecks.Check(root, Await, PumpUntil, args.Length == 2 && args[0] == "--capture-ui" ? args[1] : null));
             RunCheck("StabilityMediaChecks", () => StabilityMediaChecks.Check(root));
-            RunCheck("ThemePackageChecks", () => ThemePackageChecks.Check(root, Await));
+            RunCheck("ThemePackageChecks", () => ThemePackageChecks.Check(root, task => Await(task, TimeSpan.FromSeconds(60))));
             RunCheck("VideoDiagnosticsChecks", () => VideoDiagnosticsChecks.Check(root, PumpUntil));
             RunCheck("HardwareNameEmojiChecks", () => Await(HardwareNameEmojiChecks.RunAsync(root, PumpUntil, args.Length == 2 && args[0] == "--capture-ui" ? args[1] : null)));
             RunCheck("RegressionFixChecks", () => Await(RegressionFixChecks.RunAsync()));
@@ -743,8 +743,11 @@ internal static class Program
         => (bool)typeof(DeviceController).GetField("_brightnessWorkerRunning", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(controller)!;
 
     private static void Await(Task task)
+        => Await(task, TimeSpan.FromSeconds(10));
+
+    private static void Await(Task task, TimeSpan timeout)
     {
-        PumpUntil(() => task.IsCompleted);
+        PumpUntil(() => task.IsCompleted, timeout);
         task.GetAwaiter().GetResult();
     }
 

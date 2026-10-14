@@ -8,7 +8,6 @@ namespace PCInfoScreenStudio.ViewModels;
 public sealed partial class MainViewModel
 {
     private bool _exportingDiagnostics;
-    private bool _videoImportBusy;
     private CancellationTokenSource? _videoImportCancellation;
     private string _videoImportStatus = string.Empty;
     public string VideoImportStatus { get => _videoImportStatus; private set => SetProperty(ref _videoImportStatus, value); }
@@ -19,7 +18,7 @@ public sealed partial class MainViewModel
         var path = _dialogs.OpenVideo(); if (path is null) return;
         if (!BeginFileOperation("Importing video...")) return;
         var workspace = Workspace; var mode = Document.Mode;
-        _videoImportBusy = true; ImportVideoCommand.RaiseCanExecuteChanged(); VideoImportStatus = "Importing video…";
+        VideoImportStatus = "Importing video...";
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(FileOperationToken); _videoImportCancellation = cancellation;
         ThemeAsset? asset = null;
         try
@@ -27,6 +26,7 @@ public sealed partial class MainViewModel
             asset = mode == ScreenMode.Hybrid
                 ? await Task.Run(() => _assetService.DescribeLinkedVideo(path), cancellation.Token)
                 : await _assetService.PrepareAssetAsync(workspace, path, ThemeAssetKind.Video, cancellation.Token, FileProgress());
+            cancellation.Token.ThrowIfCancellationRequested();
             if (_isDisposed || Workspace != workspace || Document.Mode != mode) { VideoImportStatus = "Import cancelled because the workspace changed."; return; }
             if (mode != ScreenMode.Hybrid) workspace.Document.Assets.Add(asset);
             workspace.IsDirty = true;
@@ -37,7 +37,7 @@ public sealed partial class MainViewModel
         finally
         {
             if (asset is not null && mode != ScreenMode.Hybrid && File.Exists(asset.LocalPath)) { try { File.Delete(asset.LocalPath!); } catch { } }
-            _videoImportCancellation = null; _videoImportBusy = false; ImportVideoCommand.RaiseCanExecuteChanged();
+            _videoImportCancellation = null;
             EndFileOperation();
         }
     }

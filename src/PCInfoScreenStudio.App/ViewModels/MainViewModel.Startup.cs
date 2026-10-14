@@ -75,10 +75,10 @@ public sealed partial class MainViewModel
         if (!BeginFileOperation("Restoring your last session...")) return false;
         try
         {
-            var saved = await _sessionService.LoadAsync();
+            var saved = await _sessionService.LoadAsync(FileOperationToken);
             AddRecoveryNotice(_sessionService.RecoveryNotice);
             if (saved is null) return false;
-            if (_isDisposed) { saved.Workspace.Dispose(); return false; }
+            if (_isDisposed || FileOperationToken.IsCancellationRequested) { saved.Workspace.Dispose(); return false; }
             ReplaceWorkspace(saved.Workspace);
             _themeSessions.Restore(saved.State.Themes);
             Workspace.IsDirty = _themeSessions.HasUnsavedChanges;
@@ -90,6 +90,11 @@ public sealed partial class MainViewModel
             NotifyThemeState();
             ThemeChanged?.Invoke(this, EventArgs.Empty);
             return true;
+        }
+        catch (OperationCanceledException)
+        {
+            if (!_isDisposed) DeviceStatus = "Session restoration cancelled. Your current workspace was kept.";
+            return false;
         }
         catch (Exception ex)
         {

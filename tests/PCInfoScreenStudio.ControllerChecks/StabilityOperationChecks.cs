@@ -83,6 +83,15 @@ internal static class StabilityOperationChecks
             Require(ReferenceEquals(original, vm.Workspace) && !vm.IsFileOperationBusy && vm.RecoveryNotice.Contains("current workspace was kept"),
                 "A failed open must preserve the prior workspace and restore command availability with an inline notice");
             vm.DismissRecoveryNoticeCommand.Execute(null);
+            var sessionGate = GetGate(Path.Combine(root, "operation-session", "last-session.t3theme"));
+            sessionGate.Wait();
+            try
+            {
+                var restoring = vm.RestoreLastSessionAsync(); vm.CancelFileOperation(); awaitTask(restoring);
+                Require(!restoring.Result && !vm.IsFileOperationBusy && ReferenceEquals(original, vm.Workspace),
+                    "Cancelling session restoration releases the guard and retains the current workspace");
+            }
+            finally { sessionGate.Release(); }
             var missingImport = vm.ImportMediaFileAsync(Path.Combine(root, "missing-import.png"), ThemeAssetKind.Image); awaitTask(missingImport);
             Require(!vm.IsFileOperationBusy && ReferenceEquals(original, vm.Workspace), "Failed imports leave the workspace and guard usable");
             var source = Path.Combine(root, "large-import.mp4");
@@ -108,6 +117,12 @@ internal static class StabilityOperationChecks
             awaitTask(vm.LoadModeThemeFileAsync(modePath));
             Require(vm.Document.PhotoFrame.Photos.Count == 2 && !vm.IsFileOperationBusy && vm.Document.PhotoFrame.WatchedFolder == photoDirectory,
                 "UI mode-theme loading reads folder metadata asynchronously and applies one complete playlist");
+            var malformedMode = Path.Combine(root, "malformed.pcphoto");
+            File.WriteAllText(malformedMode, "{\"FormatVersion\":2,\"Mode\":\"PhotoFrame\",\"PhotoFrame\":null}");
+            var retainedPhotos = vm.Document.PhotoFrame.Photos;
+            awaitTask(vm.LoadModeThemeFileAsync(malformedMode));
+            Require(ReferenceEquals(retainedPhotos, vm.Document.PhotoFrame.Photos) && !vm.IsFileOperationBusy,
+                "Incomplete mode metadata cannot partially replace a valid playlist");
             using var cancelledPhoto = new CancellationTokenSource(); cancelledPhoto.Cancel();
             try { awaitTask(PhotoImportService.PrepareAsync(() => Directory.EnumerateFiles(photoDirectory), cancelledPhoto.Token)); throw new Exception("Cancelled photo scan succeeded"); }
             catch (OperationCanceledException) { }

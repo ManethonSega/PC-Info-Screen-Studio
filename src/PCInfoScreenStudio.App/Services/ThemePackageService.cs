@@ -143,6 +143,7 @@ public sealed class ThemePackageService
             if (document.FormatVersion < 0 || document.Assets is null || document.Widgets is null || document.HybridWidgets is null ||
                 document.CanvasWidth is < 1 or > 8192 || document.CanvasHeight is < 1 or > 8192 || !Enum.IsDefined(document.Mode) ||
                 document.Widgets.Any(w => w is null) || document.HybridWidgets.Any(w => w is null) ||
+                document.PhotoFrame.Photos is null || document.PhotoFrame.Photos.Any(p => p is null) ||
                 document.Assets.Any(a => a is null || string.IsNullOrWhiteSpace(a.PackagePath)))
                 throw new InvalidDataException("Theme metadata is invalid.");
 

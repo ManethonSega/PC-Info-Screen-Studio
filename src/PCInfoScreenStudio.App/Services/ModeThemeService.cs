@@ -95,6 +95,10 @@ public sealed class ModeThemeService
     {
         var preset = JsonSerializer.Deserialize<ModeThemePreset>(File.ReadAllText(path), Options)
             ?? throw new InvalidDataException("The mode theme could not be read.");
+        if (preset.FormatVersion is < 0 or > 2 || !Enum.IsDefined(preset.Mode) || preset.PhotoFrame is null ||
+            preset.PhotoFrame.Photos is null || preset.PhotoFrame.Photos.Any(p => p is null) ||
+            preset.HybridWidgets is null || preset.HybridWidgets.Any(w => w is null || w.Name is null))
+            throw new InvalidDataException("The mode theme metadata is invalid or unsupported.");
         if (preset.FormatVersion == 0)
         {
             // Unversioned themes were saved with Duplicate's offset, suffix and layer increment.

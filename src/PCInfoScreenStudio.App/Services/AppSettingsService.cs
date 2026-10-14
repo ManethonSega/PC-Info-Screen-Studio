@@ -73,7 +73,7 @@ public sealed class AppSettingsService
             }
             if (oldVersion != settings.SettingsVersion)
                 try { SaveCore(settings); }
-        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+                catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
                 { RecoveryNotice = "Settings were loaded, but their upgrade could not be saved. Existing files were preserved."; }
             return settings;
         }

@@ -73,20 +73,21 @@ public sealed class SessionStateService
         catch { retainedFiles.Dispose(); throw; }
     }
 
-    public async Task<RestoredSession?> LoadAsync()
+    public async Task<RestoredSession?> LoadAsync(CancellationToken cancellationToken = default)
     {
         var gate = RecoveryFileStore.Gate(_path);
-        await gate.WaitAsync().ConfigureAwait(false);
+        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             RecoveryNotice = string.Empty;
             if (!File.Exists(_path) && !File.Exists(_path + ".bak")) return null;
-            try { return await LoadCandidateAsync(_path).ConfigureAwait(false); }
+            cancellationToken.ThrowIfCancellationRequested();
+            try { return await LoadCandidateAsync(_path, cancellationToken).ConfigureAwait(false); }
             catch (Exception ex) when (IsUnreadable(ex))
             {
                 try
                 {
-                    var saved = await LoadCandidateAsync(_path + ".bak").ConfigureAwait(false);
+                    var saved = await LoadCandidateAsync(_path + ".bak", cancellationToken).ConfigureAwait(false);
                     RecoveryNotice = "Your last good session was restored from backup. It may be older than your latest work. The unreadable file was kept for diagnosis.";
                     try { RecoveryFileStore.Restore(_path); }
                     catch { RecoveryNotice = "Your last session was loaded from backup. The original file could not be repaired; the backup is safe."; }
@@ -102,10 +103,10 @@ public sealed class SessionStateService
         finally { gate.Release(); }
     }
 
-    private static async Task<RestoredSession> LoadCandidateAsync(string path)
+    private static async Task<RestoredSession> LoadCandidateAsync(string path, CancellationToken cancellationToken)
     {
-        var state = await ReadStateAsync(path, CancellationToken.None).ConfigureAwait(false);
-        var workspace = await new ThemePackageService().LoadAsync(path, additionalAssetIds: GetPhotoAssetIds(state)).ConfigureAwait(false);
+        var state = await ReadStateAsync(path, cancellationToken).ConfigureAwait(false);
+        var workspace = await new ThemePackageService().LoadAsync(path, cancellationToken, additionalAssetIds: GetPhotoAssetIds(state)).ConfigureAwait(false);
         workspace.FilePath = state.InfoThemePath;
         workspace.IsDirty = state.Themes.DirtyModes.Count > 0;
         return new RestoredSession(workspace, state);
