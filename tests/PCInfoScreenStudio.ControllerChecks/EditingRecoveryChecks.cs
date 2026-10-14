@@ -23,7 +23,12 @@ internal static class EditingRecoveryChecks
         widget.X = 50; widget.Y = 40; widget.Width = 600; widget.Height = 200; widget.FontSize = 80;
         var item = new DesignerItemControl { DataContext = widget, Width = 600, Height = 200 };
         var window = new Window { DataContext = vm, Content = item, Width = 800, Height = 400 };
-        window.Measure(new Size(800, 400)); window.Arrange(new Rect(0, 0, 800, 400)); window.UpdateLayout();
+        // A Window must be shown before its content enters the visual tree.
+        // Measuring an unopened window leaves the real resize thumbs unrealized.
+        window.Show();
+        window.UpdateLayout();
+        try
+        {
         var grip = Descendants(item).OfType<Thumb>().Single(t => Equals(t.Tag, "SE"));
         var changes = 0;
         widget.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(WidgetModel.IsSelected)) changes++; };
@@ -46,8 +51,13 @@ internal static class EditingRecoveryChecks
         Assert(File.GetLastWriteTimeUtc(path) != sentinel, "A new edit must trigger the next recovery write.");
         var load = new ThemePackageService().LoadAsync(path); awaitTask(load);
         using (load.Result) Assert(load.Result.Document.Widgets.Any(w => w.Label == widget.Label), "Recovery must contain the newest frozen edit snapshot.");
-        window.Content = null;
         Console.WriteLine("PASS: WPF grip capture/resize at font 80 and edit-only recovery writes.");
+        }
+        finally
+        {
+            window.Content = null;
+            window.Close();
+        }
     }
 
     private static IEnumerable<DependencyObject> Descendants(DependencyObject root)
