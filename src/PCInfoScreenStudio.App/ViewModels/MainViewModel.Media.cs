@@ -12,6 +12,7 @@ public sealed partial class MainViewModel
     private CancellationTokenSource? _videoImportCancellation;
     private string _videoImportStatus = string.Empty;
     public string VideoImportStatus { get => _videoImportStatus; private set => SetProperty(ref _videoImportStatus, value); }
+    public int VideoMaximumFps => VideoPlaybackProfile.MaximumFramesPerSecond(CanvasSize);
     private async Task ImportVideoAsync()
     {
         if (_videoImportBusy) return;

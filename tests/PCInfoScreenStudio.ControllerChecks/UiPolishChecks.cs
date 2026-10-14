@@ -166,6 +166,30 @@ internal static class UiPolishChecks
         Flush();
         Assert(!Validation.GetHasError(Field(window, "Width")) && Field(window, "Width").Text == "20",
             "Changing widgets must not leak a previous field's draft or errors.");
+        CheckVideoControls(window, vm);
+        vm.SelectedWidget = widget; Flush();
+    }
+
+    private static void CheckVideoControls(PCInfoScreenStudio.MainWindow window, MainViewModel vm)
+    {
+        var originalSize = vm.CanvasSize;
+        var video = new WidgetModel { Type = WidgetType.Video };
+        vm.Document.Widgets.Add(video); vm.SelectedWidget = video;
+        vm.CanvasSize = DisplayCanvasSize.Turing52; Flush();
+        var fps = Field(window, "TargetFps");
+        CheckField(fps, "22", "20", () => video.TargetFps, 20);
+        Assert(!video.AutoOptimize, "Committing a manual video FPS must leave Auto mode");
+        var automatic = All<CheckBox>(window).Single(box => box.IsVisible && BindingOperations.GetBinding(box, CheckBox.IsCheckedProperty)?.Path.Path == "AutoOptimize");
+        automatic.SetCurrentValue(CheckBox.IsCheckedProperty, true); Flush();
+        Assert(video.AutoOptimize && video.TargetFps == 0 && fps.Text == "0", "Selecting Auto must replace the previous manual FPS");
+        vm.CanvasSize = DisplayCanvasSize.Serial35; Flush();
+        CheckField(fps, "6", "5", () => video.TargetFps, 5);
+        video.Type = WidgetType.AnimatedImage; Flush();
+        fps = Field(window, "TargetFps");
+        Draft(fps, "60"); fps.GetBindingExpression(TextBox.TextProperty)!.UpdateSource(); Flush();
+        Assert(video.TargetFps == 60 && !Validation.GetHasError(fps), "GIF FPS keeps its own 60 fps limit");
+        vm.Document.Widgets.Remove(video); vm.CanvasSize = originalSize; Flush();
+        Console.WriteLine("PASS: WPF USB/serial video FPS validation, explicit Auto resets manual FPS, GIF FPS unaffected.");
     }
 
     private static void CheckPhotoNumbers(PCInfoScreenStudio.MainWindow window, MainViewModel vm)

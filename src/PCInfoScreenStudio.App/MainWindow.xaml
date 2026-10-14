@@ -807,13 +807,13 @@
                         <CheckBox Content="Pause video" IsChecked="{Binding MediaPaused}" />
                         <Button Content="Restart video" Command="{Binding DataContext.RestartVideoCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" HorizontalAlignment="Left" />
                         <TextBlock Text="{Binding RuntimeMediaStatus}" TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,4,0,4" />
-                        <TextBlock Text="Silent playback, up to two videos. 3.5-inch: 3 fps Auto, 5 fps maximum. 5.2-inch: 12 fps Auto, 20 fps maximum. USB transfer speed may lower these limits." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,0,0,5" />
+                        <TextBlock Text="Silent playback, up to two videos. Sources up to 4K are scaled to the screen. 3.5-inch: 3 fps Auto, 5 fps maximum. 5.2-inch: 12 fps Auto, 20 fps maximum. USB transfer speed may lower these limits. Use Restart video if playback stops." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="0,0,0,5" />
                       </StackPanel>
                       <CheckBox Content="Automatic optimization" IsChecked="{Binding AutoOptimize}" ToolTip="For video, use the conservative display-specific Auto frame rate. Output remains bounded when disabled." />
                       <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                         <StackPanel Margin="0,0,5,0"><TextBlock Text="Speed" Foreground="{StaticResource MutedTextBrush}" /><TextBox controls:NumericValidation.Field="PlaybackSpeed" Text="{Binding PlaybackSpeed, UpdateSourceTrigger=LostFocus}" ToolTip="Playback speed multiplier, for example 0.5 for half speed or 2 for double speed." /></StackPanel>
-                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="FPS (0=Auto)" Foreground="{StaticResource MutedTextBrush}" /><TextBox controls:NumericValidation.Field="Fps" Text="{Binding TargetFps, UpdateSourceTrigger=LostFocus}" ToolTip="Limit animation frames per second. Use 0 for automatic timing." /></StackPanel>
+                        <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="FPS (0=Auto)" Foreground="{StaticResource MutedTextBrush}" /><TextBox controls:NumericValidation.Field="Fps" controls:NumericValidation.Maximum="{Binding DataContext.VideoMaximumFps, RelativeSource={RelativeSource AncestorType=Window}}" Text="{Binding TargetFps, UpdateSourceTrigger=LostFocus}" ToolTip="Video limits: 3.5-inch up to 5 fps, 5.2-inch up to 20 fps. Use 0 for automatic timing. GIFs allow up to 60 fps." /></StackPanel>
                       </Grid>
                       </StackPanel>
                     </Expander>

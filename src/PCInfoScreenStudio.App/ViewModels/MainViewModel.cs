@@ -374,6 +374,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void ResizeForSelectedScreen()
     {
+        RaisePropertyChanged(nameof(VideoMaximumFps));
         var longer = CanvasSize == DisplayCanvasSize.Turing52 ? 1280 : 480;
         if (Math.Max(Document.CanvasWidth, Document.CanvasHeight) == longer) return;
         _editor.ResizeCanvas(CanvasSize);
@@ -1682,6 +1683,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
     private void OnWidgetPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(WidgetModel.AutoOptimize) && sender is WidgetModel { Type: WidgetType.Video, AutoOptimize: true, TargetFps: > 0 } video)
+            video.TargetFps = 0; // An explicit Auto selection must undo a previous manual FPS limit.
+        if (e.PropertyName == nameof(WidgetModel.TargetFps) && sender is WidgetModel { Type: WidgetType.Video, TargetFps: > 0, AutoOptimize: true } manualVideo)
+            manualVideo.AutoOptimize = false;
         if (ReferenceEquals(sender, SelectedWidget) && e.PropertyName == nameof(WidgetModel.Type))
         {
             RaisePropertyChanged(nameof(CanSearchSources));
