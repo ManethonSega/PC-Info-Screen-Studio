@@ -6,7 +6,7 @@
     <DataTemplate DataType="{x:Type services:ThemeLibraryItem}">
       <Grid Margin="0,2">
         <Grid.ColumnDefinitions><ColumnDefinition Width="64" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-        <Border Width="58" Height="38" Background="#090B0F" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+        <Border Width="58" Height="38" Background="{StaticResource CanvasWellBrush}" CornerRadius="4" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
           <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" />
         </Border>
         <TextBlock Grid.Column="1" Text="{Binding DisplayName}" VerticalAlignment="Center" Margin="8,0,4,0" TextTrimming="CharacterEllipsis" />
@@ -18,7 +18,7 @@
   </UserControl.Resources>
   <StackPanel Margin="0,0,0,10">
     <DockPanel Margin="4,5,2,7">
-      <Button DockPanel.Dock="Right" Content="Theme actions ▾" Click="OnActionsClick" Padding="8,4" Margin="0"
+      <Button DockPanel.Dock="Right" Style="{StaticResource QuietButtonStyle}" Content="Theme actions ▾" Click="OnActionsClick" Padding="8,4" Margin="0"
               ToolTip="New, open, save as, duplicate, rename, delete or refresh themes for this mode.">
         <Button.ContextMenu>
           <ContextMenu Placement="Bottom">

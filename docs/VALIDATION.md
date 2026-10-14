@@ -150,5 +150,5 @@ local-build sections above record historical checks, not current CI results.
 The owner reported that two alpha.10 fixes succeeded: large-font editing and
 independent Photo Frame/Hybrid photos. They also reported a mode-change
 disconnect. Alpha.11 addresses that regression in simulated transport checks;
-a physical retest has not yet been reported. Sustained GIF speed, Windows
+the owner subsequently reported on 14 October 2026 that alpha.11 works correctly on their setup, including mode switching. Sustained GIF speed, Windows
 disk activity, restart and sleep/resume remain unmeasured on the real device.

@@ -11,7 +11,7 @@
         <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="3" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
           <DataTemplate>
-            <Border Margin="6" Padding="20" Background="{StaticResource PanelBrush}" CornerRadius="10" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+            <Border Margin="6" Padding="20" Style="{StaticResource CardStyle}">
               <StackPanel>
                 <StackPanel Orientation="Horizontal">
                   <TextBlock Text="{Binding Icon}" FontFamily="Segoe MDL2 Assets" FontSize="19" Foreground="{Binding Accent}" VerticalAlignment="Center" Margin="0,0,10,0" />

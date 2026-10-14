@@ -201,3 +201,7 @@ colour, and rejects any attempted mid-session initialization. This is a
 simulated firmware condition, not a confirmed diagnosis of the physical
 screen's internal behaviour. Actual mode switching and long-duration output
 still require the owner test.
+
+## Owner follow-up, 2026-10-14
+
+The owner reports alpha.11 working correctly on their setup. This confirms the mode-switch fix for that setup; it does not replace broader device, reboot, sleep/resume or long-duration compatibility evidence. Alpha.12 changes interface styling only, keeping the alpha.11 USB and rendering paths.

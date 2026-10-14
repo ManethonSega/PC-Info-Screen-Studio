@@ -41,8 +41,8 @@ public partial class MainWindow : Window
         var trayMenu = new WinForms.ContextMenuStrip
         {
             Renderer = new TrayMenuRenderer(),
-            BackColor = System.Drawing.Color.FromArgb(23, 26, 31),
-            ForeColor = System.Drawing.Color.FromArgb(240, 242, 245),
+            BackColor = System.Drawing.Color.FromArgb(13, 28, 50),
+            ForeColor = System.Drawing.Color.FromArgb(237, 242, 247),
             ShowItemToolTips = true
         };
         trayMenu.Items.Add("Show PC Info Screen Studio", null, (_, _) => RestoreFromTray());

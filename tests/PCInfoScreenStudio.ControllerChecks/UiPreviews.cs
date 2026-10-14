@@ -19,13 +19,16 @@ internal static class UiPreviews
         var vm = (MainViewModel)window.DataContext;
         vm.SetEditorActive(false);
         vm.CompleteFirstRunCommand.Execute(null);
+        vm.SetEditorActive(true);
         var root = (Grid)window.Content;
         try
         {
             foreach (var mode in new[] { ScreenMode.InfoScreen, ScreenMode.PhotoFrame, ScreenMode.Hybrid })
             {
                 vm.Document.Mode = mode;
+                FlushBindings();
                 CaptureElement(root, 1560, 1040, Path.Combine(directory, mode + ".png"));
+                CaptureElement(root, 1080, 680, Path.Combine(directory, mode + "-compact.png"));
             }
             vm.ShowPage(true);
             vm.HardwareDashboard.Update(new Dictionary<string, MetricValue>

@@ -24,8 +24,8 @@
     <Style x:Key="ResizeThumb" TargetType="Thumb">
       <Setter Property="Width" Value="12" />
       <Setter Property="Height" Value="12" />
-      <Setter Property="Background" Value="#FFF5F7FA" />
-      <Setter Property="BorderBrush" Value="#FF3377FF" />
+      <Setter Property="Background" Value="{StaticResource WorkspaceBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="Visibility" Value="Collapsed" />
       <Setter Property="Template">
@@ -60,7 +60,7 @@
           <Setter Property="BorderBrush" Value="Transparent" />
           <Style.Triggers>
             <DataTrigger Binding="{Binding IsSelected}" Value="True">
-              <Setter Property="BorderBrush" Value="#FF5B8CFF" />
+              <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
             </DataTrigger>
           </Style.Triggers>
         </Style>
