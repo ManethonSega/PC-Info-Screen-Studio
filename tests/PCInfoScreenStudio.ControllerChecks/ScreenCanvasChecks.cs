@@ -23,6 +23,8 @@ internal static class ScreenCanvasChecks
             System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.GetValue(vm)!;
         sessions.Loaded(ScreenMode.PhotoFrame,null);
         sessions.Loaded(ScreenMode.Hybrid,null);
+        vm.Workspace.IsDirty=false;
+        Assert(!vm.HasUnsavedChanges,"The saved canvas fixture must be clean before exercising theme loading.");
         vm.SelectedTheme=vm.Themes.First(t=>t.BuiltInId=="blank");
         vm.LoadThemeCommand.Execute(null);
         Assert(vm.CanvasSize==DisplayCanvasSize.Turing52 && vm.Document.CanvasWidth==1280 && vm.Document.Widgets.Count==0,"Blank theme must preserve the selected physical screen and its canvas.");
