@@ -115,6 +115,11 @@ internal static class StabilityMediaChecks
         var loads = Bytes("loads");
         for (var i = 0; i < 30; i++) using (var frame = renderer.Render(workspace)) { }
         Require(Bytes("loads") == loads, "The same active image cannot be decoded again every preview frame");
+        workspace.Document.Widgets.Add(new WidgetModel { Type = WidgetType.Image, AssetId = images[0].Id, Width = 120, Height = 80 });
+        using (var frame = renderer.Render(workspace)) { }
+        loads = Bytes("loads");
+        for (var i = 0; i < 30; i++) using (var frame = renderer.Render(workspace)) { }
+        Require(Bytes("loads") == loads, "Two widget sizes using the same image cannot evict and decode each other's variant every frame");
         workspace.Document.Widgets.Clear();
         ThemeRenderer.SynchronizeMedia(workspace);
         Require(Bytes("retainedBytes") == 0 && File.Exists(workspace.GetAbsolutePath(images[0])), "Removing widgets evicts decoded media but preserves its source for Undo");

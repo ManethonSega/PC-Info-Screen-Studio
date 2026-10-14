@@ -19,7 +19,7 @@ internal static class RenderResourceCache
         {
             var stamp = File.GetLastWriteTimeUtc(path).Ticks;
             return MediaResourceCache.Acquire($"image:{path}|{stamp}|{width}|{height}", "image", path,
-                () => DecodeOrientedImage(path, width, height), b => (long)b.RowBytes * b.Height);
+                () => DecodeOrientedImage(path, width, height), b => (long)b.RowBytes * b.Height, stamp.ToString());
         }
         catch
         {
@@ -36,7 +36,7 @@ internal static class RenderResourceCache
     {
         var stamp = File.Exists(path) ? File.GetLastWriteTimeUtc(path).Ticks : 0;
         var key = "photo:" + string.Join('|', path, stamp, width, height, fit, backgroundColor);
-        try { return MediaResourceCache.Acquire(key, "photo", path, () => PreparePhoto(path, width, height, fit, backgroundColor), b => (long)b.RowBytes * b.Height); }
+        try { return MediaResourceCache.Acquire(key, "photo", path, () => PreparePhoto(path, width, height, fit, backgroundColor), b => (long)b.RowBytes * b.Height, stamp.ToString()); }
         catch { return null; }
     }
 

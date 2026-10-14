@@ -34,7 +34,7 @@ public static class AnimatedGifFrameProvider
         {
             var stamp = File.GetLastWriteTimeUtc(path).Ticks;
             var started = Started.GetOrAdd(path, _ => Environment.TickCount64);
-            retained = MediaResourceCache.Acquire($"gif:{path}|{stamp}", "gif", path, () => new GifState(path, started), s => s.MemoryBytes);
+            retained = MediaResourceCache.Acquire($"gif:{path}|{stamp}", "gif", path, () => new GifState(path, started), s => s.MemoryBytes, stamp.ToString());
             var state = retained.Value;
             Monitor.Enter(state.Sync);
             try
