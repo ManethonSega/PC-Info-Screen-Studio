@@ -351,7 +351,8 @@ internal static class Program
         {
             source.Document.Name = "Chosen theme";
             source.Document.Widgets.Add(new WidgetModel { Name = "Saved CPU", X = 77, Y = 91 });
-            new AssetImportService().Import(source, assets, ThemeAssetKind.Image);
+            var imageAsset = new AssetImportService().Import(source, assets, ThemeAssetKind.Image);
+            source.Document.Widgets.Add(new WidgetModel { Type = WidgetType.Image, Name = "Saved image", AssetId = imageAsset.Id });
             Await(new ThemePackageService().SaveAsync(source, infoPath));
             source.Document.Mode = ScreenMode.PhotoFrame;
             source.Document.PhotoFrame.WatchedFolder = folder;

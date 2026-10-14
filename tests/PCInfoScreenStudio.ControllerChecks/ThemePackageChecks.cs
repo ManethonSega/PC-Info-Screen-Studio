@@ -19,6 +19,7 @@ internal static class ThemePackageChecks
         CheckUnusedMediaAndUndo(root, awaitTask);
         CheckBudgetAndFailures(root, awaitTask);
         CheckEditingDuringSave(root, awaitTask);
+        CheckInactiveEmbeddedPhotoSession(root, awaitTask);
         Console.WriteLine("PASS: legacy themes over 1 GiB, save/load symmetry, unused-media cleanup, hidden/Hybrid/photo/font retention, Undo source preservation, package limits, cancellation and atomic failure cleanup.");
     }
 
@@ -178,6 +179,27 @@ internal static class ThemePackageChecks
         var loading = new ThemePackageService().LoadAsync(path); awaitTask(loading);
         using var loaded = loading.Result;
         Require(loaded.Document.Name == "Before Save", "Editor save writes its captured snapshot");
+    }
+
+    private static void CheckInactiveEmbeddedPhotoSession(string root, Action<Task> awaitTask)
+    {
+        var service = new ThemePackageService(); using var workspace = service.CreateNewWorkspace();
+        var source = Path.Combine(root, "session-photo.png"); File.WriteAllText(source, "generated package image bytes");
+        var importer = new AssetImportService();
+        var inactivePhoto = importer.Import(workspace, source, ThemeAssetKind.Image);
+        var activePhoto = importer.Import(workspace, source, ThemeAssetKind.Image);
+        var orphan = importer.Import(workspace, source, ThemeAssetKind.Image);
+        workspace.Document.Mode = ScreenMode.Hybrid;
+        workspace.Document.PhotoFrame.Photos.Add(new PhotoFrameItem { AssetId = activePhoto.Id });
+        var settings = new PhotoFrameSettings(); settings.Photos.Add(new PhotoFrameItem { AssetId = inactivePhoto.Id });
+        var state = new SessionState { Themes = new ThemeSessionState { PhotoSettings = new() { [ScreenMode.PhotoFrame] = settings } } };
+        var sessions = new SessionStateService(Path.Combine(root, "inactive-embedded-session"));
+        awaitTask(sessions.SaveAsync(workspace, state));
+        var restoring = sessions.LoadAsync(); awaitTask(restoring);
+        using var restored = restoring.Result!.Workspace;
+        Require(restored.Document.Assets.Count == 2 && restored.Document.Assets.All(a => File.Exists(restored.GetAbsolutePath(a))) && !restored.Document.Assets.Any(a => a.Id == orphan.Id),
+            "Resume keeps embedded photos referenced by inactive mode settings, while omitting true orphan media");
+        Require(restoring.Result.State.Themes.PhotoSettings[ScreenMode.PhotoFrame].Photos.Single().AssetId == inactivePhoto.Id, "Inactive playlist still points to its retained asset");
     }
 
     private static void SetDeclaredLengths(string path, long length)

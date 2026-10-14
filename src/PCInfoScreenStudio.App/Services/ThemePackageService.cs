@@ -24,23 +24,23 @@ public sealed class ThemePackageService
     }
 
     public Task SaveAsync(ThemeWorkspace workspace, string filePath, CancellationToken cancellationToken = default)
-        => SaveCoreAsync(workspace, filePath, updateWorkspace: true, cancellationToken);
+        => SaveCoreAsync(workspace, filePath, updateWorkspace: true, cancellationToken, null);
 
-    public Task SaveCopyAsync(ThemeWorkspace workspace, string filePath, CancellationToken cancellationToken = default)
-        => SaveCoreAsync(workspace, filePath, updateWorkspace: false, cancellationToken);
+    public Task SaveCopyAsync(ThemeWorkspace workspace, string filePath, CancellationToken cancellationToken = default, IEnumerable<Guid>? additionalAssetIds = null)
+        => SaveCoreAsync(workspace, filePath, updateWorkspace: false, cancellationToken, additionalAssetIds);
 
     private async Task SaveCoreAsync(
         ThemeWorkspace workspace,
         string filePath,
         bool updateWorkspace,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, IEnumerable<Guid>? additionalAssetIds)
     {
         // Capture on the caller's editor thread. IO uses only this detached snapshot;
         // live assets/files stay available to Undo even when omitted from the package.
         cancellationToken.ThrowIfCancellationRequested();
         var originalJson = JsonSerializer.Serialize(workspace.Document, JsonOptions);
         var document = JsonSerializer.Deserialize<ThemeDocument>(originalJson, JsonOptions)!;
-        KeepReferencedAssets(document);
+        KeepReferencedAssets(document, additionalAssetIds);
         var sources = workspace.Document.Assets.ToDictionary(a => a.Id, workspace.GetAbsolutePath);
         foreach (var asset in document.Assets) asset.LocalPath = sources[asset.Id];
         await Task.Run(() => WritePackageAsync(document, filePath, cancellationToken), cancellationToken);
@@ -99,10 +99,13 @@ public sealed class ThemePackageService
         finally { if (File.Exists(pending)) File.Delete(pending); }
     }
 
-    public Task<ThemeWorkspace> LoadAsync(string filePath, CancellationToken cancellationToken = default)
-        => Task.Run(() => LoadCoreAsync(filePath, cancellationToken), cancellationToken);
+    public Task<ThemeWorkspace> LoadAsync(string filePath, CancellationToken cancellationToken = default, IEnumerable<Guid>? additionalAssetIds = null)
+    {
+        var extraIds = additionalAssetIds?.ToHashSet();
+        return Task.Run(() => LoadCoreAsync(filePath, cancellationToken, extraIds), cancellationToken);
+    }
 
-    private static async Task<ThemeWorkspace> LoadCoreAsync(string filePath, CancellationToken cancellationToken)
+    private static async Task<ThemeWorkspace> LoadCoreAsync(string filePath, CancellationToken cancellationToken, IEnumerable<Guid>? additionalAssetIds)
     {
         var root = CreateTempDirectory();
         try
@@ -128,7 +131,7 @@ public sealed class ThemePackageService
 
             // Older packages can contain every previous import, including removed videos.
             // Recover the authored layout without extracting those abandoned payloads.
-            KeepReferencedAssets(document);
+            KeepReferencedAssets(document, additionalAssetIds);
             var indexedAssets = document.Assets.ToDictionary(
                 a => NormalizePackagePath(a.PackagePath),
                 StringComparer.OrdinalIgnoreCase);
@@ -179,10 +182,11 @@ public sealed class ThemePackageService
         }
     }
 
-    private static void KeepReferencedAssets(ThemeDocument document)
+    private static void KeepReferencedAssets(ThemeDocument document, IEnumerable<Guid>? additionalAssetIds)
     {
         var ids = document.Widgets.Concat(document.HybridWidgets).SelectMany(w => new[] { w.AssetId, w.FontAssetId })
             .Concat(document.PhotoFrame.Photos.Select(p => p.AssetId)).Where(id => id.HasValue).Select(id => id!.Value).ToHashSet();
+        if (additionalAssetIds is not null) ids.UnionWith(additionalAssetIds);
         // Imported fonts remain in the editor's font palette even if no widget uses them yet.
         document.Assets = new(document.Assets.Where(a => a.Kind == ThemeAssetKind.Font || ids.Contains(a.Id)));
     }
