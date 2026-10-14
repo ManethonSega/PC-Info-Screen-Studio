@@ -231,7 +231,7 @@ public sealed class ThemePackageService
 
     private static string GetSafeExtractionPath(string root, string packagePath)
     {
-        var fullRoot = Path.GetFullPath(root) + Path.DirectorySeparatorChar;
+        var fullRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
         var fullPath = Path.GetFullPath(Path.Combine(root, packagePath.Replace('/', Path.DirectorySeparatorChar)));
         if (!fullPath.StartsWith(fullRoot, StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("Theme package attempted to write outside its workspace.");
