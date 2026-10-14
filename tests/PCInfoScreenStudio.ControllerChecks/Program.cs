@@ -414,9 +414,16 @@ internal static class Program
         File.WriteAllText(Path.Combine(directory, "last-session.t3theme"), "corrupt");
         using var fallback = new MainViewModel(Settings(root, "resume-corrupt"), sessions);
         fallback.SetEditorActive(false);
-        var failed = fallback.RestoreLastSessionAsync(); Await(failed);
-        Assert(!failed.Result && fallback.Document.Widgets.Count > 0 && fallback.DeviceStatus.Contains("Could not restore"),
-            "An unreadable session must leave the starter editor usable and report the failure.");
+        var recovered = fallback.RestoreLastSessionAsync(); Await(recovered);
+        Assert(recovered.Result && fallback.Document.Name == "Chosen theme" && fallback.Document.Widgets.Count > 0 && fallback.RecoveryNotice.Contains("backup"),
+            "An unreadable session must restore its validated backup and explain the recovery.");
+        File.WriteAllText(Path.Combine(directory, "last-session.t3theme"), "corrupt");
+        File.WriteAllText(Path.Combine(directory, "last-session.t3theme.bak"), "corrupt backup");
+        using var unavailable = new MainViewModel(Settings(root, "resume-no-valid-copy"), sessions);
+        unavailable.SetEditorActive(false);
+        var failed = unavailable.RestoreLastSessionAsync(); Await(failed);
+        Assert(!failed.Result && unavailable.Document.Widgets.Count > 0 && unavailable.RecoveryNotice.Contains("could not be read"),
+            "Two unreadable copies must leave the starter editor usable and show a persistent recovery notice.");
     }
 
     private static void CheckSensorStartup()

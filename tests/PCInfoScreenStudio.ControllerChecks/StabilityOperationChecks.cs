@@ -27,7 +27,17 @@ internal static class StabilityOperationChecks
         var window = new PCInfoScreenStudio.MainWindow(vm);
         try
         {
-            window.Show(); pump(() => window.IsEnabled && !vm.IsFileOperationBusy); vm.SetEditorActive(false);
+            var startupGate = GetGate(Path.Combine(root, "operation-session", "last-session.t3theme"));
+            startupGate.Wait();
+            try
+            {
+                window.Show(); pump(() => vm.IsFileOperationBusy); window.UpdateLayout();
+                var startupCancel = All<Button>(window).Single(b => ReferenceEquals(b.Command, vm.CancelFileOperationCommand));
+                Require(startupCancel.IsVisible && startupCancel.IsEnabled, "Startup restoration must leave its actual Cancel control responsive");
+                vm.CancelFileOperation(); pump(() => !vm.IsFileOperationBusy);
+            }
+            finally { startupGate.Release(); }
+            pump(() => window.IsEnabled && !vm.IsFileOperationBusy); vm.SetEditorActive(false);
             Require(vm.ActivityStatus.Contains("backup"), "Recovery remains visible even when hardware status changes");
             if (captureDirectory is not null) Capture(window, captureDirectory, "Settings-recovery.png");
             vm.DismissRecoveryNoticeCommand.Execute(null);

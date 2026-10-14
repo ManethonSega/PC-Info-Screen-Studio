@@ -214,7 +214,6 @@ public partial class MainWindow : Window
     {
         if (_startupLoaded) return;
         _startupLoaded = true;
-        IsEnabled = false;
         _viewModel.SetEditorActive(false);
         if (StartInTray) Hide();
         try
