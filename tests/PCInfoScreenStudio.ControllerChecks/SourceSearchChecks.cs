@@ -23,6 +23,12 @@ internal static class SourceSearchChecks
             window.Show();
             pump(() => window.IsEnabled);
             vm.SetEditorActive(false);
+            var screenSelector = (ComboBox)window.FindName("ScreenSelector");
+            screenSelector.SetCurrentValue(ComboBox.SelectedValueProperty, DisplayCanvasSize.Turing52);
+            screenSelector.GetBindingExpression(ComboBox.SelectedValueProperty)!.UpdateSource();
+            pump(() => !vm.IsDeviceBusy);
+            Assert(vm.Document.CanvasWidth == 1280 && vm.Document.CanvasHeight == 720,
+                "The top-bar screen selector must resize the actual canvas.");
             var original = vm.SelectedWidget!;
             var originalSource = original.DataSource;
             vm.AddWidgetCommand.Execute("Value");
@@ -36,6 +42,7 @@ internal static class SourceSearchChecks
             search.SetCurrentValue(TextBox.TextProperty, "gpu");
             search.GetBindingExpression(TextBox.TextProperty)!.UpdateSource();
             Flush();
+            Assert(picker.IsDropDownOpen, "Typing in search must show the result dropdown immediately.");
             Assert(vm.SourceSearchText == "gpu" && picker.Items.Count == 8 &&
                 picker.Items.Cast<string>().All(s => s.Contains("GPU", StringComparison.OrdinalIgnoreCase)),
                 "Typing GPU in the real search box must filter all GPU sources into the actual dropdown.");

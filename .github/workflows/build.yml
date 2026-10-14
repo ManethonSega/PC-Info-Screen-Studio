@@ -15,6 +15,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-dotnet@v6
         with:
@@ -162,6 +164,14 @@ jobs:
                 throw error;
               }
             }
+
+      - name: Remove verified obsolete branches after successful checks
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Release v0.10.0-alpha.11:')
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const cleanup = require('./scripts/cleanup-consolidated-branches.cjs');
+            await cleanup({ github, context, core });
 
       - name: Publish requested portable alpha release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'Release v')

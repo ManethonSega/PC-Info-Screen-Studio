@@ -29,13 +29,15 @@
         <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="5" Padding="14">
           <StackPanel>
             <TextBlock Text="{Binding DeviceStatus}" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,8" />
-            <ComboBox ItemsSource="{Binding Ports}" DisplayMemberPath="DisplayName" SelectedValuePath="PortName" SelectedValue="{Binding SelectedPort}" ToolTip="Detected USB serial devices." />
+            <TextBlock Text="Choose your screen in the top bar. The canvas follows that choice automatically."
+                       TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" Margin="0,0,0,6" />
             <UniformGrid Columns="3" Margin="0,5,0,8">
-              <Button Content="Detect screen" Command="{Binding DetectScreenCommand}" ToolTip="Find a likely compatible USB serial screen. You can choose the port above if detection is uncertain." />
-              <Button Content="Refresh ports" Command="{Binding RefreshPortsCommand}" ToolTip="Refresh the USB serial device list after plugging in or reconnecting your screen." />
+              <Button Content="Detect screen" Command="{Binding DetectScreenCommand}" ToolTip="Find a compatible serial or TURZX USB screen. Choose the device above when several are connected." />
+              <Button Content="Refresh devices" Command="{Binding RefreshPortsCommand}" ToolTip="Refresh the USB display list after plugging in or reconnecting your screen." />
               <Button Content="{Binding DisplayActionLabel}" Command="{Binding ConnectCommand}" Style="{StaticResource PrimaryButtonStyle}" ToolTip="{Binding DisplayActionToolTip}" />
             </UniformGrid>
 
+            <TextBlock Text="TURZX 5.2-inch support is experimental. Close the TURZX app and use smart-screen mode. Desktop Mode and SD-card playback are not controlled here. RGB565 colour options apply only to serial displays." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="3,5,3,10" />
             <Grid>
               <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
               <StackPanel Margin="0,0,6,0">

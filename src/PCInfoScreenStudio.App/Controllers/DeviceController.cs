@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Windows;
 using PCInfoScreenStudio.Models;
 using PCInfoScreenStudio.Services;
+using PCInfoScreenStudio.Services.TuringUsb;
 
 namespace PCInfoScreenStudio.Controllers;
 
@@ -17,6 +18,8 @@ public sealed class DeviceController : ObservableObject, IDisposable
     private PendingDisplayFrame? _pendingFrame;
     private bool _frameSenderRunning;
     private bool _disposed;
+    private bool _refreshingPorts;
+    private long _connectionGeneration;
     private string? _selectedPort;
     private string _deviceStatus = "Not connected";
     private bool _isDeviceBusy;
@@ -30,8 +33,8 @@ public sealed class DeviceController : ObservableObject, IDisposable
     {
         _document = document;
         _settings = settings;
-        _deviceService = device ?? new DeviceService();
-        _discoverPorts = discoverPorts ?? new SerialDeviceDiscoveryService().Discover;
+        _deviceService = device ?? new DisplayDeviceRouter();
+        _discoverPorts = discoverPorts ?? new DisplayDeviceDiscoveryService().Discover;
         _selectedPort = settings.LastDisplayPort;
         _displayProtocol = settings.DisplayProtocol;
         _displayColorMode = settings.DisplayColorMode;
@@ -49,7 +52,15 @@ public sealed class DeviceController : ObservableObject, IDisposable
     public string? SelectedPort
     {
         get => _selectedPort;
-        set => SetProperty(ref _selectedPort, value);
+        set
+        {
+            // WPF clears SelectedValue when discovery updates the list. That is
+            // not a user's choice and must not change the reconnect target.
+            if (_refreshingPorts || string.IsNullOrWhiteSpace(value)) return;
+            if (_selectedPort == value) return;
+            RememberSelection(value);
+            SetProperty(ref _selectedPort, value);
+        }
     }
 
     public string DeviceStatus
@@ -102,57 +113,100 @@ public sealed class DeviceController : ObservableObject, IDisposable
         }
     }
 
+    public DisplayCanvasSize PreferredCanvasSize => _settings.PreferredCanvasSize
+        ?? (TuringUsbProtocol.IsDevice(_settings.LastDisplayPort)
+            ? DisplayCanvasSize.Turing52 : DisplayCanvasSize.Serial35);
+
+    private bool MatchesScreen(SerialPortOption port)
+        => TuringUsbProtocol.IsDevice(port.PortName) == (PreferredCanvasSize == DisplayCanvasSize.Turing52);
+
+    private void RememberSelection(string port)
+    {
+        var info = Ports.FirstOrDefault(p => p.PortName.Equals(port, StringComparison.OrdinalIgnoreCase));
+        _settings.LastDisplayPort = port;
+        _settings.LastDisplayHardwareId = info?.HardwareId;
+        _settings.LastDisplayFriendlyName = info?.FriendlyName;
+        _settings.PreferredCanvasSize = TuringUsbProtocol.IsDevice(port)
+            ? DisplayCanvasSize.Turing52 : DisplayCanvasSize.Serial35;
+    }
+
+    public SerialPortOption? FindPreferredDisplay()
+    {
+        var candidates = Ports.Where(MatchesScreen).ToArray();
+        if (!string.IsNullOrWhiteSpace(_settings.LastDisplayHardwareId))
+            return candidates.FirstOrDefault(p => p.HardwareId.Equals(
+                _settings.LastDisplayHardwareId, StringComparison.OrdinalIgnoreCase));
+        return candidates.FirstOrDefault(p => p.PortName.Equals(SelectedPort, StringComparison.OrdinalIgnoreCase))
+            ?? candidates.FirstOrDefault(p => p.IsLikelyScreen)
+            ?? (candidates.Length == 1 ? candidates[0] : null);
+    }
+
     public void RefreshPorts()
     {
-        var previous = SelectedPort;
-        Ports.Clear();
-
-        foreach (var port in _discoverPorts())
-            Ports.Add(port);
-
-        var rememberedDevice = !string.IsNullOrWhiteSpace(_settings.LastDisplayHardwareId)
-            ? Ports.FirstOrDefault(p => p.HardwareId.Equals(
-                _settings.LastDisplayHardwareId, StringComparison.OrdinalIgnoreCase))
-            : null;
-
-        if (rememberedDevice is not null)
+        var discovered = _discoverPorts();
+        _refreshingPorts = true;
+        try
         {
-            SelectedPort = rememberedDevice.PortName;
+            // Preserve item identity and selection during unchanged USB notifications.
+            foreach (var old in Ports.Where(p => !discovered.Contains(p)).ToArray()) Ports.Remove(old);
+            foreach (var port in discovered.Where(p => !Ports.Contains(p))) Ports.Add(port);
+            var preferred = FindPreferredDisplay();
+            if (preferred is not null) SetProperty(ref _selectedPort, preferred.PortName, nameof(SelectedPort));
         }
-        else if (!string.IsNullOrWhiteSpace(previous) &&
-            Ports.Any(p => p.PortName.Equals(previous, StringComparison.OrdinalIgnoreCase)))
-        {
-            SelectedPort = previous;
-        }
-        else
-        {
-            SelectedPort = Ports.FirstOrDefault(p => p.IsLikelyScreen)?.PortName
-                ?? Ports.FirstOrDefault()?.PortName;
-        }
+        finally { _refreshingPorts = false; }
     }
 
     public void DetectScreen()
     {
         RefreshPorts();
-
-        var candidate = Ports.FirstOrDefault(p => p.IsLikelyScreen);
+        var candidate = FindPreferredDisplay();
         if (candidate is not null)
         {
             SelectedPort = candidate.PortName;
-            DeviceStatus = $"Likely screen detected: {candidate.DisplayName}";
-            return;
+            DeviceStatus = $"Screen detected: {candidate.DisplayName}";
         }
+        else DeviceStatus = "The selected screen is not available. Connect it or choose another screen in the top bar.";
+    }
 
-        if (Ports.Count == 1)
+    public async Task SelectScreenAsync(DisplayCanvasSize size)
+    {
+        if (_disposed || IsDeviceBusy) return;
+        var resume = IsConnected || _settings.AutoStartDisplay;
+        IsDeviceBusy = true;
+        LivePreview = false;
+        InvalidatePendingFrames();
+        try
         {
-            SelectedPort = Ports[0].PortName;
-            DeviceStatus = $"One serial device found: {Ports[0].DisplayName}";
-            return;
+            await _deviceService.DisconnectAsync();
+            _settings.PreferredCanvasSize = size;
+            _settings.LastDisplayHardwareId = null;
+            _settings.LastDisplayPort = null;
+            _settings.LastDisplayFriendlyName = null;
+            // A protocol override for the other family must not block selection.
+            DisplayProtocol = DisplayProtocolProfile.Auto;
+            _selectedPort = null;
+            RefreshPorts();
+            if (SelectedPort is not null) RememberSelection(SelectedPort);
+            RaisePropertyChanged(nameof(SelectedPort));
+            DeviceStatus = "Screen selected. Waiting for the display...";
         }
+        catch (Exception ex) { DeviceStatus = FriendlyConnectionError(ex, SelectedPort); }
+        finally
+        {
+            IsDeviceBusy = false;
+            RaisePropertyChanged(nameof(DisplayActionLabel));
+        }
+        if (resume) await ConnectOrDisconnectAsync(automatic: true);
+    }
 
-        DeviceStatus = Ports.Count == 0
-            ? "No serial screen/COM device detected."
-            : "No screen could be identified automatically. Choose the USB serial device from the list.";
+    private void InvalidatePendingFrames()
+    {
+        lock (_frameQueueSync)
+        {
+            _connectionGeneration++;
+            _pendingFrame?.Bitmap.Dispose();
+            _pendingFrame = null;
+        }
     }
 
     public async Task ConnectOrDisconnectAsync(bool automatic = false)
@@ -164,6 +218,7 @@ public sealed class DeviceController : ObservableObject, IDisposable
             IsDeviceBusy = true;
             DeviceStatus = "Stopping display...";
             LivePreview = false;
+            InvalidatePendingFrames();
             try
             {
                 await _deviceService.DisconnectAsync();
@@ -182,17 +237,18 @@ public sealed class DeviceController : ObservableObject, IDisposable
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(SelectedPort))
+        if (string.IsNullOrWhiteSpace(SelectedPort) || !Ports.Any(p => p.PortName == SelectedPort && MatchesScreen(p)))
             DetectScreen();
 
-        if (string.IsNullOrWhiteSpace(SelectedPort))
+        if (string.IsNullOrWhiteSpace(SelectedPort) || !Ports.Any(p => p.PortName == SelectedPort && MatchesScreen(p)))
         {
             DeviceStatus = "No USB display was found. Connect the cable and the app will check again automatically.";
             return;
         }
 
         IsDeviceBusy = true;
-        DeviceStatus = $"Connecting to {SelectedPort}...";
+        var selectedLabel = Ports.FirstOrDefault(p => p.PortName == SelectedPort)?.DisplayName ?? SelectedPort;
+        DeviceStatus = $"Connecting to {selectedLabel}...";
         try
         {
             var deviceInfo = Ports.FirstOrDefault(p =>
@@ -206,6 +262,7 @@ public sealed class DeviceController : ObservableObject, IDisposable
                 DisplayColorMode,
                 deviceInfo);
 
+            InvalidatePendingFrames();
             var connectedPort = _deviceService.ConnectedPort ?? SelectedPort;
             SelectedPort = connectedPort;
             var connectedInfo = _discoverPorts().FirstOrDefault(p =>
@@ -224,7 +281,7 @@ public sealed class DeviceController : ObservableObject, IDisposable
         {
             await ReleaseFailedConnectionAsync();
             DeviceStatus = _settings.AutoStartDisplay
-                ? $"{SelectedPort} is busy. Close other screen software; the app will retry automatically."
+                ? $"{selectedLabel} is busy. Close other screen software; the app will retry automatically."
                 : $"{SelectedPort} is busy. Close other screen software, then press Start display.";
         }
         catch (Exception ex)
@@ -282,14 +339,18 @@ public sealed class DeviceController : ObservableObject, IDisposable
 
     private async Task ReleaseFailedConnectionAsync()
     {
+        LivePreview = false;
+        InvalidatePendingFrames();
         try { await _deviceService.DisconnectAsync(); }
         catch { }
     }
 
     private string FriendlyConnectionError(Exception error, string? port)
     {
+        if (error is DisplaySetupException) return error.Message;
         var message = error.GetBaseException().Message;
-        var location = string.IsNullOrWhiteSpace(port) ? "the selected USB port" : port;
+        var location = TuringUsbProtocol.IsDevice(port) ? "the TURZX USB connection"
+            : string.IsNullOrWhiteSpace(port) ? "the selected USB port" : port;
         var nextStep = _settings.AutoStartDisplay
             ? "The app will retry automatically."
             : "Check the USB cable, then press Start display.";
@@ -396,7 +457,9 @@ public sealed class DeviceController : ObservableObject, IDisposable
     }
 
     private string BuildConnectionStatus()
-        => $"Connected: {_deviceService.ConnectedModel ?? "screen"} on {_deviceService.ConnectedPort} " +
+        => _deviceService.ConnectedProtocol == DisplayProtocolProfile.TuringUsb52
+            ? "Connected: TURZX 5.2-inch USB · compressed images · experimental"
+            : $"Connected: {_deviceService.ConnectedModel ?? "screen"} on {_deviceService.ConnectedPort} " +
            $"@ {_deviceService.ConnectedBaudRate ?? 0} baud · {_deviceService.ConnectedProtocol} · {_deviceService.ConnectedColorMode}";
 
     public async Task RunBenchmarkAsync()
@@ -427,7 +490,7 @@ public sealed class DeviceController : ObservableObject, IDisposable
         if (_disposed || (!LivePreview && !force) || !_deviceService.IsConnected) return;
         if (DateTimeOffset.UtcNow < _suspendLiveDisplayUntil) return;
 
-        var next = new PendingDisplayFrame(bitmap.Copy(), Document.DeviceRotation);
+        var next = new PendingDisplayFrame(bitmap.Copy(), Document.DeviceRotation, Document.Mode, _connectionGeneration);
         lock (_frameQueueSync)
         {
             if (_disposed)
@@ -469,13 +532,16 @@ public sealed class DeviceController : ObservableObject, IDisposable
 
             try
             {
+                if (frame.Generation != _connectionGeneration || !_deviceService.IsConnected || frame.Mode != Document.Mode) continue;
                 await _deviceService.DisplayAsync(frame.Bitmap, frame.Rotation);
+                if (frame.Generation != _connectionGeneration) continue;
                 if (_disposed || Application.Current.Dispatcher.HasShutdownStarted) return;
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                     DeviceStatus = BuildConnectionStatus());
             }
             catch (Exception ex)
             {
+                if (frame.Generation != _connectionGeneration) continue;
                 if (_disposed || Application.Current.Dispatcher.HasShutdownStarted) return;
                 await ReleaseFailedConnectionAsync();
                 await Application.Current.Dispatcher.InvokeAsync(() =>
@@ -501,7 +567,9 @@ public sealed class DeviceController : ObservableObject, IDisposable
     }
 
 
-    private sealed record PendingDisplayFrame(SkiaSharp.SKBitmap Bitmap, DeviceRotation Rotation);
+    public void NotifyModeChanged() => InvalidatePendingFrames();
+
+    private sealed record PendingDisplayFrame(SkiaSharp.SKBitmap Bitmap, DeviceRotation Rotation, ScreenMode Mode, long Generation);
 
     public void Dispose()
     {

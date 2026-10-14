@@ -1,0 +1,52 @@
+[
+  {
+    "branch": "codex/validate-cat-icon-v0.10.0-alpha.1",
+    "sha": "0510dcf10186c8dd27ae8e07c3932508e382fb01",
+    "evidence": "Every branch-only commit has a patch-equivalent commit on main."
+  },
+  {
+    "branch": "codex/validate-photo-frame-v0.10.0-alpha.1",
+    "sha": "c79996d1c2a3fd3d05351d8fd9bcb360fbcb00d5",
+    "evidence": "Every branch-only commit has a patch-equivalent commit on main."
+  },
+  {
+    "branch": "fix/color-persistence-transparency-font-size",
+    "sha": "774466a11801595915ef8cfaee7813a53ce35fbb",
+    "evidence": "The aggregate branch diff has stable patch ID 87d626c0ce20cb04ea5d5e2dcd5801d412265400, identical to main commit 365d0d20af417c134476ebbf72a82ded42c1fad0."
+  },
+  {
+    "branch": "release/0.9.0-alpha.1",
+    "sha": "465dbe2d5fc39ae7c2a4ece50b1b284ceeb099be",
+    "evidence": "Every branch-only commit has a patch-equivalent commit on main."
+  },
+  {
+    "branch": "release/verify-packaged-builds",
+    "sha": "5eb0fd4de473d46251a9a6c67bf036d186ef0ebc",
+    "evidence": "Every branch-only commit has a patch-equivalent commit on main."
+  },
+  {
+    "branch": "validate-0.9.1-alpha.1",
+    "sha": "c45a64b819c0afb192e49a2dcf1665aecc1cb4fb",
+    "evidence": "Every branch-only commit has a patch-equivalent commit on main."
+  },
+  {
+    "branch": "validate-0.9.1-alpha.2",
+    "sha": "4c7452b1f99b6c90b3ca3c524a4ecd90e732de98",
+    "evidence": "Every branch-only commit has a patch-equivalent commit on main."
+  },
+  {
+    "branch": "validate-0.9.1-alpha.3",
+    "sha": "5d6064aa71ace19322d8459fb6e96d93bd184be1",
+    "evidence": "Every branch-only commit has a patch-equivalent commit on main."
+  },
+  {
+    "branch": "validate/caption-workspace-0.10.0-alpha.3",
+    "sha": "3981011ec542cf4c7ce9afaff1e09f701758c76c",
+    "evidence": "Every branch-only commit has a patch-equivalent commit on main."
+  },
+  {
+    "branch": "validate/mode-workspaces-0.10.0-alpha.2",
+    "sha": "2e505c5473414c0208477ddc2668769f8dc641a4",
+    "evidence": "Every branch-only commit has a patch-equivalent commit on main."
+  }
+]

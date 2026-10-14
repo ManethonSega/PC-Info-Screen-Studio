@@ -12,7 +12,9 @@ public sealed record SerialPortOption(
 {
     public bool IsLikelyScreen => ScreenLikelihood >= 2;
 
-    public string DisplayName =>
+    public bool IsUsbScreen => TuringUsb.TuringUsbProtocol.IsDevice(PortName);
+
+    public string DisplayName => IsUsbScreen ? FriendlyName :
         string.IsNullOrWhiteSpace(FriendlyName) || FriendlyName.Equals(PortName, StringComparison.OrdinalIgnoreCase)
             ? PortName
             : $"{PortName}  ·  {FriendlyName}";

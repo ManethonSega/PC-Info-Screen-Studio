@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.10.0-alpha.11
+
+- Consolidated the previously local alpha.7 through alpha.11 source into GitHub.
+- Added experimental TURZX 5.2-inch WinUSB output and a top-bar screen selector, automatic canvas sizing and remembered device family.
+- Use bounded high-quality JPEG transfers in all TURZX modes; mode changes retain the existing connection without repeating setup.
+- Improved source-search dropdown visibility and isolated display updates from slow sensor/weather reads.
+- Improved GIF composition and cached compressed playback data in RAM, with a 64 MiB per-file limit.
+- Fixed large graph/bar headings and resize-grip selection handling.
+- Isolated Photo Frame and Hybrid playlists, settings and resume positions.
+- Write recovery copies only after new edits.
+- Added Windows regression checks for USB image transfers, device/canvas selection, GIF composition, fonts, mode queues and recovery writes.
+- Updated release documentation and preserved the histories of ten obsolete branches before guarded cleanup.
+- Physical confirmation of the alpha.11 mode-switch fix and prolonged playback remains pending.
+
+
 ## 0.10.0-alpha.6
 
 - Added editor-only prompts to empty Photo Frame and Hybrid previews.

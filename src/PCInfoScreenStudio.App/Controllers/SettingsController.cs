@@ -78,6 +78,12 @@ public sealed class SettingsController : ObservableObject
         set => Update(_values.AutoStartDisplay, value, v => _values.AutoStartDisplay = v);
     }
 
+    public DisplayCanvasSize? PreferredCanvasSize
+    {
+        get => _values.PreferredCanvasSize;
+        set => Update(_values.PreferredCanvasSize, value, v => _values.PreferredCanvasSize = v);
+    }
+
     public bool ClearDisplayOnExit
     {
         get => _values.ClearDisplayOnExit;

@@ -116,15 +116,20 @@ public sealed partial class MainViewModel
                 throw new InvalidDataException("Switch to the matching screen mode before opening this settings theme.");
             if (!ConfirmDiscardIfNeeded()) return;
             string? folderWarning;
+            var previousWidth = Document.CanvasWidth;
+            var previousHeight = Document.CanvasHeight;
             _suppressDirty = true;
             try
             {
-                ModeThemeService.Apply(Document, preset);
+                ModeThemeService.ApplyForDisplay(Document, preset, CanvasSize);
                 folderWarning = _photos.RestoreThemeFolder();
                 if (Document.Mode == ScreenMode.Hybrid)
                     SelectedWidget = Document.HybridWidgets.OrderBy(widget => widget.ZIndex).FirstOrDefault();
             }
             finally { _suppressDirty = false; }
+            if (Document.CanvasWidth != previousWidth || Document.CanvasHeight != previousHeight)
+                foreach (var mode in Enum.GetValues<ScreenMode>().Where(mode => mode != Document.Mode))
+                    _themeSessions.MarkDirty(mode);
             SetActiveThemeLoaded(path);
             RefreshModeThemes();
             SelectedModeTheme = ModeThemes.FirstOrDefault(t => t.FilePath.Equals(path, StringComparison.OrdinalIgnoreCase));

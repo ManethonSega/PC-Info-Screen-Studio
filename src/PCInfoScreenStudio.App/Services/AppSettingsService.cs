@@ -96,6 +96,7 @@ public sealed class AppSettings
     public string? LastDisplayPort { get; set; }
     public string? LastDisplayHardwareId { get; set; }
     public string? LastDisplayFriendlyName { get; set; }
+    public DisplayCanvasSize? PreferredCanvasSize { get; set; }
     public bool ClearDisplayOnExit { get; set; }
     public bool ShowAdvancedSensors { get; set; }
     public bool RequestAdministratorAtStartup { get; set; } = true;

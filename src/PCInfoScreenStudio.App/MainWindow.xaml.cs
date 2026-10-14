@@ -130,6 +130,12 @@ public partial class MainWindow : Window
         _viewModel.NotifyDisplayDevicesChanged();
     }
 
+    private void OnSourceSearchChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+        if (SourceSearchResults is not null && DataContext is MainViewModel vm)
+            SourceSearchResults.IsDropDownOpen = vm.CanSearchSources && !string.IsNullOrWhiteSpace(SourceSearchBox.Text);
+    }
+
     private void OnSettingsClick(object sender, RoutedEventArgs e)
     {
         var window = new SettingsWindow

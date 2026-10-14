@@ -5,7 +5,8 @@ public enum DisplayProtocolProfile
     Auto,
     RevANativePortrait,
     RevAHardwareLogical,
-    RevAHardwareNative
+    RevAHardwareNative,
+    TuringUsb52
 }
 
 public enum DisplayColorMode
@@ -19,3 +20,6 @@ public enum DisplayColorMode
 
 public sealed record DisplayProtocolOption(string Label, DisplayProtocolProfile Value);
 public sealed record DisplayColorOption(string Label, DisplayColorMode Value);
+
+public enum DisplayCanvasSize { Serial35, Turing52 }
+public sealed record DisplayCanvasOption(string Label, DisplayCanvasSize Value);

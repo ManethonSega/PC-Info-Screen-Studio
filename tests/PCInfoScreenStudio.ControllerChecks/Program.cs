@@ -21,6 +21,8 @@ internal static class Program
         Directory.CreateDirectory(root);
         try
         {
+            Await(RegressionFixChecks.RunAsync());
+            EditingRecoveryChecks.Check(root, Await);
             CheckSettings(root);
             CheckSensorStartup();
             CheckWindowsStartup();
@@ -29,11 +31,13 @@ internal static class Program
             CheckWidgetBackground(root);
             CheckPhotos(root);
             CheckDevice(root);
+            TuringUsbChecks.Check(root, Await);
             CheckThemeModes(root);
             CheckThemeFolderReload(root);
             CheckDashboard();
             CheckPageNavigation(root);
             SourceSearchChecks.Check(root, PumpUntil);
+            ScreenCanvasChecks.Check(root, Await, PumpUntil);
             WorkflowChecks.Check(root, Await, PumpUntil);
             UiStateChecks.Check();
             UiPolishChecks.Check(root, PumpUntil, args.Length == 2 && args[0] == "--capture-ui" ? args[1] : null);
@@ -127,7 +131,7 @@ internal static class Program
         current.CaptionFontSize = 36;
         current.CaptionFontFamily = "Bungee";
         sessions.SwitchSettings(ScreenMode.Hybrid, ScreenMode.PhotoFrame, current);
-        Assert(current.CaptionFontSize == 24 && current.Photos.Count == 1, "Returning to a mode must restore its settings while retaining the shared playlist.");
+        Assert(current.CaptionFontSize == 24 && current.Photos.Count == 1, "Returning to a mode must restore its settings while restoring its own playlist.");
         Assert(current.CaptionFontFamily == "Orbitron", "Photo Frame must retain its independent caption font.");
         sessions.SwitchSettings(ScreenMode.PhotoFrame, ScreenMode.Hybrid, current);
         Assert(current.CaptionFontSize == 36, "Photo and Hybrid settings must remain independent in memory.");

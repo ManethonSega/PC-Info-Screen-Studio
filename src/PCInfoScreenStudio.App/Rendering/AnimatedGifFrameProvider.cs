@@ -40,6 +40,7 @@ public static class AnimatedGifFrameProvider
     {
         private readonly object _sync = new();
         private readonly SKCodec _codec;
+        private readonly SKData? _encodedData;
         private readonly SKBitmap _bitmap;
         private readonly SKImageInfo _decodeInfo;
         private readonly SKCodecFrameInfo[] _frames;
@@ -51,7 +52,11 @@ public static class AnimatedGifFrameProvider
 
         public GifState(string path)
         {
-            _codec = SKCodec.Create(path)
+            // Keep modest compressed GIFs in memory so looping/skip decodes do
+            // not seek and read the file repeatedly. Do not cache decoded frames.
+            if (new FileInfo(path).Length <= 64 * 1024 * 1024)
+                _encodedData = SKData.CreateCopy(File.ReadAllBytes(path));
+            _codec = (_encodedData is null ? SKCodec.Create(path) : SKCodec.Create(_encodedData))
                 ?? throw new InvalidDataException("SkiaSharp could not decode the GIF.");
 
             _frames = _codec.FrameInfo;
@@ -124,28 +129,20 @@ public static class AnimatedGifFrameProvider
 
         private void DecodeThrough(int target)
         {
-            if (_decodedFrame == target)
-                return;
-
-            if (_decodedFrame < 0 || target < _decodedFrame)
+            if (_decodedFrame == target) return;
+            var required = _frames[target].RequiredFrame;
+            var prior = _decodedFrame >= required && _decodedFrame < target && _decodedFrame >= 0
+                && _frames[_decodedFrame].DisposalMethod != SKCodecAnimationDisposalMethod.RestorePrevious
+                ? _decodedFrame : -1;
+            if (prior < 0) _bitmap.Erase(SKColors.Transparent);
+            var result = _codec.GetPixels(_decodeInfo, _bitmap.GetPixels(),
+                new SKCodecOptions(target) { PriorFrame = prior });
+            if (result is SKCodecResult.Success or SKCodecResult.IncompleteInput)
             {
-                _bitmap.Erase(SKColors.Transparent);
-                _decodedFrame = -1;
-            }
-
-            for (var frame = _decodedFrame + 1; frame <= target; frame++)
-            {
-                var result = _codec.GetPixels(
-                    _decodeInfo,
-                    _bitmap.GetPixels(),
-                    new SKCodecOptions(frame));
-
-                if (result is not (SKCodecResult.Success or SKCodecResult.IncompleteInput))
-                    break;
-
                 _bitmap.NotifyPixelsChanged();
-                _decodedFrame = frame;
+                _decodedFrame = target;
             }
+            else _decodedFrame = -1;
         }
 
         public void Dispose()
@@ -158,6 +155,7 @@ public static class AnimatedGifFrameProvider
                 _disposed = true;
                 _bitmap.Dispose();
                 _codec.Dispose();
+                _encodedData?.Dispose();
             }
         }
     }

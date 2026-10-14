@@ -61,12 +61,17 @@ public sealed class WeatherMetricsService : IDisposable
 
             return _cachedMetrics;
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            throw;
+            _cachedCity = city;
+            _nextRefreshUtc = DateTimeOffset.UtcNow.AddMinutes(1);
+            Status = "Weather request timed out. Retrying in a minute.";
+            return _cachedMetrics;
         }
         catch (Exception ex)
         {
+            _cachedCity = city;
+            _nextRefreshUtc = DateTimeOffset.UtcNow.AddMinutes(1);
             Status = "Weather unavailable: " + ex.GetBaseException().Message;
             return _cachedMetrics;
         }

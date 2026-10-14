@@ -11,6 +11,8 @@ public sealed class ModeThemePreset
     public int FormatVersion { get; set; }
     public string Name { get; set; } = "Mode theme";
     public ScreenMode Mode { get; set; }
+    public int CanvasWidth { get; set; }
+    public int CanvasHeight { get; set; }
     public PhotoFrameSettings PhotoFrame { get; set; } = new();
     public List<WidgetModel> HybridWidgets { get; set; } = [];
 }
@@ -63,7 +65,9 @@ public sealed class ModeThemeService
 
         var preset = new ModeThemePreset
         {
-            FormatVersion = 1,
+            FormatVersion = 2,
+            CanvasWidth = document.CanvasWidth,
+            CanvasHeight = document.CanvasHeight,
             Name = name,
             Mode = mode,
             PhotoFrame = settings,
@@ -98,15 +102,46 @@ public sealed class ModeThemeService
         return preset;
     }
 
-    public static void Apply(ThemeDocument document, ModeThemePreset preset)
+    public static void Apply(ThemeDocument document, ModeThemePreset preset) => ApplyCore(document, preset, null);
+
+    public static void ApplyForDisplay(ThemeDocument document, ModeThemePreset preset, DisplayCanvasSize size)
+        => ApplyCore(document, preset, size);
+
+    private static void ApplyCore(ThemeDocument document, ModeThemePreset preset, DisplayCanvasSize? size)
     {
         if (document.Mode == ScreenMode.InfoScreen || preset.Mode != document.Mode)
             throw new InvalidDataException("This settings theme belongs to a different screen mode.");
+        var validSize = CanvasSizing.IsSupported(preset.CanvasWidth, preset.CanvasHeight);
+        var width = validSize ? preset.CanvasWidth : document.CanvasWidth;
+        var height = validSize ? preset.CanvasHeight : document.CanvasHeight;
+        var sourceWidth = width;
+        var sourceHeight = height;
+        if (size is { } selected)
+        {
+            var landscape = width > height;
+            var longer = selected == DisplayCanvasSize.Turing52 ? 1280 : 480;
+            var shorter = selected == DisplayCanvasSize.Turing52 ? 720 : 320;
+            width = landscape ? longer : shorter;
+            height = landscape ? shorter : longer;
+        }
+        // Scale the existing workspace straight to its final size, never through
+        // the preset's unrelated resolution (which compounds font scaling).
+        CanvasSizing.ResizeTo(document, width, height);
+        var scaleX = width / (double)sourceWidth;
+        var scaleY = height / (double)sourceHeight;
         ApplySettings(document.PhotoFrame, preset.PhotoFrame);
+        document.PhotoFrame.CaptionFontSize *= Math.Min(scaleX, scaleY);
         if (document.Mode == ScreenMode.Hybrid)
         {
             document.HybridWidgets.Clear();
-            foreach (var widget in preset.HybridWidgets) document.HybridWidgets.Add(Clone(widget));
+            foreach (var widget in preset.HybridWidgets)
+            {
+                var copy = Clone(widget);
+                copy.X *= scaleX; copy.Y *= scaleY;
+                copy.Width *= scaleX; copy.Height *= scaleY;
+                copy.FontSize *= Math.Min(scaleX, scaleY);
+                document.HybridWidgets.Add(copy);
+            }
         }
     }
 

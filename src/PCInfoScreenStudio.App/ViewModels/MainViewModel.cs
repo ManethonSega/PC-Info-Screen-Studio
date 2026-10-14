@@ -29,6 +29,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly WeatherMetricsService _weatherMetrics = new();
     private readonly ModeThemeService _modeThemeService = new();
     private readonly SessionStateService _sessionService;
+    private Task<IReadOnlyDictionary<string, MetricValue>>? _systemSampleTask;
+    private Task<IReadOnlyDictionary<string, MetricValue>>? _hardwareSampleTask;
+    private Task<IReadOnlyDictionary<string, MetricValue>>? _weatherSampleTask;
+    private readonly Dictionary<string, MetricValue> _lastSystemMetrics = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, MetricValue> _lastHardwareMetrics = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, MetricValue> _lastWeatherMetrics = new(StringComparer.OrdinalIgnoreCase);
     private readonly DispatcherTimer _dataTimer;
     private readonly DispatcherTimer _animationTimer;
     private readonly DispatcherTimer _historyTimer;
@@ -49,6 +55,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private bool _suppressDirty;
     private bool _suppressHistory;
     private bool _recoveryBusy;
+    private long _editRevision;
+    private long _savedRecoveryRevision = -1;
     private int _historyIndex = -1;
     private ModeThemeLibraryItem? _selectedModeTheme;
     private readonly HashSet<string> _advancedSensorSources = new(StringComparer.OrdinalIgnoreCase);
@@ -144,6 +152,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             if (!IsEditorActive && !LivePreview)
                 return;
+            // Output must not depend on one slow hardware/weather provider.
+            if (LivePreview) RequestLiveFrame?.Invoke(this, EventArgs.Empty);
             await RefreshRuntimeDataAsync();
         };
         _dataTimer.Start();
@@ -200,6 +210,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         AttachWorkspace(_workspace);
         CreateStarterLayout();
+        ResizeForSelectedScreen();
         InitializePhotoFrameRuntime();
         InitializeHistory();
         RefreshPorts();
@@ -330,17 +341,53 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         new("270°", DeviceRotation.Degrees270)
     ];
 
+    public IReadOnlyList<DisplayCanvasOption> CanvasSizes { get; } =
+    [
+        new("3.5-inch · 480 × 320", DisplayCanvasSize.Serial35),
+        new("5.2-inch · 1280 × 720", DisplayCanvasSize.Turing52)
+    ];
+    public bool CanChooseScreen => !IsDeviceBusy;
+    public DisplayCanvasSize CanvasSize
+    {
+        get => _settings.PreferredCanvasSize ?? _device.PreferredCanvasSize;
+        set
+        {
+            if (value == CanvasSize || IsDeviceBusy) return;
+            _settings.PreferredCanvasSize = value;
+            ResizeForSelectedScreen();
+            _ = ChangeSelectedScreenAsync(value);
+            RaisePropertyChanged();
+        }
+    }
+
+    private void ResizeForSelectedScreen()
+    {
+        var longer = CanvasSize == DisplayCanvasSize.Turing52 ? 1280 : 480;
+        if (Math.Max(Document.CanvasWidth, Document.CanvasHeight) == longer) return;
+        _editor.ResizeCanvas(CanvasSize);
+        foreach (var mode in Enum.GetValues<ScreenMode>()) _themeSessions.MarkDirty(mode);
+        NotifyThemeState();
+    }
+
+    private async Task ChangeSelectedScreenAsync(DisplayCanvasSize size)
+    {
+        _manualDisplayStop = false;
+        await _device.SelectScreenAsync(size);
+        if (!_device.IsConnected) SignalAutoReconnect();
+    }
+
     public IReadOnlyList<DisplayProtocolOption> DisplayProtocolOptions { get; } =
     [
         new("Auto (recommended)", DisplayProtocolProfile.Auto),
         new("Rev-A native portrait", DisplayProtocolProfile.RevANativePortrait),
         new("Rev-A hardware landscape", DisplayProtocolProfile.RevAHardwareLogical),
-        new("Rev-A legacy 320×480", DisplayProtocolProfile.RevAHardwareNative)
+        new("Rev-A legacy 320×480", DisplayProtocolProfile.RevAHardwareNative),
+        new("TURZX 5.2-inch USB", DisplayProtocolProfile.TuringUsb52)
     ];
 
     public IReadOnlyList<DisplayColorOption> DisplayColorOptions { get; } =
     [
-        new("Auto (RGB565 LE)", DisplayColorMode.Auto),
+        new("Auto (recommended)", DisplayColorMode.Auto),
         new("RGB565 little-endian", DisplayColorMode.Rgb565LittleEndian),
         new("BGR565 little-endian", DisplayColorMode.Bgr565LittleEndian),
         new("RGB565 byte-swapped", DisplayColorMode.Rgb565BigEndian),
@@ -761,7 +808,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     private void OnDevicePropertyChanged(object? sender, PropertyChangedEventArgs e)
-        => RaisePropertyChanged(e.PropertyName);
+    {
+        RaisePropertyChanged(e.PropertyName);
+        if (e.PropertyName == nameof(SelectedPort))
+        {
+            RaisePropertyChanged(nameof(CanvasSize));
+            ResizeForSelectedScreen();
+        }
+        if (e.PropertyName == nameof(IsDeviceBusy)) RaisePropertyChanged(nameof(CanChooseScreen));
+    }
 
     private void OnDeviceCommandStatesChanged(object? sender, EventArgs e)
     {
@@ -1171,7 +1226,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 if (candidate is not null && !IsDeviceBusy)
                 {
                     SelectedPort = candidate.PortName;
-                    DeviceStatus = $"Display found on {candidate.PortName}. Connecting...";
+                    DeviceStatus = $"Display found: {candidate.DisplayName}. Connecting...";
                     await _device.ConnectOrDisconnectAsync(automatic: true);
                     if (_device.IsConnected)
                     {
@@ -1193,25 +1248,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    private SerialPortOption? FindRememberedDisplay()
-    {
-        if (!string.IsNullOrWhiteSpace(_settings.LastDisplayHardwareId))
-        {
-            var hardwareMatch = Ports.FirstOrDefault(p => p.HardwareId.Equals(
-                _settings.LastDisplayHardwareId, StringComparison.OrdinalIgnoreCase));
-            if (hardwareMatch is not null) return hardwareMatch;
-        }
-
-        if (!string.IsNullOrWhiteSpace(_settings.LastDisplayPort))
-        {
-            var portMatch = Ports.FirstOrDefault(p => p.PortName.Equals(
-                _settings.LastDisplayPort, StringComparison.OrdinalIgnoreCase));
-            if (portMatch is not null) return portMatch;
-        }
-
-        return Ports.FirstOrDefault(p => p.IsLikelyScreen)
-            ?? (Ports.Count == 1 ? Ports[0] : null);
-    }
+    private SerialPortOption? FindRememberedDisplay() => _device.FindPreferredDisplay();
 
     private void SignalAutoReconnect()
     {
@@ -1460,6 +1497,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             gpu.X = 160; gpu.Y = 54; gpu.Width = 285; gpu.Height = 104; gpu.Label = "GPU TEMP"; gpu.GraphStyle = GraphStyle.Blocks;
             var ram = NewWidget(WidgetType.BarGauge);
             ram.X = 25; ram.Y = 210; ram.Width = 420; ram.Height = 62; ram.Label = "RAM"; ram.SimulatedValue = 64;
+            var scaleX = Document.CanvasWidth / 480d;
+            var scaleY = Document.CanvasHeight / 320d;
+            foreach (var widget in new[] { cpu, gpu, ram })
+            {
+                widget.X *= scaleX; widget.Y *= scaleY;
+                widget.Width *= scaleX; widget.Height *= scaleY;
+                widget.FontSize *= Math.Min(scaleX, scaleY);
+            }
             Document.Widgets.Add(cpu); Document.Widgets.Add(gpu); Document.Widgets.Add(ram);
             NormalizeZIndices();
             Workspace.IsDirty = false;
@@ -1476,6 +1521,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _workspace.Dispose();
         ThemeRenderer.ClearCaches();
         _workspace = workspace;
+        _editRevision++;
+        var adapted = Math.Max(Document.CanvasWidth, Document.CanvasHeight) !=
+            (CanvasSize == DisplayCanvasSize.Turing52 ? 1280 : 480);
+        CanvasSizing.Resize(Document, CanvasSize);
+        if (adapted && workspace.FilePath is not null) workspace.IsDirty = true;
         _themeSessions.Reset();
         _lastThemeMode = Document.Mode;
         _themeSessions.Loaded(Document.Mode, workspace.FilePath);
@@ -1487,6 +1537,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         InitializePhotoFrameRuntime();
         RaisePropertyChanged(nameof(Workspace));
         RaisePropertyChanged(nameof(Document));
+        RaisePropertyChanged(nameof(CanvasSize));
         RaisePropertyChanged(nameof(IsDirty));
         RaisePropertyChanged(nameof(WindowTitle));
         ThemeChanged?.Invoke(this, EventArgs.Empty);
@@ -1519,21 +1570,28 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void OnDocumentPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName is nameof(ThemeDocument.CanvasWidth) or nameof(ThemeDocument.CanvasHeight))
+            RaisePropertyChanged(nameof(CanvasSize));
         if (e.PropertyName == nameof(ThemeDocument.EditorWidgets)) return;
         if (e.PropertyName == nameof(ThemeDocument.Mode))
         {
+            _device.NotifyModeChanged();
+            _editRevision++;
             var wasSuppressed = _suppressDirty;
             _suppressDirty = true;
             try
             {
-                var previousFolder = Document.PhotoFrame.WatchedFolder;
-                _themeSessions.SwitchSettings(_lastThemeMode, Document.Mode, Document.PhotoFrame);
-                if (Document.Mode != ScreenMode.InfoScreen &&
-                    !string.Equals(previousFolder, Document.PhotoFrame.WatchedFolder, StringComparison.OrdinalIgnoreCase))
+                DetachPhotoFrame(Document.PhotoFrame);
+                try { _themeSessions.SwitchSettings(_lastThemeMode, Document.Mode, Document.PhotoFrame); }
+                finally { AttachPhotoFrame(Document.PhotoFrame); }
+                _photos.InitializePhotoFrameRuntime(preservePosition: true);
+                if (Document.Mode != ScreenMode.InfoScreen && Document.PhotoFrame.Photos.Count == 0 &&
+                    !string.IsNullOrWhiteSpace(Document.PhotoFrame.WatchedFolder))
                 {
                     var warning = _photos.RestoreThemeFolder();
                     if (warning is not null) DeviceStatus = warning;
                 }
+                RaisePhotoCommandStates();
             }
             finally { _suppressDirty = wasSuppressed; }
             _lastThemeMode = Document.Mode;
@@ -1598,6 +1656,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
     private void OnWidgetPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (ReferenceEquals(sender, SelectedWidget) && e.PropertyName == nameof(WidgetModel.Type))
+        {
+            RaisePropertyChanged(nameof(CanSearchSources));
+            RaisePropertyChanged(nameof(SourceSearchHint));
+        }
         if (e.PropertyName is nameof(WidgetModel.IsSelected) or nameof(WidgetModel.RuntimeValue) or nameof(WidgetModel.RuntimeText) or nameof(WidgetModel.RuntimeUnit) or nameof(WidgetModel.BackgroundTransparency)) return;
         if (e.PropertyName == nameof(WidgetModel.DataSource) && sender is WidgetModel widget)
             ApplyDataSourceDefaults(widget);
@@ -1641,31 +1704,34 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         try
         {
-            var systemTask = Task.Run(_systemMetrics.Sample);
-            var hardwareTask = Task.Run(_hardwareMetrics.Sample);
-            var weatherTask = _weatherMetrics.GetMetricsAsync(WeatherCity, forceWeather);
+            _systemSampleTask ??= Task.Run(_systemMetrics.Sample);
+            _hardwareSampleTask ??= Task.Run(_hardwareMetrics.Sample);
+            _weatherSampleTask ??= _weatherMetrics.GetMetricsAsync(WeatherCity, forceWeather);
+            var sampleDeadline = Environment.TickCount64 + 750;
+            foreach (var provider in new[] { _systemSampleTask, _hardwareSampleTask, _weatherSampleTask })
+            {
+                var remaining = sampleDeadline - Environment.TickCount64;
+                if (!provider.IsCompleted && remaining <= 0) continue;
+                try { await provider.WaitAsync(TimeSpan.FromMilliseconds(Math.Max(1, remaining))); }
+                catch (TimeoutException) { /* Keep the pending provider; do not launch another read. */ }
+                catch (Exception) { /* Harvest the other providers even if this one failed. */ }
+            }
+            if (_isDisposed) return;
 
-            await Task.WhenAll(systemTask, hardwareTask, weatherTask);
-
-            var sample = new Dictionary<string, MetricValue>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var pair in systemTask.Result)
-                sample[pair.Key] = pair.Value;
-
-            foreach (var pair in hardwareTask.Result)
+            HarvestSample(ref _systemSampleTask, _lastSystemMetrics);
+            HarvestSample(ref _hardwareSampleTask, _lastHardwareMetrics);
+            HarvestSample(ref _weatherSampleTask, _lastWeatherMetrics);
+            var sample = new Dictionary<string, MetricValue>(_lastSystemMetrics, StringComparer.OrdinalIgnoreCase);
+            foreach (var pair in _lastHardwareMetrics)
             {
                 sample[pair.Key] = pair.Value;
-
                 if (pair.Key.StartsWith("Sensor: ", StringComparison.OrdinalIgnoreCase))
                 {
                     _advancedSensorSources.Add(pair.Key);
-                    if (ShowAdvancedSensors && !DataSources.Contains(pair.Key))
-                        DataSources.Add(pair.Key);
+                    if (ShowAdvancedSensors && !DataSources.Contains(pair.Key)) DataSources.Add(pair.Key);
                 }
             }
-
-            foreach (var pair in weatherTask.Result)
-                sample[pair.Key] = pair.Value;
+            foreach (var pair in _lastWeatherMetrics) sample[pair.Key] = pair.Value;
 
             HardwareStatus = _hardwareMetrics.Status;
             RaisePropertyChanged(nameof(IsHardwareElevated));
@@ -1722,6 +1788,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             Interlocked.Exchange(ref _dataSampleBusy, 0);
         }
+    }
+
+    private static void HarvestSample(ref Task<IReadOnlyDictionary<string, MetricValue>>? task,
+        Dictionary<string, MetricValue> lastMetrics)
+    {
+        if (task is null || !task.IsCompleted) return;
+        if (task.IsCompletedSuccessfully)
+        {
+            lastMetrics.Clear();
+            foreach (var pair in task.Result) lastMetrics[pair.Key] = pair.Value;
+        }
+        else _ = task.Exception; // Observe a fault even when another provider timed out.
+        task = null;
     }
 
     private async Task UpdateWeatherAsync()
@@ -1917,6 +1996,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private void MarkDirty()
     {
         if (_suppressDirty) return;
+        _editRevision++;
         _themeSessions.MarkDirty(Document.Mode);
         Workspace.IsDirty = true;
         NotifyThemeState();
@@ -2047,6 +2127,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         RaisePropertyChanged(nameof(IsDirty));
         RaisePropertyChanged(nameof(WindowTitle));
+        RaisePropertyChanged(nameof(CanvasSize));
         RaiseHistoryCommandStates();
         ThemeRenderer.ClearCaches();
         ThemeChanged?.Invoke(this, EventArgs.Empty);
@@ -2062,14 +2143,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task SaveRecoveryAsync()
     {
-        if (!Workspace.IsDirty || _recoveryBusy)
+        if (!Workspace.IsDirty || _recoveryBusy || _savedRecoveryRevision == _editRevision)
             return;
 
         _recoveryBusy = true;
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(_recoveryPath)!);
-            await _packageService.SaveCopyAsync(Workspace, _recoveryPath);
+            var revision = _editRevision;
+            var document = _historyService.Restore(_historyService.Capture(Document));
+            foreach (var asset in document.Assets)
+            {
+                var original = Document.Assets.First(item => item.Id == asset.Id);
+                asset.LocalPath = Workspace.GetAbsolutePath(original);
+            }
+            using var snapshot = new ThemeWorkspace(document, Path.Combine(Path.GetTempPath(), "PCInfoScreenStudio", Guid.NewGuid().ToString("N")));
+            await Task.Run(() => _packageService.SaveCopyAsync(snapshot, _recoveryPath));
+            _savedRecoveryRevision = revision;
         }
         catch
         {

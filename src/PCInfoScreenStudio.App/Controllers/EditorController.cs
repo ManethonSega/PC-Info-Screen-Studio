@@ -518,6 +518,12 @@ public sealed class EditorController : ObservableObject
            source.Equals("Weather.TodayHigh", StringComparison.OrdinalIgnoreCase) ||
            source.Equals("Weather.TodayLow", StringComparison.OrdinalIgnoreCase);
 
+    public void ResizeCanvas(DisplayCanvasSize size)
+    {
+        CanvasSizing.Resize(Document, size);
+        DocumentChanged?.Invoke(true);
+    }
+
     public void ToggleOrientation()
     {
         var oldW = Document.CanvasWidth;
