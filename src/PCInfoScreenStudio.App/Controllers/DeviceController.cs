@@ -28,6 +28,9 @@ public sealed class DeviceController : ObservableObject, IDisposable
     private string? _selectedPort;
     private string _deviceStatus = "Not connected";
     private bool _isDeviceBusy;
+    private long _brightnessRevision;
+    private bool _brightnessWorkerRunning;
+    private int? _appliedBrightness;
     private bool _livePreview;
     private DisplayProtocolProfile _displayProtocol;
     private DisplayColorMode _displayColorMode;
@@ -72,7 +75,61 @@ public sealed class DeviceController : ObservableObject, IDisposable
             if (_selectedPort == value) return;
             RememberSelection(value);
             SetProperty(ref _selectedPort, value);
+            RaisePropertyChanged(nameof(DisplayBrightness));
         }
+    }
+
+    public int DisplayBrightness
+    {
+        get => PreferredCanvasSize == DisplayCanvasSize.Turing52 ? _settings.UsbBrightness : _settings.SerialBrightness;
+        set
+        {
+            if (_disposed) return;
+            var level = Math.Clamp(value, 0, 100);
+            if (level == DisplayBrightness) return;
+            if (PreferredCanvasSize == DisplayCanvasSize.Turing52) _settings.UsbBrightness = level;
+            else _settings.SerialBrightness = level;
+            RaisePropertyChanged();
+            QueueBrightnessUpdate();
+        }
+    }
+
+    private void QueueBrightnessUpdate()
+    {
+        _brightnessRevision++;
+        if (_disposed || _brightnessWorkerRunning) return;
+        _brightnessWorkerRunning = true;
+        _ = ApplyLatestBrightnessAsync();
+    }
+
+    private async Task ApplyLatestBrightnessAsync()
+    {
+        try
+        {
+            while (!_disposed)
+            {
+                var revision = _brightnessRevision;
+                await Task.Delay(150);
+                if (_disposed) return;
+                if (revision != _brightnessRevision) continue;
+                if (!IsConnected || IsDeviceBusy) return;
+                var family = PreferredCanvasSize;
+                var level = DisplayBrightness;
+                if (_appliedBrightness == level) return;
+                try
+                {
+                    await _deviceService.SetBrightnessAsync(level);
+                    if (IsConnected && family == PreferredCanvasSize) _appliedBrightness = level;
+                }
+                catch (Exception)
+                {
+                    if (!_disposed && IsConnected && family == PreferredCanvasSize)
+                        DeviceStatus = "Could not apply brightness. The saved level will be retried on reconnect.";
+                }
+                if (revision == _brightnessRevision) return;
+            }
+        }
+        finally { _brightnessWorkerRunning = false; }
     }
 
     public string DeviceStatus
@@ -87,6 +144,7 @@ public sealed class DeviceController : ObservableObject, IDisposable
         private set
         {
             if (!SetProperty(ref _isDeviceBusy, value)) return;
+            if (!value && IsConnected && _appliedBrightness != DisplayBrightness) QueueBrightnessUpdate();
             CommandStatesChanged?.Invoke(this, EventArgs.Empty);
         }
     }
@@ -230,6 +288,7 @@ public sealed class DeviceController : ObservableObject, IDisposable
             RefreshPorts();
             if (SelectedPort is not null) RememberSelection(SelectedPort);
             RaisePropertyChanged(nameof(SelectedPort));
+            RaisePropertyChanged(nameof(DisplayBrightness));
             DeviceStatus = "Screen selected. Waiting for the display...";
         }
         catch (Exception ex) { DeviceStatus = FriendlyConnectionError(ex, SelectedPort); }
@@ -297,13 +356,15 @@ public sealed class DeviceController : ObservableObject, IDisposable
             var deviceInfo = Ports.FirstOrDefault(p =>
                 p.PortName.Equals(SelectedPort, StringComparison.OrdinalIgnoreCase));
 
+            var connectingBrightness = DisplayBrightness;
             await _deviceService.ConnectAsync(
                 SelectedPort,
                 Document.Orientation,
                 Document.DeviceRotation,
                 DisplayProtocol,
                 DisplayColorMode,
-                deviceInfo);
+                deviceInfo, brightness: connectingBrightness);
+            _appliedBrightness = connectingBrightness;
 
             InvalidatePendingFrames();
             var connectedPort = _deviceService.ConnectedPort ?? SelectedPort;

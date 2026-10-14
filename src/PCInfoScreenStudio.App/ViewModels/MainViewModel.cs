@@ -114,6 +114,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RefreshPortsCommand = new RelayCommand(RefreshPorts);
         DetectScreenCommand = new RelayCommand(DetectScreen, () => !IsDeviceBusy);
         ConnectCommand = new RelayCommand(() => _ = ConnectOrDisconnectAsync(), () => !IsDeviceBusy);
+        ResetBrightnessCommand = new RelayCommand(() => DisplayBrightness = 50);
         TestScreenCommand = new RelayCommand(() => _ = TestScreenAsync(), () => _device.IsConnected && !IsDeviceBusy);
         BenchmarkCommand = new RelayCommand(() => _ = RunBenchmarkAsync(), () => _device.IsConnected && !IsDeviceBusy);
         RefreshThemesCommand = new RelayCommand(() => { if (Document.Mode == ScreenMode.InfoScreen) RefreshThemes(); else RefreshModeThemes(); });
@@ -548,6 +549,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool IsDeviceBusy => _device.IsDeviceBusy;
 
+    public int DisplayBrightness
+    {
+        get => _device.DisplayBrightness;
+        set => _device.DisplayBrightness = value;
+    }
+
+    public string BrightnessLabel => $"Brightness {DisplayBrightness}%";
+
     public bool CloseToTray
     {
         get => _settings.CloseToTray;
@@ -695,6 +704,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public RelayCommand RefreshPortsCommand { get; }
     public RelayCommand DetectScreenCommand { get; }
     public RelayCommand ConnectCommand { get; }
+    public RelayCommand ResetBrightnessCommand { get; }
     public RelayCommand TestScreenCommand { get; }
     public RelayCommand BenchmarkCommand { get; }
     public RelayCommand RefreshThemesCommand { get; }
@@ -824,6 +834,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private void OnDevicePropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         RaisePropertyChanged(e.PropertyName);
+        if (e.PropertyName == nameof(DisplayBrightness)) RaisePropertyChanged(nameof(BrightnessLabel));
         if (e.PropertyName == nameof(SelectedPort))
         {
             RaisePropertyChanged(nameof(CanvasSize));

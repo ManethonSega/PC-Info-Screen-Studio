@@ -1,6 +1,6 @@
 # Roadmap
 
-Current source version: **0.10.0-alpha.18**.
+Current source version: **0.10.0-alpha.19**.
 
 The next milestone is product polish, not another broad feature category. Priorities remain **easy to use, lightweight, intuitive, and visually clear**. Checked items below describe implemented functionality, not a claim that every device or workload has been validated.
 
@@ -25,6 +25,7 @@ The next milestone is product polish, not another broad feature category. Priori
 - [x] Hardware-name widgets with automatic CPU/GPU/SSD/RAM identification and persistent custom names.
 - [x] Colour emoji in rendered text, labels and captions, with grapheme-aware shaping and bounded text-layout caching.
 
+- [x] Top-bar brightness control (0..100%) with separate remembered levels for both screen families, live changes and reconnect restoration.
 - [x] Landscape/portrait canvas and physical rotation controls.
 - [x] Text, values, circular gauges, analog clocks, bars, graphs, shapes, images, and custom fonts.
 - [x] Animated GIF playback with sequential composition and compressed GIF data cached in RAM up to 64 MiB per file.

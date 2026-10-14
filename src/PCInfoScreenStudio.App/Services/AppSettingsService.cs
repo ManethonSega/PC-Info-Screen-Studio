@@ -97,6 +97,8 @@ public sealed class AppSettings
     public string? LastDisplayHardwareId { get; set; }
     public string? LastDisplayFriendlyName { get; set; }
     public DisplayCanvasSize? PreferredCanvasSize { get; set; }
+    public int SerialBrightness { get; set; } = 50;
+    public int UsbBrightness { get; set; } = 50;
     public bool ClearDisplayOnExit { get; set; }
     public bool ShowAdvancedSensors { get; set; }
     public bool RequestAdministratorAtStartup { get; set; } = true;

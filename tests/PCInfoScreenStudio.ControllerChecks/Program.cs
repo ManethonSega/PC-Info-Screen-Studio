@@ -35,6 +35,7 @@ internal static class Program
             RunCheck("CheckPhotos", () => CheckPhotos(root));
             RunCheck("CheckDevice", () => CheckDevice(root));
             RunCheck("CheckDisplayFamilyHandoff", () => CheckDisplayFamilyHandoff(root));
+            RunCheck("CheckBrightness", () => CheckBrightness(root));
             RunCheck("TuringUsbChecks.Check", () => TuringUsbChecks.Check(root, Await));
             RunCheck("CheckThemeModes", () => CheckThemeModes(root));
             RunCheck("CheckThemeFolderReload", () => CheckThemeFolderReload(root));
@@ -677,6 +678,67 @@ internal static class Program
         Assert(controller.TrySelectReplacementScreen(), "A single recognized replacement must also work from disconnected startup state.");
     }
 
+    private static void CheckBrightness(string root)
+    {
+        var settings = Settings(root, "brightness");
+        Assert(settings.SerialBrightness == 50 && settings.UsbBrightness == 50, "Older settings must retain the existing 50% default.");
+        settings.SerialBrightness = -5; settings.UsbBrightness = 150;
+        Assert(settings.SerialBrightness == 0 && settings.UsbBrightness == 100, "Saved brightness must clamp to 0..100.");
+        settings.SerialBrightness = 35; settings.UsbBrightness = 75; settings.AutoStartDisplay = false;
+        var serial = new SerialPortOption("COM6", "USB35INCHIPSV2", "VID_1A86&PID_5722", "Turing", 20);
+        var usb = new SerialPortOption("usb#vid_1cbe&pid_0050#screen", "TURZX", "VID_1CBE&PID_0050", "TURZX", 20);
+        var hardware = new FakeDisplayDevice();
+        using var controller = new DeviceController(() => new ThemeDocument(), settings, hardware, () => [serial, usb]);
+        controller.RefreshPorts();
+        Await(controller.ConnectOrDisconnectAsync());
+        Assert(hardware.BrightnessLevels.SequenceEqual(new[] { 35 }), "Connection must use saved brightness in its initial setup, without a later duplicate command.");
+        for (var level = 40; level <= 80; level++) controller.DisplayBrightness = level;
+        PumpUntil(() => hardware.BrightnessLevels.Count == 2);
+        Assert(hardware.BrightnessLevels.Last() == 80, "Rapid brightness edits must coalesce to the latest level.");
+        hardware.BlockBrightness = true;
+        controller.DisplayBrightness = 20;
+        PumpUntil(() => hardware.BrightnessLevels.Count == 3);
+        for (var level = 21; level <= 90; level++) controller.DisplayBrightness = level;
+        hardware.ReleaseBrightness();
+        PumpUntil(() => hardware.BrightnessLevels.Count == 4);
+        Assert(hardware.BrightnessLevels.Last() == 90, "Edits during an in-flight command must retain only the final waiting brightness.");
+        hardware.FailNextBrightness = true;
+        controller.DisplayBrightness = 85;
+        PumpUntil(() => controller.DeviceStatus.Contains("Could not apply brightness"));
+        Assert(controller.IsConnected && controller.LivePreview && !controller.DeviceStatus.Contains("Private"),
+            "A rejected brightness command must not reinitialize/disconnect playback or expose private exception details.");
+        Await(controller.SelectScreenAsync(DisplayCanvasSize.Turing52));
+        Assert(controller.DisplayBrightness == 75 && hardware.BrightnessLevels.Last() == 75 && hardware.ConnectedPort == usb.PortName,
+            "Selecting USB must initialize its own saved brightness, not reuse the serial setting.");
+        Await(controller.SelectScreenAsync(DisplayCanvasSize.Serial35));
+        Assert(controller.DisplayBrightness == 85 && hardware.BrightnessLevels.Last() == 85,
+            "Switching back must restore the serial family's saved level.");
+        Await(controller.ConnectOrDisconnectAsync());
+        var calls = hardware.BrightnessLevels.Count;
+        controller.DisplayBrightness = 0;
+        PumpUntil(() => !BrightnessWorkerRunning(controller));
+        Assert(hardware.BrightnessLevels.Count == calls && Settings(root, "brightness").SerialBrightness == 0,
+            "Disconnected brightness edits must persist without sending hardware commands.");
+        Await(controller.ConnectOrDisconnectAsync());
+        Assert(hardware.BrightnessLevels.Last() == 0, "Reconnect must apply the disconnected zero-brightness choice.");
+        controller.DisplayBrightness = 100;
+        PumpUntil(() => hardware.BrightnessLevels.Last() == 100);
+        Assert(controller.IsConnected && Settings(root, "brightness").UsbBrightness == 75,
+            "Brightening from zero must keep output connected and the other family's value unchanged.");
+
+        var serialDriver = new FakeDisplayDevice(); var usbDriver = new FakeDisplayDevice();
+        using var router = new DisplayDeviceRouter(serialDriver, usbDriver);
+        Await(router.ConnectAsync(usb.PortName, ThemeOrientation.Landscape, DeviceRotation.Degrees0, DisplayProtocolProfile.Auto, DisplayColorMode.Auto, brightness: 82));
+        Await(router.SetBrightnessAsync(0));
+        Await(router.ConnectAsync(serial.PortName, ThemeOrientation.Landscape, DeviceRotation.Degrees0, DisplayProtocolProfile.Auto, DisplayColorMode.Auto, brightness: 20));
+        Await(router.SetBrightnessAsync(25));
+        Assert(usbDriver.BrightnessLevels.SequenceEqual(new[] { 82, 0 }) && serialDriver.BrightnessLevels.SequenceEqual(new[] { 20, 25 }) && !usbDriver.IsConnected,
+            "Initial and live brightness must be routed exclusively to the selected display backend.");
+    }
+
+    private static bool BrightnessWorkerRunning(DeviceController controller)
+        => (bool)typeof(DeviceController).GetField("_brightnessWorkerRunning", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(controller)!;
+
     private static void Await(Task task)
     {
         PumpUntil(() => task.IsCompleted);
@@ -726,12 +788,24 @@ internal static class Program
         public List<DeviceRotation> Frames { get; } = [];
         public Task ConnectAsync(string portName, ThemeOrientation theme, DeviceRotation rotation,
             DisplayProtocolProfile requestedProtocol, DisplayColorMode requestedColorMode,
-            SerialPortOption? deviceInfo = null, CancellationToken cancellationToken = default)
+            SerialPortOption? deviceInfo = null, CancellationToken cancellationToken = default, int brightness = 50)
         {
             if (FailNextConnection) { FailNextConnection = false; throw new IOException("Test port temporarily unavailable."); }
             IsConnected = true;
             _connectedPort = portName;
+            BrightnessLevels.Add(brightness);
             return Task.CompletedTask;
+        }
+        public List<int> BrightnessLevels { get; } = [];
+        public bool FailNextBrightness { get; set; }
+        public bool BlockBrightness { get; set; }
+        private readonly TaskCompletionSource _brightnessRelease = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public void ReleaseBrightness() { BlockBrightness = false; _brightnessRelease.TrySetResult(); }
+        public Task SetBrightnessAsync(int level, CancellationToken cancellationToken = default)
+        {
+            if (FailNextBrightness) { FailNextBrightness = false; throw new IOException("Private device details"); }
+            BrightnessLevels.Add(level);
+            return BlockBrightness ? _brightnessRelease.Task : Task.CompletedTask;
         }
         public Task DisconnectAsync(CancellationToken cancellationToken = default)
         {

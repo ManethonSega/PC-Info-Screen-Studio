@@ -12,6 +12,7 @@ public sealed class DeviceService : IDisplayDevice
     private readonly SerialDeviceDiscoveryService _serialDiscovery = new();
     private TuringScreen? _screen;
     private bool _disposed;
+    private int _brightness = 50;
 
     public bool IsConnected => _screen is not null;
     public string? ConnectedPort { get; private set; }
@@ -30,7 +31,7 @@ public sealed class DeviceService : IDisplayDevice
         DisplayProtocolProfile requestedProtocol,
         DisplayColorMode requestedColorMode,
         SerialPortOption? deviceInfo = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, int brightness = 50)
     {
         var number = ParsePortNumber(portName);
         if (number <= 0)
@@ -40,6 +41,7 @@ public sealed class DeviceService : IDisplayDevice
         try
         {
             ThrowIfDisposed();
+            _brightness = Math.Clamp(brightness, 0, 100);
 
             await Task.Run(() =>
             {
@@ -105,7 +107,7 @@ public sealed class DeviceService : IDisplayDevice
 
                         screen.ScreenOn();
                         screen.SetOrientation(MapOrientation(theme, rotation));
-                        screen.SetBrightness(50);
+                        screen.SetBrightness(_brightness);
 
                         _screen = screen;
                         ConnectedPort = activePort;
@@ -141,6 +143,21 @@ public sealed class DeviceService : IDisplayDevice
         {
             _ioGate.Release();
         }
+    }
+
+    public async Task SetBrightnessAsync(int level, CancellationToken cancellationToken = default)
+    {
+        await _ioGate.WaitAsync(cancellationToken);
+        try
+        {
+            ThrowIfDisposed();
+            var screen = _screen;
+            if (screen is null) return;
+            var brightness = Math.Clamp(level, 0, 100);
+            await Task.Run(() => screen.SetBrightness(brightness), cancellationToken);
+            _brightness = brightness;
+        }
+        finally { _ioGate.Release(); }
     }
 
     public async Task DisconnectAsync(CancellationToken cancellationToken = default)
@@ -266,7 +283,7 @@ public sealed class DeviceService : IDisplayDevice
                 }
 
                 screen.ScreenOn();
-                screen.SetBrightness(50);
+                screen.SetBrightness(_brightness);
                 screen.DisplayBuffer(0, 0, buffer);
             }, cancellationToken);
         }

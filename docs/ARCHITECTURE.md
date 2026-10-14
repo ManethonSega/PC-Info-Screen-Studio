@@ -33,7 +33,7 @@ flowchart TD
     Queue --> Device["DeviceService / USB display"]
 ```
 
-The frame queue retains only the latest waiting frame, not an unbounded animation backlog. It owns bitmap copies and releases replaced, sent, and pending-on-disposal copies. The router chooses the selected display family; each backend serializes its transport I/O. TURZX output uses bounded JPEG frames and initializes sync/brightness only when connecting, not when switching modes. GIF compressed data is held in RAM, with a per-file budget; prepared-photo caching remains separately bounded.
+The frame queue retains only the latest waiting frame, not an unbounded animation backlog. It owns bitmap copies and releases replaced, sent, and pending-on-disposal copies. The router chooses the selected display family; each backend serializes its transport I/O. TURZX output uses bounded JPEG frames and sends sync only when connecting; initial brightness uses the saved family level, and debounced explicit brightness changes share the transport gate with images. Mode changes send no sync or brightness setup. GIF compressed data is held in RAM, with a per-file budget; prepared-photo caching remains separately bounded.
 
 ## Photos and lifecycle
 

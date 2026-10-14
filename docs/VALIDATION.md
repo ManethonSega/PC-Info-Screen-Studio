@@ -2,6 +2,10 @@
 
 This document describes what the release workflow verifies and what still needs a person using a physical screen. The exact successful workflow and source SHA are recorded in the portable package's `build-info.json`.
 
+## Alpha.19 brightness checks
+
+Simulated devices check legacy 50% defaults, clamping and family-specific persistence, initialization at the saved level, rapid edits and edits during an in-flight command, disconnected presets, reconnect restoration, zero-to-full adjustment, rejection handling and router isolation. USB checks decrypt command 14 and compare its payload at the endpoints and intermediate percentages, then verify JPEG output continues without another sync. The mode-switch rejecting-firmware regression retains its initialization-only mode behavior and also checks output after a rejected explicit brightness request. WPF checks open the top-bar popup, commit delayed and final edits, use Reset/Escape, switch families, confirm themes are unchanged by brightness, and check toolbar fit at minimum width. The suite captures the actual popup. Full Windows/controller/WPF and EXE/ZIP checks gate release. No physical serial or WinUSB brightness result is claimed; actual range/firmware response needs an owner check.
+
 Candidate validation passed on **5 October 2026** in [Windows run 37367471392](https://github.com/ManethonSega/PC-Info-Screen-Studio/actions/runs/37367471392), including the extracted portable ZIP. The release workflow repeats these checks for its tagged source.
 
 UI-polish candidate checks passed on **6 October 2026** in [Windows run 37420665087](https://github.com/ManethonSega/PC-Info-Screen-Studio/actions/runs/37420665087), with zero compiler warnings or errors. The alpha.6 release workflow repeats these checks for its tagged source.

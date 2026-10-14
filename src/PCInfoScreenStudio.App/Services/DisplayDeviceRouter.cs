@@ -28,7 +28,7 @@ public sealed class DisplayDeviceRouter : IDisplayDevice
 
     public Task ConnectAsync(string portName, ThemeOrientation theme, DeviceRotation rotation,
         DisplayProtocolProfile requestedProtocol, DisplayColorMode requestedColorMode,
-        SerialPortOption? deviceInfo = null, CancellationToken cancellationToken = default)
+        SerialPortOption? deviceInfo = null, CancellationToken cancellationToken = default, int brightness = 50)
         => RunAsync(async () =>
         {
             var next = TuringUsbProtocol.IsDevice(portName) ? _usb : _serial;
@@ -36,8 +36,10 @@ public sealed class DisplayDeviceRouter : IDisplayDevice
                 throw new DisplaySetupException("Select the TURZX 5.2-inch USB device from the device list. It does not use a COM port.");
             if (next != _active) await _active.DisconnectAsync(cancellationToken);
             _active = next;
-            await _active.ConnectAsync(portName, theme, rotation, requestedProtocol, requestedColorMode, deviceInfo, cancellationToken);
+            await _active.ConnectAsync(portName, theme, rotation, requestedProtocol, requestedColorMode, deviceInfo, cancellationToken, brightness);
         }, cancellationToken);
+    public Task SetBrightnessAsync(int level, CancellationToken cancellationToken = default)
+        => RunAsync(() => _active.SetBrightnessAsync(level, cancellationToken), cancellationToken);
     public Task DisconnectAsync(CancellationToken cancellationToken = default)
         => RunAsync(() => _active.DisconnectAsync(cancellationToken), cancellationToken);
     public Task ApplyCompatibilityAsync(DisplayProtocolProfile requestedProtocol, DisplayColorMode requestedColorMode,

@@ -214,6 +214,15 @@ internal static class RegressionFixChecks
         }
         Assert(transport.Frames == 50 && transport.Commands.Take(2).SequenceEqual(new byte[] { 10, 14 }) && transport.Commands.Skip(2).All(c => c == 101),
             "The entire mode-switch run must contain one initial handshake followed only by image transfers.");
+        controller.DisplayBrightness = 32;
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (!controller.DeviceStatus.Contains("Could not apply brightness") && DateTime.UtcNow < deadline) await Task.Delay(5);
+        Assert(controller.DeviceStatus.Contains("Could not apply brightness") && controller.IsConnected && controller.LivePreview,
+            "Firmware rejection of an explicit brightness change must retain the active image session.");
+        controller.SendLiveFrame(frame);
+        await WaitForSender(controller);
+        Assert(transport.Frames == 51 && transport.Commands.Count(c => c == 10) == 1 && transport.Commands.Last() == 101,
+            "Image output must continue after a rejected brightness request, without a new sync command.");
         Console.WriteLine("PASS: 50 mode frames keep Stop display and deliver new content with firmware that rejects reinitialization during playback.");
     }
 
@@ -266,7 +275,8 @@ internal static class RegressionFixChecks
         public int? ConnectedBaudRate => null; public string? ConnectedModel => "TURZX test";
         public DisplayProtocolProfile ConnectedProtocol => DisplayProtocolProfile.TuringUsb52;
         public DisplayColorMode ConnectedColorMode => DisplayColorMode.Auto;
-        public Task ConnectAsync(string port, ThemeOrientation orientation, DeviceRotation rotation, DisplayProtocolProfile protocol, DisplayColorMode color, SerialPortOption? info = null, CancellationToken ct = default) { IsConnected = true; ConnectedPort = port; return Task.CompletedTask; }
+        public Task ConnectAsync(string port, ThemeOrientation orientation, DeviceRotation rotation, DisplayProtocolProfile protocol, DisplayColorMode color, SerialPortOption? info = null, CancellationToken ct = default, int brightness = 50) { IsConnected = true; ConnectedPort = port; return Task.CompletedTask; }
+        public Task SetBrightnessAsync(int level, CancellationToken ct = default) => Task.CompletedTask;
         public Task DisconnectAsync(CancellationToken ct = default) { IsConnected = false; return Task.CompletedTask; }
         public Task ApplyCompatibilityAsync(DisplayProtocolProfile p, DisplayColorMode c, SerialPortOption? i, ThemeOrientation o, DeviceRotation r, CancellationToken ct = default) => Task.CompletedTask;
         public Task ApplyOrientationAsync(ThemeOrientation o, DeviceRotation r, CancellationToken ct = default) => Task.CompletedTask;

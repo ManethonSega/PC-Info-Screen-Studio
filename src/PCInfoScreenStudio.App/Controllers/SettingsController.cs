@@ -90,6 +90,18 @@ public sealed class SettingsController : ObservableObject
         set => Update(_values.ClearDisplayOnExit, value, v => _values.ClearDisplayOnExit = v);
     }
 
+    public int SerialBrightness
+    {
+        get => Math.Clamp(_values.SerialBrightness, 0, 100);
+        set => Update(_values.SerialBrightness, Math.Clamp(value, 0, 100), v => _values.SerialBrightness = v);
+    }
+
+    public int UsbBrightness
+    {
+        get => Math.Clamp(_values.UsbBrightness, 0, 100);
+        set => Update(_values.UsbBrightness, Math.Clamp(value, 0, 100), v => _values.UsbBrightness = v);
+    }
+
     public bool ShowAdvancedSensors
     {
         get => _values.ShowAdvancedSensors;
