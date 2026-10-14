@@ -2,7 +2,7 @@
 
 A visual Windows editor and runtime for 3.5-inch Turing/TURZX-style serial screens, with experimental TURZX 5.2-inch USB support. Create a sensor dashboard, use the screen as a photo frame, or combine photos with information overlays.
 
-> **Status:** `0.10.0-alpha.12`. Actively developed alpha. A permanent Windows x64 [portable download](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/tag/v0.10.0-alpha.12) is available. Development builds are also available through GitHub Actions. There is no installer, code signing or automatic updater.
+> **Status:** `0.10.0-alpha.13`. Actively developed alpha. A permanent Windows x64 [portable download](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/tag/v0.10.0-alpha.13) is available. Development builds are also available through GitHub Actions. There is no installer, code signing or automatic updater.
 
 The priorities are an intuitive interface, lightweight operation, and a clear preview of the physical screen.
 
@@ -12,7 +12,7 @@ This release adds [experimental TURZX 5.2-inch support](docs/TURZX-52.md), inclu
 
 ## Interface tour
 
-These previews show the app's controls and layout. Hardware readings are sample data; screen content is omitted from the editor previews.
+These previews show the app's controls and layout. Hardware readings are sample data; editor content is illustrative.
 
 ### Hardware overview
 
@@ -60,7 +60,7 @@ Selected layers, dropdown choices, tooltips and checkboxes use explicit dark sty
 
 ### Settings window
 
-Open **Settings** from the top bar to manage screen connection, runtime, sensor access and editor preferences. Hardware and Settings pages use an almost-black charcoal `#101216` background with white and silver text. **Use live sensor data** stays checked because live readings are always enabled.
+Open **Settings** from the top bar to manage screen connection, runtime, sensor access and editor preferences. Hardware and Settings pages use the shared navy and slate palette with silver text and cyan accents. **Use live sensor data** stays checked because live readings are always enabled.
 
 ![Settings window with charcoal background, readable silver and white text, and the checked live-sensor indicator](docs/images/settings-window.png)
 
@@ -74,11 +74,11 @@ Photo Frame (`.pcphoto`) and Hybrid (`.pchybrid`) themes save settings in their 
 
 ## Download and run
 
-1. Download [PCInfoScreenStudio-0.10.0-alpha.12-win-x64.zip](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/download/v0.10.0-alpha.12/PCInfoScreenStudio-0.10.0-alpha.12-win-x64.zip) from the [portable alpha release](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/tag/v0.10.0-alpha.12).
+1. Download [PCInfoScreenStudio-0.10.0-alpha.13-win-x64.zip](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/download/v0.10.0-alpha.13/PCInfoScreenStudio-0.10.0-alpha.13-win-x64.zip) from the [portable alpha release](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/tag/v0.10.0-alpha.13).
 2. Extract the **entire folder** to a permanent location, then run `PCInfoScreenStudio.exe`. Keep all extracted files together.
 3. Read `START-HERE.txt` for connection, startup and tray instructions. The build is self-contained; no separate .NET runtime installation is required.
 
-The release includes [SHA256SUMS.txt](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/download/v0.10.0-alpha.12/SHA256SUMS.txt), matching source archives and `build-info.json` with the exact source commit. This is an **unsigned alpha**, with [documented device limits](docs/COMPATIBILITY.md) and [validation results and remaining checks](docs/VALIDATION.md).
+The release includes [SHA256SUMS.txt](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/download/v0.10.0-alpha.13/SHA256SUMS.txt), matching source archives and `build-info.json` with the exact source commit. This is an **unsigned alpha**, with [documented device limits](docs/COMPATIBILITY.md) and [validation results and remaining checks](docs/VALIDATION.md).
 
 For newer development builds, open the [Windows build workflow](https://github.com/ManethonSega/PC-Info-Screen-Studio/actions/workflows/build.yml), select the latest successful `main` run, then download `PCInfoScreenStudio-win-x64` under **Artifacts**. GitHub may require sign-in. These artifacts expire after **3 days**; the release download above is permanent.
 
@@ -109,7 +109,9 @@ Photo Frame and Hybrid themes do **not** embed photos. **Add folder** remembers 
 
 ### Info Screen editing
 
-- Add **Text**, **Value**, **Circle**, **Clock**, **Bar**, **Graph**, or **Shape** directly from the left panel.
+- Add **Text**, **Value**, **Circle**, **Clock**, **Bar**, **Graph**, **Shape**, or **Hardware name** directly from the left panel.
+- **Hardware name** detects CPU, GPU, SSD/drive or RAM brand/model. Choose a component in its properties, edit **Displayed name** to keep your own wording, or tick **Use detected name** to return to automatic. Names are queried once in the background without requiring the sensor driver. Firmware can omit a RAM manufacturer; the app does not guess it.
+- Colour emoji work in rendered widget text, hardware names, labels, values and photo captions, including mixed text and joined sequences supported by Windows' Segoe UI Emoji font. Paste emoji or use **Win + .** in a text field. The canvas and physical display share the same renderer; native WPF editing fields can show monochrome glyphs while their rendered output is coloured.
 - Select the widget, then choose its **Source** on the right. **SEARCH** filters that dropdown, for example `GPU` shows GPU sources or `CPU temperature` finds the temperature source. **Clear** restores the full list. Searching does not add widgets or change the current sensor; choosing a source changes only the selected widget.
 - Drag widgets on the canvas and edit their appearance and data source in the right-hand properties panel. **Background transparency (%)** runs from 0 (solid) to 100 (invisible) and affects only the widget background, preserving text, gauges, images and outlines. Widget resizing does not change its explicit font-size setting.
 - Organize layers, hide or lock objects, use multi-selection and grouping, and align or distribute items. Grid snapping, smart guides, keyboard movement, undo/redo, and editor zoom are implemented.

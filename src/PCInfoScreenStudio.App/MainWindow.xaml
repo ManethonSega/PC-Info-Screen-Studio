@@ -133,6 +133,7 @@
               <Button Content="Bar" Command="{Binding AddWidgetCommand}" CommandParameter="BarGauge" ToolTip="Add a segmented horizontal gauge." />
               <Button Content="Graph" Command="{Binding AddWidgetCommand}" CommandParameter="Graph" ToolTip="Add a live history graph." />
               <Button Content="Shape" Command="{Binding AddWidgetCommand}" CommandParameter="Shape" ToolTip="Add a rectangle or ellipse." />
+              <Button Content="Hardware name" Command="{Binding AddWidgetCommand}" CommandParameter="HardwareName" ToolTip="Automatically show your CPU, GPU, SSD or RAM name; edit the name afterwards." />
             </UniformGrid>
 
             <TextBlock Text="MEDIA" Style="{StaticResource SectionTitleStyle}" Margin="4,14,0,7" />
@@ -292,6 +293,7 @@
                     <Button Content="Bar" Command="{Binding AddWidgetCommand}" CommandParameter="BarGauge" ToolTip="Add a bar overlay." />
                     <Button Content="Graph" Command="{Binding AddWidgetCommand}" CommandParameter="Graph" ToolTip="Add a history graph overlay." />
                     <Button Content="Shape" Command="{Binding AddWidgetCommand}" CommandParameter="Shape" ToolTip="Add a rectangle, rounded rectangle, ellipse or line overlay." />
+                    <Button Content="Hardware name" Command="{Binding AddWidgetCommand}" CommandParameter="HardwareName" ToolTip="Automatically show a CPU, GPU, SSD or RAM name over your photos." />
                   </UniformGrid>
                 </StackPanel>
               </Expander>
@@ -550,6 +552,24 @@
 
                     <TextBlock Text="Name" Foreground="{StaticResource MutedTextBrush}" />
                     <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,8" ToolTip="The name shown for this widget in the Layers list." />
+
+                    <Expander Header="HARDWARE NAME" IsExpanded="True" Margin="0,8,0,0">
+                      <Expander.Style><Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers><DataTrigger Binding="{Binding Type}" Value="{x:Static models:WidgetType.HardwareName}"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers>
+                      </Style></Expander.Style>
+                      <StackPanel Margin="0,5,0,0">
+                        <TextBlock Text="Component" Foreground="{StaticResource MutedTextBrush}" />
+                        <ComboBox ItemsSource="{Binding DataContext.HardwareNameSources, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding DataSource}" Margin="0,3,0,7" />
+                        <CheckBox Content="Use detected name" IsChecked="{Binding UseDetectedHardwareName}" ToolTip="Re-enable automatic detection to use this PC's actual hardware name." />
+                        <TextBlock Text="Displayed name" Foreground="{StaticResource MutedTextBrush}" Margin="0,5,0,0" />
+                        <TextBox x:Name="HardwareNameTextEditor" Text="{Binding HardwareNameText, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,7"
+                                 ToolTip="Edit the detected name, or add emojis. Editing switches to your custom name; updates will not overwrite it." />
+                        <TextBlock Text="Editing keeps your custom name. Tick Use detected name to return to automatic. Some PC firmware omits the RAM brand."
+                                   Foreground="{StaticResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" />
+                      </StackPanel>
+                    </Expander>
 
                     <Expander Header="POSITION &amp; SIZE"
                               IsExpanded="{Binding DataContext.PositionPanelExpanded, RelativeSource={RelativeSource AncestorType=Window}, Mode=TwoWay}"

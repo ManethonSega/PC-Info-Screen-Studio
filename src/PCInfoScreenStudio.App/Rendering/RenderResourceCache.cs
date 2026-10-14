@@ -219,6 +219,7 @@ internal static class RenderResourceCache
 
     public static void Clear()
     {
+        ColoredTextRenderer.Clear();
         foreach (var image in Images.Values)
             image.Dispose();
         Images.Clear();

@@ -325,6 +325,7 @@ public sealed class EditorController : ObservableObject
         {
             WidgetType.Text => new WidgetModel { Type = type, Name = "Text", Label = "Text", Width = 140, Height = 45, X = centerX, Y = centerY, FontSize = 24, Suffix = "" },
             WidgetType.Value => new WidgetModel { Type = type, Name = "Value", Label = "CPU", DataSource = "CPU.Usage", Width = 130, Height = 70, X = centerX, Y = centerY, FontSize = 30 },
+            WidgetType.HardwareName => new WidgetModel { Type = type, Name = "Hardware name", Label = "CPU name", DataSource = "Hardware.CPUName", Width = 360, Height = 42, X = 20, Y = centerY, FontSize = 24, Suffix = string.Empty, ShowLabel = false },
             WidgetType.CircularGauge => new WidgetModel { Type = type, Name = "Circular gauge", Label = "CPU Usage", DataSource = "CPU.Usage", Width = 110, Height = 110, X = centerX, Y = centerY, FontSize = 26 },
             WidgetType.AnalogClock => new WidgetModel { Type = type, Name = "Traditional clock", Label = "Clock", DataSource = "Clock.Time", Width = 120, Height = 120, X = centerX, Y = centerY, FontSize = 18, ShowLabel = false, ShowValue = false },
             WidgetType.BarGauge => new WidgetModel { Type = type, Name = "Bar gauge", Label = "RAM Usage", DataSource = "RAM.Usage", Width = 180, Height = 62, X = centerX, Y = centerY, FontSize = 22, SegmentCount = 18 },
@@ -337,6 +338,7 @@ public sealed class EditorController : ObservableObject
     public void AddWidgetToCanvas(WidgetType type, string? dataSource)
     {
         var widget = NewWidget(type);
+        if (type == WidgetType.HardwareName) Document.MinimumAppVersion = "0.10.0-alpha.13";
         if (!string.IsNullOrWhiteSpace(dataSource))
         {
             widget.DataSource = dataSource;
@@ -353,7 +355,7 @@ public sealed class EditorController : ObservableObject
     {
         var source = widget.DataSource ?? string.Empty;
         widget.Label = FriendlyLabel(source);
-        if (source.StartsWith("Clock.", StringComparison.OrdinalIgnoreCase) ||
+        if (source.StartsWith("Hardware.", StringComparison.OrdinalIgnoreCase) || source.StartsWith("Clock.", StringComparison.OrdinalIgnoreCase) ||
             source is "Weather.Condition" or "Weather.Location" or "Weather.DayNight" or
                 "Weather.TodayCondition" or "Weather.Sunrise" or "Weather.Sunset")
         {

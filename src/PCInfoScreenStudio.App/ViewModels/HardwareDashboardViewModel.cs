@@ -71,7 +71,7 @@ public sealed class HardwareDashboardViewModel : ObservableObject
         gpu.Value = Reading("GPU.Usage");
         gpu.SetRows([Row("Temperature", "GPU.Temperature"), Row("VRAM used", "GPU.VRAMUsed"), Row("VRAM total", "GPU.VRAMTotal"), Row("Power", "GPU.Power")]);
         var ram = Cards[2];
-        ram.HardwareName = _sample.ContainsKey("RAM.TotalGB") ? Reading("RAM.TotalGB") + " installed" : "System memory";
+        ram.HardwareName = Name("Hardware.RAMName", _sample.ContainsKey("RAM.TotalGB") ? Reading("RAM.TotalGB") + " installed" : "System memory");
         ram.Value = Reading("RAM.Usage");
         ram.SetRows([Row("Used", "RAM.UsedGB"), Row("Available", "RAM.AvailableGB"), Row("Total", "RAM.TotalGB")]);
         var storage = Cards[3];

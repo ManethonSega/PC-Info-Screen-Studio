@@ -1,6 +1,6 @@
 # Roadmap
 
-Current source version: **0.10.0-alpha.11**.
+Current source version: **0.10.0-alpha.13**.
 
 The next milestone is product polish, not another broad feature category. Priorities remain **easy to use, lightweight, intuitive, and visually clear**. Checked items below describe implemented functionality, not a claim that every device or workload has been validated.
 
@@ -18,6 +18,9 @@ The next milestone is product polish, not another broad feature category. Priori
 - [x] Inline numeric validation for dimensions, opacity, sensor ranges and photo settings, with invalid drafts preserving the last valid value.
 
 ### Info Screen editor
+
+- [x] Hardware-name widgets with automatic CPU/GPU/SSD/RAM identification and persistent custom names.
+- [x] Colour emoji in rendered text, labels and captions, with grapheme-aware shaping and bounded text-layout caching.
 
 - [x] Landscape/portrait canvas and physical rotation controls.
 - [x] Text, values, circular gauges, analog clocks, bars, graphs, shapes, images, and custom fonts.
@@ -97,7 +100,7 @@ Validation should be focused on these user workflows and physical-device behavio
 
 - [x] Publish 0.10.0-alpha.6 as a versioned GitHub Release with a permanent portable download and matching source.
 - [x] Consolidate alpha.7 through alpha.11 source and preserve obsolete branch histories.
-- [ ] Confirm alpha.11 mode switching after long playback on the physical 5.2-inch screen.
+- [x] Owner reports alpha.11 working correctly on their setup, including mode switching; broader long-duration checks remain separate.
 - [x] Compatibility and validation records distinguish automated checks from physical-device evidence.
 - [x] Refresh the UI screenshots from the actual Windows WPF controls before publication.
 - [ ] Decide on an installer and file associations after the portable workflow is stable.
