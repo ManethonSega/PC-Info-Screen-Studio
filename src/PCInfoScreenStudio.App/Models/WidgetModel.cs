@@ -109,7 +109,18 @@ public sealed class WidgetModel : ObservableObject
     public string HardwareNameText
     {
         get => UseDetectedHardwareName ? RuntimeText ?? "Detecting hardware…" : CustomHardwareName;
-        set { CustomHardwareName = value ?? string.Empty; UseDetectedHardwareName = false; }
+        set
+        {
+            var next = value ?? string.Empty;
+            var textChanged = _customHardwareName != next;
+            var modeChanged = _useDetectedHardwareName;
+            // Publish the complete edit together, so a binding refresh cannot briefly restore the detected value.
+            _customHardwareName = next;
+            _useDetectedHardwareName = false;
+            if (textChanged) RaisePropertyChanged(nameof(CustomHardwareName));
+            if (modeChanged) RaisePropertyChanged(nameof(UseDetectedHardwareName));
+            if (textChanged || modeChanged) RaisePropertyChanged(nameof(HardwareNameText));
+        }
     }
 
     [JsonIgnore]
