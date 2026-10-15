@@ -16,7 +16,7 @@ Alpha.20 adds validated settings/session backups, guarded file operations with p
 
 ## Interface tour
 
-These screenshots were captured from the actual alpha.13 WPF interface in the [successful Windows release checks](https://github.com/ManethonSega/PC-Info-Screen-Studio/actions/runs/38543047505). Hardware readings are sample data; editor content is illustrative. They show the current styling and controls, not physical-device validation.
+These screenshots were captured from the actual alpha.13 WPF interface in the [successful Windows release checks](https://github.com/ManethonSega/PC-Info-Screen-Studio/actions/runs/38543047505). Hardware readings are sample data; editor content is illustrative. They document the alpha.13 interface. The alpha.22 docked workspace is shown in the previews attached to [draft PR #32](https://github.com/ManethonSega/PC-Info-Screen-Studio/pull/32); neither set establishes physical-device validation.
 
 ### Hardware overview
 

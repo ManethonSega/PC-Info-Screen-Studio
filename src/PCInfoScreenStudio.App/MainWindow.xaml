@@ -131,7 +131,7 @@
         </controls:WorkspacePanel>
         <controls:WorkspacePanel PanelId="widgets" Title="Widgets" Icon="&#xE710;" IsOpen="True">
         <controls:WorkspacePanel.Style><Style TargetType="controls:WorkspacePanel"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.InfoScreen}"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></controls:WorkspacePanel.Style>
-            <UniformGrid Columns="2">
+            <UniformGrid Columns="2" VerticalAlignment="Top">
               <Button Content="Text" Command="{Binding AddWidgetCommand}" CommandParameter="Text" ToolTip="Add a fixed text label." />
               <Button Content="Value" Command="{Binding AddWidgetCommand}" CommandParameter="Value" ToolTip="Add a label and live sensor value." />
               <Button Content="Circle" Command="{Binding AddWidgetCommand}" CommandParameter="CircularGauge" ToolTip="Add a circular sensor gauge." />
@@ -139,7 +139,7 @@
               <Button Content="Bar" Command="{Binding AddWidgetCommand}" CommandParameter="BarGauge" ToolTip="Add a segmented horizontal gauge." />
               <Button Content="Graph" Command="{Binding AddWidgetCommand}" CommandParameter="Graph" ToolTip="Add a live history graph." />
               <Button Content="Shape" Command="{Binding AddWidgetCommand}" CommandParameter="Shape" ToolTip="Add a rectangle or ellipse." />
-              <Button Content="Hardware name" Command="{Binding AddWidgetCommand}" CommandParameter="HardwareName" ToolTip="Automatically show your CPU, GPU, SSD or RAM name; edit the name afterwards." />
+              <Button Content="Hardware name" Command="{Binding AddWidgetCommand}" CommandParameter="HardwareName" Padding="4,6" ToolTip="Automatically show your CPU, GPU, SSD or RAM name; edit the name afterwards." />
             </UniformGrid>
         </controls:WorkspacePanel>
         <controls:WorkspacePanel PanelId="media" Title="Media" Icon="&#xEB9F;" IsOpen="False">
@@ -210,7 +210,7 @@
                 </ListBox.ItemTemplate>
               </ListBox>
 
-              <UniformGrid Columns="4">
+              <UniformGrid Columns="2">
                 <Button Content="Previous" Padding="6,5" Command="{Binding PreviousPhotoCommand}" ToolTip="Show the previous photo." />
                 <Button Content="{Binding PhotoPlaybackLabel}" Command="{Binding TogglePhotoPlaybackCommand}" ToolTip="Pause or resume automatic playback." />
                 <Button Content="Next" Command="{Binding NextPhotoCommand}" ToolTip="Show the next photo." />
@@ -593,10 +593,10 @@
                       </Expander.Style>
                       <StackPanel Margin="0,5,0,0">
 
-                      <CheckBox Content="Show advanced hardware sensors"
+                      <CheckBox AutomationProperties.Name="Show advanced hardware sensors"
                                 IsChecked="{Binding DataContext.ShowAdvancedSensors, RelativeSource={RelativeSource AncestorType=Window}}"
                                 Margin="0,0,0,7"
-                                ToolTip="Include raw LibreHardwareMonitor and HWiNFO sensor entries in the Source list." />
+                                ToolTip="Include raw LibreHardwareMonitor and HWiNFO sensor entries in the Source list." ><TextBlock Text="Show advanced hardware sensors" TextWrapping="Wrap" /></CheckBox>
 
                       <StackPanel Margin="0,2,0,8">
                         <StackPanel.Style>

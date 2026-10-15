@@ -38,6 +38,8 @@ internal static class WorkspaceLayoutChecks
             var properties = right.Panels.Single(p => p.PanelId == "properties");
             Require(layers.IsOpen && properties.IsOpen && !media.IsOpen && vm.IsCanvasFit,
                 "Defaults expose Layers and Properties with Fit active and optional media collapsed.");
+            Require(All<Button>(left.Panels.Single(p => p.PanelId == "widgets")).All(b => b.ActualHeight <= 42),
+                "Direct Add buttons retain compact heights instead of stretching to fill a panel.");
             var content = window.FindName("WidgetProperties");
             vm.CanvasSize = DisplayCanvasSize.Turing52; Flush(window);
             var original = vm.SelectedWidget!;
