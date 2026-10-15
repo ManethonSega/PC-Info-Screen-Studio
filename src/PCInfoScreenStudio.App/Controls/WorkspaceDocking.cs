@@ -158,6 +158,12 @@ internal sealed class WorkspaceDocking : IDisposable
         {
             if (_dragSource != source) return;
             var dragged = _dragging;
+            if (!dragged)
+            {
+                // Let ToggleButton release its own capture and complete a normal rail click.
+                CancelDrag(source is not ToggleButton);
+                return;
+            }
             CompleteDrag(source.PointToScreen(e.GetPosition(source)), false);
             if (dragged) e.Handled = true;
         };
@@ -216,12 +222,12 @@ internal sealed class WorkspaceDocking : IDisposable
         else Float(panel, screenPoint);
     }
 
-    internal void CancelDrag()
+    internal void CancelDrag(bool releaseCapture = true)
     {
         _dragPreview.IsOpen = false;
         var source = _dragSource; _dragSource = null; _dragPanel = null; _dragging = false;
         if (source is FrameworkElement element) element.ClearValue(FrameworkElement.CursorProperty);
-        if (source?.IsMouseCaptured == true) source.ReleaseMouseCapture();
+        if (releaseCapture && source?.IsMouseCaptured == true) source.ReleaseMouseCapture();
         foreach (var dock in _docks) dock.PreviewDrop(false);
     }
 

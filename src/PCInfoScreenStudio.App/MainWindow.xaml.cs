@@ -405,6 +405,7 @@ public partial class MainWindow : Window
     public void SaveSessionForWindowsShutdown()
     {
         if (_disposed || _sessionSaved) return;
+        OnDockLayoutChanged(this, EventArgs.Empty);
         _viewModel.CancelFileOperation();
         (_sessionSaveTask ?? _viewModel.SaveLastSessionAsync()).GetAwaiter().GetResult();
         _viewModel.ClearDisplayForExitAsync().GetAwaiter().GetResult();
@@ -416,6 +417,7 @@ public partial class MainWindow : Window
         if (_disposed)
             return;
 
+        OnDockLayoutChanged(this, EventArgs.Empty);
         _disposed = true;
         _workspaceDocking.Dispose();
         _deviceChangeTimer?.Stop();

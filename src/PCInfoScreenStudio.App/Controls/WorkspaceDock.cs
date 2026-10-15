@@ -356,7 +356,7 @@ public sealed class WorkspaceDock : Grid
 
     private void UpdateWidths()
     {
-        ColumnDefinitions[RailOnRight ? 2 : 0].Width = new GridLength(HasVisiblePanels ? RailWidth : 0);
+        ColumnDefinitions[RailOnRight ? 2 : 0].Width = new GridLength(HasVisiblePanels || _dropPreview.Visibility == Visibility.Visible ? RailWidth : 0);
         var width = Math.Min(_preferredPanelWidth, _maximumPanelWidth);
         _contentColumn.Width = new GridLength(HasOpenPanels ? width : 0);
         _dividerColumn.Width = new GridLength(HasOpenPanels ? DividerWidth : 0);

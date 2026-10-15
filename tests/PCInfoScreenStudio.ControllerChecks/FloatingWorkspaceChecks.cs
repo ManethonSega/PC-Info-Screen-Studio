@@ -5,6 +5,7 @@ using System.Windows.Automation.Peers;
 using System.Windows.Automation.Provider;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using PCInfoScreenStudio.Controls;
@@ -52,13 +53,16 @@ internal static class FloatingWorkspaceChecks
             // Same state machine used by captured header mouse events: preview, cancellation, cross-dock drop and outside drop.
             var header = Header(left.Host(widgets));
             var target = right.PointToScreen(new Point(20, 30));
-            docking.BeginDrag(widgets, header, floating.PointToScreen(new Point(20, 20)));
+            header.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, 0, MouseButton.Left)
+                { RoutedEvent = UIElement.PreviewMouseLeftButtonDownEvent });
+            Require(header.IsMouseCaptured, "The header mouse-down handler captures input for dragging across windows.");
             docking.UpdateDrag(target); Flush(owner);
             Require(docking.IsDragging && All<TextBlock>(right).Any(t => t.IsVisible && t.Text == "Dock right"),
                 "A drag exposes a visible target on an otherwise empty dock.");
             Capture(owner, captures, "Workspace-drag-target.png");
-            docking.CompleteDrag(target, true); Flush(owner);
-            Require(widgets.IsFloating && floating.IsVisible && !docking.IsDragging, "Cancelling a drag preserves the floating arrangement.");
+            header.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(floating), 0, Key.Escape)
+                { RoutedEvent = Keyboard.PreviewKeyDownEvent }); Flush(owner);
+            Require(widgets.IsFloating && floating.IsVisible && !docking.IsDragging && !header.IsMouseCaptured, "Cancelling a drag preserves the floating arrangement.");
             docking.BeginDrag(widgets, header, new Point()); docking.UpdateDrag(target); Flush(owner);
             target = right.PointToScreen(new Point(20, 30));
             docking.CompleteDrag(target, false); Flush(owner);
