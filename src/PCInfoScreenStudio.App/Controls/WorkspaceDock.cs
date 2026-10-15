@@ -28,6 +28,7 @@ public sealed class WorkspaceDock : Grid
     private readonly Dictionary<WorkspacePanel, Border> _hosts = [];
     private readonly Dictionary<WorkspacePanel, ToggleButton> _tabs = [];
     private readonly List<WorkspacePanel> _order = [];
+    private readonly Dictionary<WorkspacePanel, (Button Up, Button Down)> _moveButtons = [];
     private readonly Border _dropPreview = new() { IsHitTestVisible = false, Visibility = Visibility.Collapsed,
         BorderThickness = new Thickness(2), VerticalAlignment = VerticalAlignment.Top, Padding = new Thickness(8),
         Child = new TextBlock { Text = "Dock here", FontWeight = FontWeights.SemiBold } };
@@ -126,7 +127,7 @@ public sealed class WorkspaceDock : Grid
         // Remove the old wrapper before placing the live content in its new host.
         if (panel.Parent is ScrollViewer scroll) scroll.Content = null;
         else if (panel.Parent is Grid grid) grid.Children.Remove(panel);
-        _hosts.Remove(panel); _rail.Children.Remove(_tabs[panel]); _tabs.Remove(panel);
+        _hosts.Remove(panel); _moveButtons.Remove(panel); _rail.Children.Remove(_tabs[panel]); _tabs.Remove(panel);
         _order.Remove(panel); Panels.Remove(panel);
         target.Panels.Add(panel); target.RegisterPanel(panel);
         RebuildStack(); target.RebuildStack();
@@ -165,7 +166,7 @@ public sealed class WorkspaceDock : Grid
         var next = index.HasValue ? _order.Skip(index.Value).FirstOrDefault(p => p.IsOpen && !p.IsFloating && p.Visibility == Visibility.Visible) : null;
         var y = next is null ? _stack.ActualHeight : _hosts[next].TranslatePoint(new Point(), this).Y;
         _dropPreview.Margin = new Thickness(3, Math.Clamp(y, 3, Math.Max(3, ActualHeight - 42)), 3, 0);
-        _dropPreview.Opacity = index.HasValue ? 1 : .65;
+        _dropPreview.SetResourceReference(Border.BorderBrushProperty, index.HasValue ? "AccentBrush" : "BorderBrush");
         ((TextBlock)_dropPreview.Child).Text = RailOnRight ? "Dock right" : "Dock left";
     }
 
@@ -180,8 +181,9 @@ public sealed class WorkspaceDock : Grid
         Docking?.AttachDrag(header, panel);
         var actions = new StackPanel { Orientation = Orientation.Horizontal };
         DockPanel.SetDock(actions, Dock.Right); header.Children.Add(actions);
-        AddHeaderAction(actions, panel, "\uE70E", "Move " + panel.Title.ToLowerInvariant() + " panel up", () => MovePanel(panel, -1));
-        AddHeaderAction(actions, panel, "\uE70D", "Move " + panel.Title.ToLowerInvariant() + " panel down", () => MovePanel(panel, 1));
+        var up = AddHeaderAction(actions, panel, "\uE70E", "Move " + panel.Title.ToLowerInvariant() + " panel up", () => MovePanel(panel, -1));
+        var down = AddHeaderAction(actions, panel, "\uE70D", "Move " + panel.Title.ToLowerInvariant() + " panel down", () => MovePanel(panel, 1));
+        _moveButtons[panel] = (up, down);
         if (Docking is not null)
         {
             var menu = new ContextMenu();
@@ -216,7 +218,7 @@ public sealed class WorkspaceDock : Grid
         return border;
     }
 
-    private void AddHeaderAction(Panel actions, WorkspacePanel panel, string glyph, string name, Action action)
+    private Button AddHeaderAction(Panel actions, WorkspacePanel panel, string glyph, string name, Action action)
     {
         var button = new Button { Content = new TextBlock { Text = glyph, FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 10 },
             Width = 22, Height = 24, Padding = new Thickness(3), Margin = new Thickness(0), ToolTip = name };
@@ -224,6 +226,7 @@ public sealed class WorkspaceDock : Grid
         AutomationProperties.SetName(button, name);
         button.Click += (_, _) => action();
         actions.Children.Add(button);
+        return button;
     }
 
     private void OnPanelStateChanged(object? sender, EventArgs e)
@@ -244,7 +247,12 @@ public sealed class WorkspaceDock : Grid
             _rail.Children.Clear();
             foreach (var tab in tabs) _rail.Children.Add(tab);
         }
-        foreach (var panel in _order) _tabs[panel].Visibility = panel.Visibility;
+        foreach (var panel in _order)
+        {
+            _tabs[panel].Visibility = panel.Visibility;
+            var moves = _moveButtons[panel];
+            moves.Up.Visibility = moves.Down.Visibility = panel.IsFloating ? Visibility.Collapsed : Visibility.Visible;
+        }
         for (var i = 0; i < open.Length; i++)
         {
             var panel = open[i];

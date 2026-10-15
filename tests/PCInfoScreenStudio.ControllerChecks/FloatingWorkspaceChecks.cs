@@ -42,6 +42,8 @@ internal static class FloatingWorkspaceChecks
             // WPF's OLE event constructor is internal; create the actual event to exercise routed file drops.
             var dragConstructor = typeof(DragEventArgs).GetConstructor(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic,
                 null, [typeof(IDataObject), typeof(DragDropKeyStates), typeof(DragDropEffects), typeof(DependencyObject), typeof(Point)], null)!;
+            Require(!All<Button>(floating).Any(b => b.IsVisible && AutomationProperties.GetName(b).StartsWith("Move ")),
+                "Floating headers omit stack-order actions until docked again.");
             var fileDrag = (DragEventArgs)dragConstructor.Invoke([new DataObject(DataFormats.FileDrop, new[] { Path.Combine(root, "example.png") }),
                 DragDropKeyStates.None, DragDropEffects.Copy, floating, new Point(20, 60)]);
             fileDrag.RoutedEvent = DragDrop.DragOverEvent; fileDrag.Effects = DragDropEffects.None;
