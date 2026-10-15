@@ -189,10 +189,10 @@ internal static class WorkspaceLayoutChecks
                 }
                 if (current != ScreenMode.InfoScreen)
                 {
-                    var tab = Tab(left, "Add photos panel");
-                    var label = All<TextBlock>(tab).Single(t => t.Text == "Add photos");
-                    var bounds = label.TransformToAncestor(tab).TransformBounds(new Rect(label.RenderSize));
-                    Require(bounds.Right <= tab.ActualWidth - 3, current + " keeps the complete Add photos label inside its narrow rail.");
+                    var tab = Tab(left, "+ Photos panel");
+                    var label = All<TextBlock>(tab).Single(t => t.Text == "+ Photos");
+                    var bounds = label.TransformToAncestor(left).TransformBounds(new Rect(label.RenderSize));
+                    Require(bounds.Right <= WorkspaceDock.RailWidth - 4, current + " keeps the complete + Photos label inside its narrow rail.");
                 }
                 Capture(window, captures, "Workspace-auto-" + current + ".png");
             }

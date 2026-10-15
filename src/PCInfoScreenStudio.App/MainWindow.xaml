@@ -154,7 +154,7 @@
             <TextBlock Text="{Binding VideoImportStatus}" Foreground="{StaticResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="4,3,4,0" />
           </StackPanel>
         </controls:WorkspacePanel>
-        <controls:WorkspacePanel PanelId="photos" Title="Add photos" Icon="&#xE91B;" IsOpen="True">
+        <controls:WorkspacePanel PanelId="photos" Title="+ Photos" Icon="&#xE91B;" IsOpen="True">
           <controls:WorkspacePanel.Style><Style TargetType="controls:WorkspacePanel"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.PhotoFrame}"><Setter Property="Visibility" Value="Visible" /></DataTrigger><DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.Hybrid}"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></controls:WorkspacePanel.Style>
           <StackPanel>
             <UniformGrid Columns="2" Margin="0,5,0,0">
@@ -456,7 +456,7 @@
               <Style TargetType="TextBlock">
                 <Setter Property="Text" Value="Live sensor readings are enabled. Choose Preview.Value as a data source to set a design value." />
                 <Style.Triggers>
-                  <DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.PhotoFrame}"><Setter Property="Text" Value="Photo preview. Open Add photos to manage files and folders; use Slideshow and Captions for presentation." /></DataTrigger>
+                  <DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.PhotoFrame}"><Setter Property="Text" Value="Photo preview. Use + Photos to manage files and folders; use Slideshow and Captions for presentation." /></DataTrigger>
                   <DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.Hybrid}"><Setter Property="Text" Value="Arrange the selected widget over the photo preview." /></DataTrigger>
                 </Style.Triggers>
               </Style>

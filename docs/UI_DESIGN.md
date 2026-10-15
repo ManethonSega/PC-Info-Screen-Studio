@@ -1,6 +1,6 @@
 # Studio UI refinement
 
-The app is a .NET 10 WPF operating interface. Use collapsible docks with Themes/Widgets/Media/Add photos/Slideshow/Captions/Layers on the left, the physical-screen canvas in the centre and contextual Properties/Sensors on the right. Keep Editor/Hardware navigation, mode/model selection, Settings, brightness and Start/Stop in the top bar. Photo Frame and Hybrid retain their own workspaces and expanded sections. The owner explicitly requested the Photoshop-inspired panel layout on 15 October 2026.
+The app is a .NET 10 WPF operating interface. Use collapsible docks with Themes/Widgets/Media/+ Photos/Slideshow/Captions/Layers on the left, the physical-screen canvas in the centre and contextual Properties/Sensors on the right. Keep Editor/Hardware navigation, mode/model selection, Settings, brightness and Start/Stop in the top bar. Photo Frame and Hybrid retain their own workspaces and expanded sections. The owner explicitly requested the Photoshop-inspired panel layout on 15 October 2026.
 
 ## Visual direction
 
@@ -41,7 +41,7 @@ Windows DPI settings at 125%, 150% and 200%, Narrator traversal and high-contras
 
 ## Docked workspace persistence
 
-New installations and older settings default to Widgets/Layers open on the left and Properties on the right. Themes, Media and Sensors are optional sections; Add photos is open in Photo Frame/Hybrid. Mode-specific sections hide without losing their open state. Live view hides both docks. No panel is automatically closed on resize.
+New installations and older settings default to Widgets/Layers open on the left and Properties on the right. Themes, Media and Sensors are optional sections; + Photos is open in Photo Frame/Hybrid. Mode-specific sections hide without losing their open state. Live view hides both docks. No panel is automatically closed on resize.
 
 Open states, panel order, preferred widths and optional explicit heights are app settings, independent of themes, session artwork and Undo. Layout values are bounded and repaired independently of valid brightness and other preferences. Reset workspace restores panel defaults, automatic heights and Fit, preserving artwork. Earlier relative weights are retained for compatibility but no longer stretch automatic panels. Collapsing keeps the same content controls and selected widget alive. Repeated panel operations are immediate, with no layout animation.
 
@@ -52,8 +52,8 @@ Floating windows and free docking drag remain a later phase. This implementation
 
 ## Photo and Hybrid panel scopes
 
-Add photos contains Add files/folder, the photo list, playback/removal controls and a collapsed Folders & playlists section for folder watching and saved linked playlists. These all manage photo inputs, so there is no separate Sources rail entry. Slideshow holds timing, transitions, fit, background, loop and shuffle. Captions holds global caption content and typography. Widgets uses the same name and icon in Info Screen and Hybrid; Hybrid includes the video-widget action. Widgets is hidden in Photo Frame. Each dock panel has its own open state and stack position.
++ Photos contains Add files/folder, the photo list, playback/removal controls and a collapsed Folders & playlists section for folder watching and saved linked playlists. These all manage photo inputs, so there is no separate Sources rail entry. Slideshow holds timing, transitions, fit, background, loop and shuffle. Captions holds global caption content and typography. Widgets uses the same name and icon in Info Screen and Hybrid; Hybrid includes the video-widget action. Widgets is hidden in Photo Frame. Each dock panel has its own open state and stack position.
 
-The original Photos panel ID and Hybrid widget-panel ID are retained, so existing arrangements keep their saved open states and positions. An older Sources layout entry is ignored when restoring the dock; its settings remain available inside Add photos. Slideshow, Captions and Hybrid Widgets start collapsed and use the existing dock persistence/reset behavior. The same photo scopes apply in Photo Frame and Hybrid, with mode-specific settings and playlists retained.
+The original Photos panel ID and Hybrid widget-panel ID are retained, so existing arrangements keep their saved open states and positions. An older Sources layout entry is ignored when restoring the dock; its settings remain available inside + Photos. Slideshow, Captions and Hybrid Widgets start collapsed and use the existing dock persistence/reset behavior. The same photo scopes apply in Photo Frame and Hybrid, with mode-specific settings and playlists retained.
 
 - [WPF automatic layout and Auto rows](https://learn.microsoft.com/en-us/dotnet/desktop/wpf/advanced/use-automatic-layout-overview), content sizing instead of consuming spare viewport height.
