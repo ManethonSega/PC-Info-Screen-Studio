@@ -45,12 +45,12 @@ public sealed class WorkspaceDock : Grid
     public WorkspaceDock()
     {
         ClipToBounds = true;
-        SetResourceReference(BackgroundProperty, "PanelBrush");
+        SetResourceReference(BackgroundProperty, "WorkspaceBrush");
         _stackScroll = new ScrollViewer { Content = _stack, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, CanContentScroll = false,
             VerticalContentAlignment = VerticalAlignment.Top };
         _widthGrip = new WorkspaceWidthGrip(this) { Width = DividerWidth, HorizontalAlignment = HorizontalAlignment.Stretch,
-            VerticalAlignment = VerticalAlignment.Stretch, Cursor = Cursors.SizeWE, Focusable = true };
+            VerticalAlignment = VerticalAlignment.Top, Cursor = Cursors.SizeWE, Focusable = true };
         _widthGrip.SetResourceReference(StyleProperty, "WorkspaceWidthGripStyle");
         _widthGrip.DragStarted += (_, _) => _widthBeforeDrag = _preferredPanelWidth;
         _widthGrip.DragDelta += (_, e) => ResizePanel(EffectivePanelWidth + (RailOnRight ? -e.HorizontalChange : e.HorizontalChange), false);
@@ -61,6 +61,7 @@ public sealed class WorkspaceDock : Grid
         };
         Loaded += (_, _) => EnsureReady();
         SizeChanged += (_, _) => UpdateStackLimits();
+        _stack.LayoutUpdated += (_, _) => UpdateStackLimits();
     }
 
     public void EnsureReady()
@@ -71,6 +72,7 @@ public sealed class WorkspaceDock : Grid
         ColumnDefinitions.Add(RailOnRight ? new ColumnDefinition { Width = new GridLength(RailWidth) } : _dividerColumn);
         var railScroll = new ScrollViewer { Content = _rail, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        railScroll.SetResourceReference(BackgroundProperty, "PanelBrush");
         SetColumn(railScroll, RailOnRight ? 2 : 0); Children.Add(railScroll);
         SetColumn(_stackScroll, 1); Children.Add(_stackScroll);
         SetColumn(_widthGrip, RailOnRight ? 0 : 2); Children.Add(_widthGrip);
@@ -120,7 +122,8 @@ public sealed class WorkspaceDock : Grid
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, CanContentScroll = false };
         body.Margin = new Thickness(10, 2, 10, 10);
         SetRow(body, 1); host.Children.Add(body);
-        var border = new Border { Child = host, BorderThickness = new Thickness(1, 0, 1, 1) };
+        var border = new Border { Child = host, BorderThickness = new Thickness(1) };
+        border.SetResourceReference(Border.BackgroundProperty, "PanelBrush");
         border.SetResourceReference(Border.BorderBrushProperty, "BorderBrush");
         return border;
     }
@@ -224,15 +227,37 @@ public sealed class WorkspaceDock : Grid
         if (!_ready) return;
         var open = _order.Where(p => p.Visibility == Visibility.Visible && p.IsOpen).ToArray();
         var available = Math.Max(MinimumPanelHeight, ActualHeight);
-        var automaticLimit = Math.Max(MinimumPanelHeight,
-            (available - Math.Max(0, open.Length - 1) * DividerWidth) / Math.Max(1, open.Length));
+        var minimums = open.ToDictionary(p => p, GetMinimumHeight);
+        var remaining = Math.Max(minimums.Values.Sum(), available - Math.Max(0, open.Length - 1) * DividerWidth);
+        var count = open.Length;
+        var automaticLimit = remaining / Math.Max(1, count);
+        foreach (var minimum in minimums.Values.OrderDescending())
+        {
+            if (minimum <= automaticLimit || count <= 1) break;
+            remaining -= minimum; count--;
+            automaticLimit = remaining / count;
+        }
         foreach (var panel in open)
         {
             var host = _hosts[panel];
+            var minimum = minimums[panel];
             // Auto rows follow live content; only an explicit resize creates a saved height.
-            host.MaxHeight = panel.PreferredHeight.HasValue ? available : automaticLimit;
-            _stack.RowDefinitions[GetRow(host)].MaxHeight = available;
+            host.MaxHeight = Math.Max(minimum, panel.PreferredHeight.HasValue ? available : automaticLimit);
+            var row = _stack.RowDefinitions[GetRow(host)];
+            row.MaxHeight = Math.Max(minimum, available);
+            row.MinHeight = minimum;
         }
+        _widthGrip.Height = Math.Max(0, Math.Min(ActualHeight, _stack.ActualHeight));
+    }
+
+    private double GetMinimumHeight(WorkspacePanel panel)
+    {
+        // Non-scrolling panels pin their controls around a separately scrolling list.
+        if (panel.IsScrollable || panel.Content is not Grid content) return MinimumPanelHeight;
+        var host = _hosts[panel];
+        var chrome = ((Grid)host.Child).RowDefinitions[0].ActualHeight + panel.Margin.Top + panel.Margin.Bottom +
+            host.BorderThickness.Top + host.BorderThickness.Bottom;
+        return Math.Max(MinimumPanelHeight, chrome + content.RowDefinitions.Sum(row => row.Height.IsAuto ? row.ActualHeight : row.MinHeight));
     }
 
     public void ConstrainPanelWidth(double maximum)

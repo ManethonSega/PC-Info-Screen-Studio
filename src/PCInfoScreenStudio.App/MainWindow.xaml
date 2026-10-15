@@ -154,16 +154,21 @@
             <TextBlock Text="{Binding VideoImportStatus}" Foreground="{StaticResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="4,3,4,0" />
           </StackPanel>
         </controls:WorkspacePanel>
-        <controls:WorkspacePanel PanelId="photos" Title="+ Photos" Icon="&#xE91B;" IsOpen="True">
+        <controls:WorkspacePanel PanelId="photos" Title="+ Photos" Icon="&#xE91B;" IsOpen="True" IsScrollable="False">
           <controls:WorkspacePanel.Style><Style TargetType="controls:WorkspacePanel"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.PhotoFrame}"><Setter Property="Visibility" Value="Visible" /></DataTrigger><DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.Hybrid}"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></controls:WorkspacePanel.Style>
-          <StackPanel>
+          <Grid>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" /><RowDefinition Height="*" MinHeight="64" />
+              <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
             <UniformGrid Columns="2" Margin="0,5,0,0">
                   <Button Content="Add files" Command="{Binding AddPhotosCommand}" Padding="10,7" ToolTip="Select one or several photo files. They remain linked to this PC." />
                   <Button Content="Add folder" Command="{Binding AddPhotoFolderCommand}" Padding="10,7" ToolTip="Add photos from a folder and its subfolders. Saving this mode's theme remembers the folder and reloads its photos when opened." />
                 </UniformGrid>
 
               <ListBox x:Name="PhotoPlaylist"
-                       Height="220"
+                       Grid.Row="1" MinHeight="64" MaxHeight="220"
+                       ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                        Margin="2,5"
                        ItemsSource="{Binding Document.PhotoFrame.Photos}"
                        SelectedItem="{Binding SelectedPhoto}"
@@ -177,7 +182,7 @@
                   <DataTemplate>
                     <Grid Margin="3">
                       <StackPanel>
-                        <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" ToolTip="{Binding DisplayName}" />
                         <TextBlock Text="Linked file" FontSize="10" Foreground="{StaticResource MutedTextBrush}" />
                       </StackPanel>
                     </Grid>
@@ -185,14 +190,14 @@
                 </ListBox.ItemTemplate>
               </ListBox>
 
-              <UniformGrid Columns="2">
+              <UniformGrid Grid.Row="2" Columns="2">
                 <Button Content="Previous" Padding="6,5" Command="{Binding PreviousPhotoCommand}" ToolTip="Show the previous photo." />
                 <Button Content="{Binding PhotoPlaybackLabel}" Command="{Binding TogglePhotoPlaybackCommand}" ToolTip="Pause or resume automatic playback." />
                 <Button Content="Next" Command="{Binding NextPhotoCommand}" ToolTip="Show the next photo." />
                 <Button Content="Remove" Command="{Binding RemovePhotoCommand}" ToolTip="Remove this photo from the playlist. The original file stays on your PC." />
               </UniformGrid>
-              <TextBlock Text="{Binding PhotoPositionLabel}" HorizontalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
-            <Expander Header="Folders &amp; playlists" Margin="0,10,0,0">
+              <TextBlock Grid.Row="3" Text="{Binding PhotoPositionLabel}" HorizontalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
+            <Expander Grid.Row="4" Header="Folders &amp; playlists" Margin="0,10,0,0">
               <StackPanel Margin="0,5,0,0">
                 <CheckBox Content="Watch folder for new photos" IsChecked="{Binding Document.PhotoFrame.WatchFolderEnabled}" ToolTip="Automatically add new images created in the selected folder." />
                 <TextBlock Text="{Binding Document.PhotoFrame.WatchedFolder}" TextTrimming="CharacterEllipsis" Foreground="{StaticResource MutedTextBrush}" ToolTip="{Binding Document.PhotoFrame.WatchedFolder}" />
@@ -203,7 +208,7 @@
                 </UniformGrid>
               </StackPanel>
             </Expander>
-          </StackPanel>
+          </Grid>
         </controls:WorkspacePanel>
         <controls:WorkspacePanel PanelId="slideshow" Title="Slideshow" Icon="&#xE768;" IsOpen="False">
           <controls:WorkspacePanel.Style><Style TargetType="controls:WorkspacePanel"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.PhotoFrame}"><Setter Property="Visibility" Value="Visible" /></DataTrigger><DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.Hybrid}"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></controls:WorkspacePanel.Style>
@@ -308,7 +313,7 @@
             </Grid.Style>
             <Grid.RowDefinitions>
               <RowDefinition Height="0" />
-              <RowDefinition Height="*" />
+              <RowDefinition Height="*" MinHeight="40" />
               <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             <ListBox x:Name="LayerList" Grid.Row="1" MinHeight="40" ItemsSource="{Binding Document.EditorWidgets}" SelectedItem="{Binding SelectedWidget}" Background="{StaticResource InputBrush}" BorderBrush="{StaticResource BorderBrush}" AutomationProperties.Name="Layers">

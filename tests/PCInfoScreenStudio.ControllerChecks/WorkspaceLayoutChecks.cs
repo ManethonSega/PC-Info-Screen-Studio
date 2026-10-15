@@ -41,6 +41,7 @@ internal static class WorkspaceLayoutChecks
             Require(All<Button>(left.Panels.Single(p => p.PanelId == "widgets")).All(b => b.ActualHeight <= 42),
                 "Direct Add buttons retain compact heights instead of stretching to fill a panel.");
             CheckContentSizing(window, vm, left, right, captures);
+            CheckPhotoScrolling(window, vm, left, captures);
             CheckDynamicContent(pump);
             var content = window.FindName("WidgetProperties");
             vm.CanvasSize = DisplayCanvasSize.Turing52; Flush(window);
@@ -180,6 +181,11 @@ internal static class WorkspaceLayoutChecks
                 active.IsOpen = true;
                 var properties = right.Panels.Single(p => p.PanelId == "properties");
                 properties.IsOpen = true; Flush(window);
+                Require(ReferenceEquals(left.Background, Application.Current.Resources["WorkspaceBrush"]) &&
+                    ReferenceEquals(PanelHost(active).Background, Application.Current.Resources["PanelBrush"]),
+                    "Only the open panel paints a panel surface; the space below uses the workspace background.");
+                Require(All<Thumb>(left).Single(t => AutomationProperties.GetName(t) == "Left panel width").ActualHeight <= PanelHost(active).ActualHeight + 1,
+                    "The width divider ends with the open panel instead of extending into blank workspace.");
                 if (current != ScreenMode.PhotoFrame)
                 {
                     Require(PanelHost(active).ActualHeight < 260 && PanelHost(active).ActualHeight < left.ActualHeight - 60,
@@ -247,6 +253,53 @@ internal static class WorkspaceLayoutChecks
                 "Legacy proportional weights do not force blank space into automatic panels.");
         }
         finally { window.Close(); }
+    }
+
+    private static void CheckPhotoScrolling(Window window, MainViewModel vm, WorkspaceDock dock, string? captures)
+    {
+        var layout = dock.CaptureLayout(); var mode = vm.Document.Mode;
+        try
+        {
+            foreach (var current in new[] { ScreenMode.PhotoFrame, ScreenMode.Hybrid })
+            {
+                vm.Document.Mode = current;
+                foreach (var panel in dock.Panels) panel.IsOpen = panel.PanelId is "themes" or "photos" or "slideshow" or "captions";
+                var photos = dock.Panels.Single(p => p.PanelId == "photos");
+                var savedPhotos = vm.Document.PhotoFrame.Photos.ToArray();
+                try
+                {
+                    vm.Document.PhotoFrame.Photos.Clear();
+                    for (var i = 0; i < 80; i++) vm.Document.PhotoFrame.Photos.Add(new PhotoFrameItem
+                        { DisplayName = "A long photo name with enough detail to exceed the narrow playlist width " + i, SourcePath = "missing-preview-" + i + ".png" });
+                    Flush(window);
+                    var list = (ListBox)window.FindName("PhotoPlaylist");
+                    var scroll = All<ScrollViewer>(PanelHost(photos)).ToArray();
+                    Require(scroll.Length == 1 && scroll[0].ScrollableHeight > 0 && scroll[0].ComputedHorizontalScrollBarVisibility == Visibility.Collapsed,
+                        current + " has one vertical photo-list scrollbar and no horizontal or nested panel scrollbar.");
+                    list.SelectedIndex = list.Items.Count - 1; list.ScrollIntoView(list.SelectedItem); Flush(window);
+                    Require(list.ItemContainerGenerator.ContainerFromIndex(list.SelectedIndex) is ListBoxItem item && item.IsVisible &&
+                        scroll[0].VerticalOffset > 0 && All<Button>(photos).Any(b => Equals(b.Content, "Next") && b.IsVisible),
+                        "The last photo remains reachable with playback controls still present.");
+                    Require(All<VirtualizingStackPanel>(list).Single().Children.Count < list.Items.Count,
+                        "A long photo playlist retains bounded item realization.");
+                    Capture(window, captures, "Workspace-photo-list-" + current + ".png");
+                    var folders = All<Expander>(photos).Single(); folders.IsExpanded = true; photos.PreferredHeight = 72;
+                    dock.RestoreLayout(dock.CaptureLayout()); Flush(window);
+                    var folderBounds = folders.TransformToAncestor(PanelHost(photos)).TransformBounds(new Rect(folders.RenderSize));
+                    Require(folderBounds.Bottom <= PanelHost(photos).ActualHeight + 1,
+                        "Expanded photo-folder controls remain inside the panel even after a short saved resize.");
+                    Capture(window, captures, "Workspace-photo-scroll-" + current + ".png");
+                    folders.IsExpanded = false;
+                }
+                finally
+                {
+                    vm.Document.PhotoFrame.Photos.Clear();
+                    foreach (var photo in savedPhotos) vm.Document.PhotoFrame.Photos.Add(photo);
+                    vm.SelectedPhoto = null; photos.PreferredHeight = null;
+                }
+            }
+        }
+        finally { vm.Document.Mode = mode; dock.RestoreLayout(layout); Flush(window); }
     }
 
     private static Border PanelHost(WorkspacePanel panel)

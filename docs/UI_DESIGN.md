@@ -57,3 +57,9 @@ Floating windows and free docking drag remain a later phase. This implementation
 The original Photos panel ID and Hybrid widget-panel ID are retained, so existing arrangements keep their saved open states and positions. An older Sources layout entry is ignored when restoring the dock; its settings remain available inside + Photos. Slideshow, Captions and Hybrid Widgets start collapsed and use the existing dock persistence/reset behavior. The same photo scopes apply in Photo Frame and Hybrid, with mode-specific settings and playlists retained.
 
 - [WPF automatic layout and Auto rows](https://learn.microsoft.com/en-us/dotnet/desktop/wpf/advanced/use-automatic-layout-overview), content sizing instead of consuming spare viewport height.
+
+## Panel surfaces and photo scrolling
+
+The dock paints the workspace background below open sections. Each panel paints its own framed panel surface, and the width grip stops at the stack bottom. The navigation rail retains its panel background. This makes a short panel read as its own window without adding floating windows.
+
++ Photos uses a bounded playlist as its sole internal scrolling region, with import, playback, position and folder controls pinned outside it. Long names use ellipsis with their full name in a tooltip; horizontal photo scrolling is disabled. The playlist remains bounded for virtualization. Pinned-control panels reserve their measured header/footer minimum when sharing height, including expanded folder controls and explicit small saved heights. If the combined minimum of all open sections exceeds the window, the whole dock can still scroll.
