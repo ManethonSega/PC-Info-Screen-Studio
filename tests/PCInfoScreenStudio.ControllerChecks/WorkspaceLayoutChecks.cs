@@ -113,6 +113,10 @@ internal static class WorkspaceLayoutChecks
             CheckFits(designer);
             vm.Document.Mode = ScreenMode.Hybrid; Flush(window);
             Require(right.IsVisible && layers.IsOpen, "Hybrid restores its contextual editor panels.");
+            var hint = (Border)designer.FindName("PhotoEmptyState");
+            var hintBounds = hint.TransformToAncestor(designer).TransformBounds(new Rect(hint.RenderSize));
+            Require(hint.IsVisible && Math.Abs(hintBounds.Width - hint.ActualWidth) < .5,
+                "Empty-state guidance retains native text size instead of shrinking with the physical canvas.");
             CheckFits(designer); Capture(window, captures, "Workspace-hybrid.png");
             vm.Document.Mode = ScreenMode.InfoScreen; Flush(window);
             var saved = left.CaptureLayout();

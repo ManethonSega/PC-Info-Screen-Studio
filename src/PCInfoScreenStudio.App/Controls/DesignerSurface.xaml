@@ -8,6 +8,7 @@
     <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
   </UserControl.Resources>
 
+  <Grid ClipToBounds="True">
   <ScrollViewer x:Name="CanvasScrollViewer" SizeChanged="OnViewportSizeChanged" HorizontalScrollBarVisibility="Auto"
                 VerticalScrollBarVisibility="Auto"
                 CanContentScroll="False">
@@ -76,7 +77,28 @@
             </ItemsControl.ItemTemplate>
           </ItemsControl>
 
-          <!-- Editor-only hints. They are WPF overlays, never part of USB rendering. -->
+          <Canvas Panel.ZIndex="9999" IsHitTestVisible="False">
+            <Rectangle x:Name="SelectionMarquee"
+                       Fill="{StaticResource SelectionFillBrush}"
+                       Stroke="{StaticResource AccentBrush}"
+                       StrokeThickness="1"
+                       StrokeDashArray="3,2"
+                       Visibility="Collapsed" />
+          </Canvas>
+
+          <Canvas x:Name="AlignmentGuideOverlay"
+                  Width="{Binding Document.CanvasWidth}"
+                  Height="{Binding Document.CanvasHeight}"
+                  Panel.ZIndex="10000"
+                  IsHitTestVisible="False">
+            <Line x:Name="VerticalGuide" Stroke="{StaticResource AquaBrush}" StrokeThickness="1" Visibility="Collapsed" />
+            <Line x:Name="HorizontalGuide" Stroke="{StaticResource AquaBrush}" StrokeThickness="1" Visibility="Collapsed" />
+          </Canvas>
+        </Grid>
+      </Border>
+    </Grid>
+  </ScrollViewer>
+          <!-- Viewport instructions remain readable at every canvas zoom; never sent to USB. -->
           <Border Panel.ZIndex="9000" HorizontalAlignment="Center" VerticalAlignment="Center"
                   MaxWidth="360" Margin="16" IsHitTestVisible="False"
                   Background="{StaticResource PanelBrush}" CornerRadius="8">
@@ -137,26 +159,6 @@
           </StackPanel>
           </Border>
 
-          <Canvas Panel.ZIndex="9999" IsHitTestVisible="False">
-            <Rectangle x:Name="SelectionMarquee"
-                       Fill="{StaticResource SelectionFillBrush}"
-                       Stroke="{StaticResource AccentBrush}"
-                       StrokeThickness="1"
-                       StrokeDashArray="3,2"
-                       Visibility="Collapsed" />
-          </Canvas>
-
-          <Canvas x:Name="AlignmentGuideOverlay"
-                  Width="{Binding Document.CanvasWidth}"
-                  Height="{Binding Document.CanvasHeight}"
-                  Panel.ZIndex="10000"
-                  IsHitTestVisible="False">
-            <Line x:Name="VerticalGuide" Stroke="{StaticResource AquaBrush}" StrokeThickness="1" Visibility="Collapsed" />
-            <Line x:Name="HorizontalGuide" Stroke="{StaticResource AquaBrush}" StrokeThickness="1" Visibility="Collapsed" />
-          </Canvas>
-        </Grid>
-      </Border>
-    </Grid>
-  </ScrollViewer>
+  </Grid>
 </UserControl>
 
