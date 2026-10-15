@@ -79,8 +79,10 @@
           </ItemsControl>
 
           <!-- Editor-only hints. They are WPF overlays, never part of USB rendering. -->
-          <StackPanel Panel.ZIndex="9000" HorizontalAlignment="Center" VerticalAlignment="Center"
-                      MaxWidth="360" Margin="16" IsHitTestVisible="False">
+          <Border Panel.ZIndex="9000" HorizontalAlignment="Center" VerticalAlignment="Center"
+                  MaxWidth="360" Margin="16" IsHitTestVisible="False"
+                  Background="{StaticResource PanelBrush}" CornerRadius="8">
+          <StackPanel>
             <Border x:Name="PhotoEmptyState" Background="{StaticResource EmptyStateBrush}" CornerRadius="6" Padding="18" Margin="0,4">
               <Border.Style>
                 <Style TargetType="Border">
@@ -135,6 +137,7 @@
               </StackPanel>
             </Border>
           </StackPanel>
+          </Border>
 
           <Canvas Panel.ZIndex="9999" IsHitTestVisible="False">
             <Rectangle x:Name="SelectionMarquee"
