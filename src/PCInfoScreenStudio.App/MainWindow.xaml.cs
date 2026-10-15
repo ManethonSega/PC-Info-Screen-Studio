@@ -39,7 +39,12 @@ public partial class MainWindow : Window
         _viewModel = viewModel;
         InitializeComponent();
         DataContext = _viewModel;
-        _workspaceDocking = new Controls.WorkspaceDocking(this, LeftDock, RightDock);
+        _workspaceDocking = new Controls.WorkspaceDocking(this, LeftDock, RightDock, window =>
+        {
+            window.AllowDrop = true;
+            window.DragOver += OnDragOver;
+            window.Drop += OnDrop;
+        });
         RestoreWorkspaceLayout(_viewModel.WorkspaceLayout);
         LeftDock.IsVisibleChanged += (_, _) => ConstrainWorkspacePanels();
         RightDock.IsVisibleChanged += (_, _) => ConstrainWorkspacePanels();

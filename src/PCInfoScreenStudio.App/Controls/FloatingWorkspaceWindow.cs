@@ -16,13 +16,14 @@ internal sealed class FloatingWorkspaceWindow : Window
 {
     private readonly WorkspacePanel _panel;
     private readonly Action _changed;
+    private readonly Func<double> _minimumHeight;
     private readonly DispatcherTimer _saveTimer;
     private bool _detaching;
     private bool _placing;
 
     internal FloatingWorkspaceWindow(Window owner, WorkspacePanel panel, Border host, Action changed, Func<double> minimumHeight)
     {
-        Owner = owner; _panel = panel; _changed = changed;
+        Owner = owner; _panel = panel; _changed = changed; _minimumHeight = minimumHeight;
         SetBinding(DataContextProperty, new Binding(nameof(DataContext)) { Source = owner });
         foreach (var binding in owner.InputBindings.OfType<KeyBinding>())
             InputBindings.Add(new KeyBinding(binding.Command, binding.Key, binding.Modifiers)
@@ -41,7 +42,13 @@ internal sealed class FloatingWorkspaceWindow : Window
         _saveTimer.Tick += (_, _) => { _saveTimer.Stop(); SaveBounds(); _changed(); };
         LocationChanged += (_, _) => QueueSave(); SizeChanged += (_, _) => QueueSave();
         Closing += OnClosing;
-        LayoutUpdated += (_, _) => MinHeight = Math.Min(MaxHeight, Math.Max(120, minimumHeight() + 40));
+        LayoutUpdated += OnLayoutUpdated;
+    }
+
+    private void OnLayoutUpdated(object? sender, EventArgs e)
+    {
+        if (!_detaching && IsVisible && Content is not null)
+            MinHeight = Math.Min(MaxHeight, Math.Max(120, _minimumHeight() + 40));
     }
 
     internal void ShowRecovered()
@@ -93,7 +100,7 @@ internal sealed class FloatingWorkspaceWindow : Window
 
     internal void DetachAndClose()
     {
-        _saveTimer.Stop(); SaveBounds(); _detaching = true; Content = null; Close();
+        _saveTimer.Stop(); SaveBounds(); _detaching = true; LayoutUpdated -= OnLayoutUpdated; Content = null; Close();
     }
 
     [StructLayout(LayoutKind.Sequential)]

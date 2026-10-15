@@ -39,6 +39,11 @@ internal static class FloatingWorkspaceChecks
             var floating = docking.FloatingWindows.Single();
             Require(widgets.IsFloating && floating.IsVisible && ReferenceEquals(floating.Owner, owner) && !floating.ShowInTaskbar,
                 "The accessible Float menu opens a native owned tool window.");
+            var fileDrag = new DragEventArgs(new DataObject(DataFormats.FileDrop, new[] { Path.Combine(root, "example.png") }),
+                DragDropKeyStates.None, DragDropEffects.Copy, floating, new Point(20, 60)) { RoutedEvent = DragDrop.DragOverEvent };
+            floating.RaiseEvent(fileDrag);
+            Require(floating.AllowDrop && fileDrag.Effects == DragDropEffects.Copy,
+                "Floating panels preserve the existing editor file-drop routing.");
             Require(ReferenceEquals(widgets.Content, liveContent) && ReferenceEquals(widgets.DataContext, vm),
                 "Floating retains the live controls and view model.");
             Require(canvas.ActualWidth > before + 200, "Floating the only open left panel releases its canvas space.");
@@ -161,6 +166,7 @@ internal static class FloatingWorkspaceChecks
                 "Invalid bounds and duplicate cross-dock IDs are repaired without discarding panel state.");
             Console.WriteLine("PASS: native floating menus, live control preservation, cross-docking, drag previews/cancel/outside drop, mode/Live/tray/minimize lifecycle, monitor recovery, settings restart and reset.");
         }
+        catch (Exception ex) { Console.WriteLine("Floating check failure before cleanup: " + ex); throw; }
         finally { vm.Document.Mode = mode; docking.Restore(original); Flush(owner); }
     }
 

@@ -12,6 +12,7 @@ internal sealed class WorkspaceDocking : IDisposable
 {
     private readonly Window _owner;
     private readonly WorkspaceDock[] _docks;
+    private readonly Action<Window>? _configureWindow;
     private readonly Dictionary<WorkspacePanel, bool> _home;
     private readonly Dictionary<WorkspacePanel, FloatingWorkspaceWindow> _windows = [];
     private readonly TextBlock _dragLabel = new() { Margin = new Thickness(10, 7, 10, 7) };
@@ -26,9 +27,9 @@ internal sealed class WorkspaceDocking : IDisposable
     internal bool IsDragging => _dragging;
     internal IReadOnlyCollection<FloatingWorkspaceWindow> FloatingWindows => _windows.Values;
 
-    public WorkspaceDocking(Window owner, WorkspaceDock left, WorkspaceDock right)
+    public WorkspaceDocking(Window owner, WorkspaceDock left, WorkspaceDock right, Action<Window>? configureWindow = null)
     {
-        _owner = owner; _docks = [left, right];
+        _owner = owner; _docks = [left, right]; _configureWindow = configureWindow;
         _dragPreview.PlacementTarget = owner;
         var dragBorder = new Border { Child = _dragLabel, BorderThickness = new Thickness(1) };
         dragBorder.SetResourceReference(Border.BackgroundProperty, "PanelBrush");
@@ -122,6 +123,7 @@ internal sealed class WorkspaceDocking : IDisposable
                     {
                         var host = dock.Host(panel); host.MaxHeight = double.PositiveInfinity;
                         window = new FloatingWorkspaceWindow(_owner, panel, host, () => dock.NotifyChanged(), () => dock.GetMinimumHeight(panel));
+                        _configureWindow?.Invoke(window);
                         _windows.Add(panel, window);
                     }
                     if (!window.IsVisible) window.ShowRecovered();
