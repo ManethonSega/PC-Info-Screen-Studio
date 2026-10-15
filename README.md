@@ -4,6 +4,8 @@ A visual Windows editor and runtime for 3.5-inch Turing/TURZX-style serial scree
 
 > **Status:** `0.10.0-alpha.20`. Actively developed alpha. A permanent Windows x64 [portable download](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/tag/v0.10.0-alpha.20) is available. Development builds are also available through GitHub Actions. There is no installer, code signing or automatic updater.
 
+The draft alpha.22 workspace adds labelled collapsible panel strips, resizable stacks, remembered panel arrangements and automatic canvas fitting. **Fit** follows window/panel resizing; **100%** and manual zoom preserve exact editing scale. **Reset workspace** restores the panel layout. This development candidate is separate from the published alpha.20 download.
+
 Use **Brightness** beside **Start/Stop display** to adjust the selected physical screen from 0 to 100%, or reset it to 50%. Each screen family remembers its own level across restart/reconnect; this is an app setting, separate from themes.
 
 The priorities are an intuitive interface, lightweight operation, and a clear preview of the physical screen.

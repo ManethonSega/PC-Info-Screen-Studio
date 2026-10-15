@@ -54,7 +54,15 @@ public partial class DesignerSurface : System.Windows.Controls.UserControl
     }
 
     private void OnThemeChanged(object? sender, EventArgs e)
-        => QueueRender(_viewModel?.LivePreview == true, forceSend: false);
+    {
+        UpdateViewportSize();
+        QueueRender(_viewModel?.LivePreview == true, forceSend: false);
+    }
+
+    private void OnViewportSizeChanged(object sender, SizeChangedEventArgs e) => UpdateViewportSize();
+
+    private void UpdateViewportSize()
+        => _viewModel?.SetCanvasViewportSize(Math.Max(0, CanvasScrollViewer.ActualWidth - 34), Math.Max(0, CanvasScrollViewer.ActualHeight - 34));
 
     private void OnRequestLiveFrame(object? sender, EventArgs e)
         => QueueRender(sendLive: true, forceSend: true);

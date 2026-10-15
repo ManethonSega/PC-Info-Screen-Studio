@@ -127,7 +127,8 @@ public sealed class AppSettingsService
                 !Enum.IsDefined(settings.DisplayProtocol) || !Enum.IsDefined(settings.DisplayColorMode) ||
                 (settings.PreferredCanvasSize.HasValue && !Enum.IsDefined(settings.PreferredCanvasSize.Value)) ||
                 !double.IsFinite(settings.CanvasZoom) || settings.WeatherCity is null) return null;
-            settings.CanvasZoom = Math.Clamp(settings.CanvasZoom, .5, 3);
+            settings.CanvasZoom = Math.Clamp(settings.CanvasZoom, .1, 3);
+            settings.WorkspaceLayout = (settings.WorkspaceLayout ?? new()).ValidatedCopy();
             settings.SerialBrightness = Math.Clamp(settings.SerialBrightness, 0, 100);
             settings.UsbBrightness = Math.Clamp(settings.UsbBrightness, 0, 100);
             settings.LastPhotoIndex = Math.Max(0, settings.LastPhotoIndex);
@@ -167,6 +168,8 @@ public sealed class AppSettings
     public bool ShapePanelExpanded { get; set; } = true;
     public bool ColoursPanelExpanded { get; set; } = true;
     public double CanvasZoom { get; set; } = 1.0;
+    public bool IsCanvasFit { get; set; } = true;
+    public EditorWorkspaceLayout WorkspaceLayout { get; set; } = new();
     public int LastPhotoIndex { get; set; }
     public bool PhotoFramePlaying { get; set; } = true;
 }

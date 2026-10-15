@@ -1,6 +1,6 @@
 # Roadmap
 
-Current source version: **0.10.0-alpha.20**.
+Current source version: **0.10.0-alpha.22** (draft candidate).
 
 The next milestone is product polish, not another broad feature category. Priorities remain **easy to use, lightweight, intuitive, and visually clear**. Checked items below describe implemented functionality, not a claim that every device or workload has been validated.
 
@@ -16,6 +16,10 @@ The next milestone is product polish, not another broad feature category. Priori
 - [x] Wider scrollable left panel and expandable sections with persisted preferences.
 - [x] Editor-only empty-state prompts, selected-widget-only properties and vector alignment icons with descriptive tooltips.
 - [x] Inline numeric validation for dimensions, opacity, sensor ranges and photo settings, with invalid drafts preserving the last valid value.
+
+- [x] Labelled collapsible panel strips with independent open sections, resizable stacks, keyboard reordering and saved workspace layout/reset.
+- [x] Automatic preview fitting across window/panel changes, with separate manual zoom and 100% view.
+- [ ] Free panel dragging and floating windows, following interactive qualification of the docked foundation.
 
 ### Info Screen editor
 

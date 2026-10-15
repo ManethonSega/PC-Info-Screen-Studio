@@ -8,17 +8,15 @@
     <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
   </UserControl.Resources>
 
-  <ScrollViewer HorizontalScrollBarVisibility="Auto"
+  <ScrollViewer x:Name="CanvasScrollViewer" SizeChanged="OnViewportSizeChanged" HorizontalScrollBarVisibility="Auto"
                 VerticalScrollBarVisibility="Auto"
                 CanContentScroll="False">
     <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Margin="16">
-      <Border BorderBrush="{StaticResource StrongBorderBrush}"
+      <Border x:Name="CanvasFrame" BorderBrush="{StaticResource StrongBorderBrush}"
               BorderThickness="1"
-              Background="{StaticResource CanvasWellBrush}"
-              Width="{Binding Document.CanvasWidth}"
-              Height="{Binding Document.CanvasHeight}">
+              Background="{StaticResource CanvasWellBrush}">
         <Border.LayoutTransform>
-          <ScaleTransform ScaleX="{Binding CanvasZoom}" ScaleY="{Binding CanvasZoom}" />
+          <ScaleTransform ScaleX="{Binding CanvasViewScale}" ScaleY="{Binding CanvasViewScale}" />
         </Border.LayoutTransform>
 
         <Grid x:Name="EditorCanvas"

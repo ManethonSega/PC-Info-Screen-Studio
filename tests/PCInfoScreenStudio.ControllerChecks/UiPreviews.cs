@@ -49,6 +49,7 @@ internal static class UiPreviews
                 Path.Combine(directory, "Sensor-startup.png"));
             vm.ShowPage(false);
             vm.Document.Mode = ScreenMode.InfoScreen;
+            ((WorkspaceDock)window.FindName("LeftDock")).Panels.Single(p => p.PanelId == "themes").IsOpen = true;
             root.UpdateLayout();
             var panel = Find<ThemeLibraryPanel>(root) ?? throw new InvalidOperationException("Theme panel missing.");
             var actions = Find<Button>(panel, b => b.ContextMenu is not null) ?? throw new InvalidOperationException("Theme actions missing.");

@@ -34,6 +34,49 @@
       </ControlTemplate></Setter.Value></Setter>
     </Style>
 
+    <Style x:Key="WorkspaceTabStyle" TargetType="ToggleButton">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+      <Setter Property="Padding" Value="6,10" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ToggleButton">
+        <Border x:Name="Surface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="{TemplateBinding Padding}">
+          <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center" />
+        </Border>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="{StaticResource HoverBrush}" /></Trigger>
+          <Trigger Property="IsChecked" Value="True"><Setter TargetName="Surface" Property="Background" Value="{StaticResource SelectedBrush}" /><Setter TargetName="Surface" Property="BorderBrush" Value="{StaticResource StrongBorderBrush}" /></Trigger>
+          <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="{StaticResource FocusBrush}" /></Trigger>
+          <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Surface" Property="Opacity" Value="0.5" /></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="WorkspaceWidthGripStyle" TargetType="Thumb">
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Thumb">
+        <Border x:Name="Grip" Background="{StaticResource BorderBrush}">
+          <Border Width="2" Height="32" Background="{StaticResource StrongBorderBrush}" />
+        </Border>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Grip" Property="Background" Value="{StaticResource StrongBorderBrush}" /></Trigger>
+          <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Grip" Property="Background" Value="{StaticResource FocusBrush}" /></Trigger>
+          <Trigger Property="IsDragging" Value="True"><Setter TargetName="Grip" Property="Background" Value="{StaticResource AccentBrush}" /></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="WorkspaceStackSplitterStyle" TargetType="GridSplitter">
+      <Setter Property="Background" Value="{StaticResource BorderBrush}" />
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="GridSplitter">
+        <Border Background="{TemplateBinding Background}"><Border Width="32" Height="2" Background="{StaticResource StrongBorderBrush}" /></Border>
+      </ControlTemplate></Setter.Value></Setter>
+      <Style.Triggers>
+        <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{StaticResource StrongBorderBrush}" /></Trigger>
+        <Trigger Property="IsKeyboardFocused" Value="True"><Setter Property="Background" Value="{StaticResource FocusBrush}" /></Trigger>
+        <Trigger Property="IsDragging" Value="True"><Setter Property="Background" Value="{StaticResource AccentBrush}" /></Trigger>
+      </Style.Triggers>
+    </Style>
+
     <BitmapImage x:Key="AppIconImage"
                  UriSource="pack://application:,,,/PCInfoScreenStudio;component/Assets/PCInfoScreenStudio.png"
                  CacheOption="OnLoad" />
