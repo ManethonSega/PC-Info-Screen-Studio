@@ -158,7 +158,7 @@
           <controls:WorkspacePanel.Style><Style TargetType="controls:WorkspacePanel"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.PhotoFrame}"><Setter Property="Visibility" Value="Visible" /></DataTrigger><DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.Hybrid}"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></controls:WorkspacePanel.Style>
           <Grid>
             <Grid.RowDefinitions>
-              <RowDefinition Height="Auto" /><RowDefinition Height="*" MinHeight="64" />
+              <RowDefinition Height="Auto" /><RowDefinition Height="*" MinHeight="106" />
               <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             <UniformGrid Columns="2" Margin="0,5,0,0">
@@ -167,8 +167,9 @@
                 </UniformGrid>
 
               <ListBox x:Name="PhotoPlaylist"
-                       Grid.Row="1" MinHeight="64" MaxHeight="220"
+                       Grid.Row="1" MinHeight="96" MaxHeight="220"
                        ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                       ScrollViewer.VerticalScrollBarVisibility="Auto"
                        Margin="2,5"
                        ItemsSource="{Binding Document.PhotoFrame.Photos}"
                        SelectedItem="{Binding SelectedPhoto}"

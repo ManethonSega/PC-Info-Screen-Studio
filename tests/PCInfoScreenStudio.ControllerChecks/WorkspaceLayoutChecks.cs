@@ -277,6 +277,16 @@ internal static class WorkspaceLayoutChecks
                     Require(scroll.Length == 1 && scroll[0].ScrollableHeight > 0 && scroll[0].ComputedHorizontalScrollBarVisibility == Visibility.Collapsed,
                         current + " has one vertical photo-list scrollbar and no horizontal or nested panel scrollbar.");
                     list.SelectedIndex = list.Items.Count - 1; list.ScrollIntoView(list.SelectedItem); Flush(window);
+                    var bar = All<ScrollBar>(list).Single(b => b.Orientation == Orientation.Vertical);
+                    var thumb = All<Thumb>(bar).Single();
+                    var thumbBounds = thumb.TransformToAncestor(PanelHost(photos)).TransformBounds(new Rect(thumb.RenderSize));
+                    Require(bar.IsVisible && thumb.IsVisible && thumb.ActualHeight >= 12 &&
+                        thumbBounds.Bottom <= PanelHost(photos).ActualHeight + 1,
+                        $"The photo scrollbar must be visibly usable: bar {bar.Visibility}, thumb {thumb.Visibility}, thumb height {thumb.ActualHeight}, bounds {thumbBounds}.");
+                    var listBounds = list.TransformToAncestor(PanelHost(photos)).TransformBounds(new Rect(list.RenderSize));
+                    var previous = All<Button>(photos).Single(b => Equals(b.Content, "Previous"));
+                    Require(listBounds.Bottom <= previous.TransformToAncestor(PanelHost(photos)).TransformBounds(new Rect(previous.RenderSize)).Top + 1,
+                        "The full playlist and its scrollbar stay above the playback controls.");
                     Require(list.ItemContainerGenerator.ContainerFromIndex(list.SelectedIndex) is ListBoxItem item && item.IsVisible &&
                         scroll[0].VerticalOffset > 0 && All<Button>(photos).Any(b => Equals(b.Content, "Next") && b.IsVisible),
                         "The last photo remains reachable with playback controls still present.");
