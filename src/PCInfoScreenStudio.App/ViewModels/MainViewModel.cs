@@ -1135,6 +1135,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         AttachPhotoFrame(settings);
         InitializePhotoFrameRuntime();
         RaisePropertyChanged(nameof(Document));
+        NotifyCanvasScale();
     }
 
     private void RaisePhotoCommandStates()
@@ -1638,6 +1639,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         InitializePhotoFrameRuntime();
         RaisePropertyChanged(nameof(Workspace));
         RaisePropertyChanged(nameof(Document));
+        NotifyCanvasScale();
         RaisePropertyChanged(nameof(CanvasSize));
         RaisePropertyChanged(nameof(IsDirty));
         RaisePropertyChanged(nameof(WindowTitle));

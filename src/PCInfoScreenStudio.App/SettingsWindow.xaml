@@ -102,7 +102,8 @@
         <Border Style="{StaticResource CardStyle}" Padding="14">
           <StackPanel>
             <TextBlock Text="Canvas zoom" Foreground="{StaticResource MutedTextBrush}" />
-            <Slider AutomationProperties.Name="Canvas zoom" Minimum="0.5" Maximum="3" SmallChange="0.1" LargeChange="0.5" Value="{Binding CanvasZoom}" ToolTip="Change editor magnification. The physical screen resolution stays unchanged." />
+            <CheckBox Content="Fit canvas to available space" IsChecked="{Binding IsCanvasFit}" ToolTip="Follow window and panel resizing while preserving the theme resolution." />
+            <Slider AutomationProperties.Name="Canvas zoom" Minimum="0.1" Maximum="3" SmallChange="0.1" LargeChange="0.5" Value="{Binding CanvasZoom}" IsEnabled="{Binding CanAdjustCanvasZoom}" ToolTip="Manual preview zoom. Clear Fit to adjust; the physical screen resolution stays unchanged." />
             <Button Content="Run setup assistant again" Command="{Binding ShowSetupAssistantCommand}" HorizontalAlignment="Left" Margin="2,8,2,2" ToolTip="Reopen the guided screen connection and starter-theme assistant." />
           </StackPanel>
         </Border>

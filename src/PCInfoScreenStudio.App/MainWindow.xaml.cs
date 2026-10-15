@@ -190,7 +190,7 @@ public partial class MainWindow : Window
     }
 
     private void OnWorkspaceSizeChanged(object sender, SizeChangedEventArgs e) => ConstrainWorkspacePanels();
-    private void OnDockOpenPanelsChanged(object? sender, EventArgs e) => ConstrainWorkspacePanels();
+    private void OnDockSizeChanged(object? sender, EventArgs e) => ConstrainWorkspacePanels();
 
     private void ConstrainWorkspacePanels()
     {

@@ -40,7 +40,7 @@ public sealed class WorkspaceDock : Grid
     public double PreferredPanelWidth => _preferredPanelWidth;
     public double EffectivePanelWidth => HasOpenPanels ? _contentColumn.Width.Value : 0;
     public event EventHandler? LayoutChanged;
-    public event EventHandler? OpenPanelsChanged;
+    public event EventHandler? LayoutSizeChanged;
 
     public WorkspaceDock()
     {
@@ -138,7 +138,7 @@ public sealed class WorkspaceDock : Grid
     {
         if (!_ready || _restoring) return;
         RebuildStack();
-        OpenPanelsChanged?.Invoke(this, EventArgs.Empty);
+        LayoutSizeChanged?.Invoke(this, EventArgs.Empty);
         LayoutChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -210,7 +210,8 @@ public sealed class WorkspaceDock : Grid
     internal void ResizePanel(double width, bool save)
     {
         if (!double.IsFinite(width)) return;
-        _preferredPanelWidth = Math.Clamp(width, 240, Math.Max(240, _maximumPanelWidth));
+        _preferredPanelWidth = Math.Clamp(width, 240, 460);
+        LayoutSizeChanged?.Invoke(this, EventArgs.Empty);
         UpdateWidths();
         if (save) LayoutChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -249,6 +250,6 @@ public sealed class WorkspaceDock : Grid
             RebuildStack();
         }
         finally { _restoring = false; }
-        OpenPanelsChanged?.Invoke(this, EventArgs.Empty);
+        LayoutSizeChanged?.Invoke(this, EventArgs.Empty);
     }
 }

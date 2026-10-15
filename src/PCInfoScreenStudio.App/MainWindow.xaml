@@ -125,7 +125,7 @@
 
       <!-- Collapsible tools. Open sections share the available dock height. -->
       <controls:WorkspaceDock x:Name="LeftDock" Grid.Column="0" Visibility="{Binding EditorChromeVisibility}"
-                              LayoutChanged="OnDockLayoutChanged" OpenPanelsChanged="OnDockOpenPanelsChanged">
+                              LayoutChanged="OnDockLayoutChanged" LayoutSizeChanged="OnDockSizeChanged">
         <controls:WorkspacePanel PanelId="themes" Title="Themes" Icon="&#xE8F1;" IsOpen="False">
           <controls:ThemeLibraryPanel />
         </controls:WorkspacePanel>
@@ -496,7 +496,7 @@
 
       <controls:WorkspaceDock x:Name="RightDock" Grid.Column="2" RailOnRight="True"
                               Visibility="{Binding InspectorChromeVisibility}"
-                              LayoutChanged="OnDockLayoutChanged" OpenPanelsChanged="OnDockOpenPanelsChanged">
+                              LayoutChanged="OnDockLayoutChanged" LayoutSizeChanged="OnDockSizeChanged">
         <controls:WorkspacePanel PanelId="properties" Title="Properties" Icon="&#xE713;" IsOpen="True">
           <StackPanel>
             <TextBlock Text="Select an item on the canvas or in Layers." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="2,20">
