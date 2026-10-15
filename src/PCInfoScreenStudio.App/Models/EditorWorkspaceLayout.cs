@@ -24,7 +24,9 @@ public sealed class DockLayout
             .DistinctBy(p => p.Id).Take(20).Select(p => new WorkspacePanelLayout
             {
                 Id = p.Id, IsOpen = p.IsOpen,
-                Weight = double.IsFinite(p.Weight) ? Math.Clamp(p.Weight, .1, 10) : 1
+                Weight = double.IsFinite(p.Weight) ? Math.Clamp(p.Weight, .1, 10) : 1,
+                PreferredHeight = p.PreferredHeight is double height && double.IsFinite(height) && height > 0
+                    ? Math.Clamp(height, 72, 10000) : null
             }).ToList()
     };
 }
@@ -34,4 +36,5 @@ public sealed class WorkspacePanelLayout
     public string Id { get; set; } = string.Empty;
     public bool IsOpen { get; set; } = true;
     public double Weight { get; set; } = 1;
+    public double? PreferredHeight { get; set; }
 }

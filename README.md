@@ -4,7 +4,7 @@ A visual Windows editor and runtime for 3.5-inch Turing/TURZX-style serial scree
 
 > **Status:** `0.10.0-alpha.20`. Actively developed alpha. A permanent Windows x64 [portable download](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/tag/v0.10.0-alpha.20) is available. Development builds are also available through GitHub Actions. There is no installer, code signing or automatic updater.
 
-The draft alpha.24 workspace adds labelled collapsible panel strips, resizable stacks, remembered panel arrangements and automatic canvas fitting. **Widgets** has the same name in Info Screen and Hybrid. Photo Frame and Hybrid keep folder watching and linked playlists under **Photos > Folders & playlists**, alongside photo imports. **Fit** follows window/panel resizing; **100%** and manual zoom preserve exact editing scale. **Reset workspace** restores the panel layout. This development candidate is separate from the published alpha.20 download.
+The draft alpha.25 workspace adds labelled collapsible panel strips, content-sized resizable stacks, remembered panel arrangements and automatic canvas fitting. Panels open at their content height; long sections scroll, and explicit height changes are remembered. **Widgets** has the same name in Info Screen and Hybrid. Photo Frame and Hybrid keep folder watching and linked playlists under **Add photos > Folders & playlists**, alongside photo imports. **Fit** follows window/panel resizing; **100%** and manual zoom preserve exact editing scale. **Reset workspace** restores the panel layout. This development candidate is separate from the published alpha.20 download.
 
 Use **Brightness** beside **Start/Stop display** to adjust the selected physical screen from 0 to 100%, or reset it to 50%. Each screen family remembers its own level across restart/reconnect; this is an app setting, separate from themes.
 
@@ -16,7 +16,7 @@ Alpha.20 adds validated settings/session backups, guarded file operations with p
 
 ## Interface tour
 
-These screenshots were captured from the actual alpha.13 WPF interface in the [successful Windows release checks](https://github.com/ManethonSega/PC-Info-Screen-Studio/actions/runs/38543047505). Hardware readings are sample data; editor content is illustrative. They document the alpha.13 interface. The alpha.24 docked workspace is shown in the previews attached to [draft PR #32](https://github.com/ManethonSega/PC-Info-Screen-Studio/pull/32); neither set establishes physical-device validation.
+These screenshots were captured from the actual alpha.13 WPF interface in the [successful Windows release checks](https://github.com/ManethonSega/PC-Info-Screen-Studio/actions/runs/38543047505). Hardware readings are sample data; editor content is illustrative. They document the alpha.13 interface. The alpha.25 docked workspace is shown in the previews attached to [draft PR #32](https://github.com/ManethonSega/PC-Info-Screen-Studio/pull/32); neither set establishes physical-device validation.
 
 ### Hardware overview
 

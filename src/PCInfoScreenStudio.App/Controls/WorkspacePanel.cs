@@ -10,6 +10,7 @@ public sealed class WorkspacePanel : ContentControl
     public string Icon { get; set; } = string.Empty;
     public bool IsScrollable { get; set; } = true;
     public double Weight { get; set; } = 1;
+    public double? PreferredHeight { get; set; }
     public static readonly DependencyProperty IsOpenProperty = DependencyProperty.Register(
         nameof(IsOpen), typeof(bool), typeof(WorkspacePanel), new FrameworkPropertyMetadata(true,
             FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));

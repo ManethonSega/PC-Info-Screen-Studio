@@ -18,9 +18,9 @@ public sealed class WorkspaceDock : Grid
 {
     public const double RailWidth = 104;
     public const double DividerWidth = 6;
-    private const double MinimumPanelHeight = 112;
+    private const double MinimumPanelHeight = 72;
     private readonly StackPanel _rail = new();
-    private readonly Grid _stack = new();
+    private readonly Grid _stack = new() { VerticalAlignment = VerticalAlignment.Top };
     private readonly ScrollViewer _stackScroll;
     private readonly ColumnDefinition _contentColumn = new();
     private readonly ColumnDefinition _dividerColumn = new();
@@ -47,7 +47,8 @@ public sealed class WorkspaceDock : Grid
         ClipToBounds = true;
         SetResourceReference(BackgroundProperty, "PanelBrush");
         _stackScroll = new ScrollViewer { Content = _stack, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, CanContentScroll = false };
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, CanContentScroll = false,
+            VerticalContentAlignment = VerticalAlignment.Top };
         _widthGrip = new WorkspaceWidthGrip(this) { Width = DividerWidth, HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Stretch, Cursor = Cursors.SizeWE, Focusable = true };
         _widthGrip.SetResourceReference(StyleProperty, "WorkspaceWidthGripStyle");
@@ -59,7 +60,7 @@ public sealed class WorkspaceDock : Grid
             else LayoutChanged?.Invoke(this, EventArgs.Empty);
         };
         Loaded += (_, _) => EnsureReady();
-        SizeChanged += (_, _) => UpdateStackHeight();
+        SizeChanged += (_, _) => UpdateStackLimits();
     }
 
     public void EnsureReady()
@@ -164,7 +165,22 @@ public sealed class WorkspaceDock : Grid
                     ResizeBehavior = GridResizeBehavior.PreviousAndNext, ShowsPreview = false, Focusable = true };
                 splitter.SetResourceReference(StyleProperty, "WorkspaceStackSplitterStyle");
                 AutomationProperties.SetName(splitter, "Resize " + open[i - 1].Title.ToLowerInvariant() + " and " + panel.Title.ToLowerInvariant() + " panels");
-                splitter.DragCompleted += (_, e) => { if (!e.Canceled) SaveHeights(); };
+                var preceding = open[i - 1];
+                double? beforeDrag = null;
+                splitter.DragStarted += (_, _) =>
+                {
+                    beforeDrag = preceding.PreferredHeight;
+                    PrepareHeightResize(preceding);
+                };
+                splitter.DragCompleted += (_, e) =>
+                {
+                    if (!e.Canceled) SaveHeights();
+                    else { preceding.PreferredHeight = beforeDrag; RebuildStack(); }
+                };
+                splitter.PreviewKeyDown += (_, e) =>
+                {
+                    if (e.Key is Key.Up or Key.Down) PrepareHeightResize(preceding);
+                };
                 splitter.PreviewKeyUp += (_, e) =>
                 {
                     if (e.Key is Key.Up or Key.Down)
@@ -172,25 +188,51 @@ public sealed class WorkspaceDock : Grid
                 };
                 SetRow(splitter, _stack.RowDefinitions.Count - 1); _stack.Children.Add(splitter);
             }
-            _stack.RowDefinitions.Add(new RowDefinition { Height = new GridLength(panel.Weight, GridUnitType.Star), MinHeight = MinimumPanelHeight });
+            _stack.RowDefinitions.Add(new RowDefinition
+            {
+                Height = panel.PreferredHeight is double height ? new GridLength(height) : GridLength.Auto,
+                MinHeight = MinimumPanelHeight
+            });
             var host = _hosts[panel]; SetRow(host, _stack.RowDefinitions.Count - 1); _stack.Children.Add(host);
         }
-        UpdateWidths(); UpdateStackHeight();
+        UpdateWidths(); UpdateStackLimits();
+    }
+
+    private void PrepareHeightResize(WorkspacePanel panel)
+    {
+        var host = _hosts[panel];
+        var row = _stack.RowDefinitions[GetRow(host)];
+        panel.PreferredHeight ??= host.ActualHeight;
+        if (row.Height.IsAuto) row.Height = new GridLength(host.ActualHeight);
+        UpdateStackLimits();
     }
 
     private void SaveHeights()
     {
         _stack.UpdateLayout();
-        var open = _order.Where(p => p.Visibility == Visibility.Visible && p.IsOpen).ToArray();
-        var average = open.Length == 0 ? 1 : open.Average(p => _hosts[p].ActualHeight);
-        if (average > 0) foreach (var panel in open) panel.Weight = Math.Clamp(_hosts[panel].ActualHeight / average, .1, 10);
+        foreach (var panel in _order.Where(p => p.Visibility == Visibility.Visible && p.IsOpen))
+        {
+            var row = _stack.RowDefinitions[GetRow(_hosts[panel])];
+            if (row.Height.IsAbsolute) panel.PreferredHeight = Math.Clamp(row.Height.Value, MinimumPanelHeight, 10000);
+        }
+        UpdateStackLimits();
         LayoutChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private void UpdateStackHeight()
+    private void UpdateStackLimits()
     {
-        var count = _order.Count(p => p.Visibility == Visibility.Visible && p.IsOpen);
-        _stack.Height = Math.Max(0, Math.Max(ActualHeight, count * MinimumPanelHeight + Math.Max(0, count - 1) * DividerWidth));
+        if (!_ready) return;
+        var open = _order.Where(p => p.Visibility == Visibility.Visible && p.IsOpen).ToArray();
+        var available = Math.Max(MinimumPanelHeight, ActualHeight);
+        var automaticLimit = Math.Max(MinimumPanelHeight,
+            (available - Math.Max(0, open.Length - 1) * DividerWidth) / Math.Max(1, open.Length));
+        foreach (var panel in open)
+        {
+            var host = _hosts[panel];
+            // Auto rows follow live content; only an explicit resize creates a saved height.
+            host.MaxHeight = panel.PreferredHeight.HasValue ? available : automaticLimit;
+            _stack.RowDefinitions[GetRow(host)].MaxHeight = available;
+        }
     }
 
     public void ConstrainPanelWidth(double maximum)
@@ -232,7 +274,8 @@ public sealed class WorkspaceDock : Grid
     {
         EnsureReady();
         return new DockLayout { Width = _preferredPanelWidth,
-            Panels = _order.Select(p => new WorkspacePanelLayout { Id = p.PanelId, IsOpen = p.IsOpen, Weight = p.Weight }).ToList() };
+            Panels = _order.Select(p => new WorkspacePanelLayout
+                { Id = p.PanelId, IsOpen = p.IsOpen, Weight = p.Weight, PreferredHeight = p.PreferredHeight }).ToList() };
     }
 
     public void RestoreLayout(DockLayout layout)
@@ -245,7 +288,7 @@ public sealed class WorkspaceDock : Grid
             _order.Clear();
             foreach (var state in layout.Panels)
                 if (known.Remove(state.Id, out var panel))
-                { panel.IsOpen = state.IsOpen; panel.Weight = state.Weight; _order.Add(panel); }
+                { panel.IsOpen = state.IsOpen; panel.Weight = state.Weight; panel.PreferredHeight = state.PreferredHeight; _order.Add(panel); }
             _order.AddRange(Panels.Where(p => known.ContainsKey(p.PanelId)));
             RebuildStack();
         }

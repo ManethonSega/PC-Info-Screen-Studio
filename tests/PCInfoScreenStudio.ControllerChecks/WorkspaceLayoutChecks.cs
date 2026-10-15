@@ -40,6 +40,8 @@ internal static class WorkspaceLayoutChecks
                 "Defaults expose Layers and Properties with Fit active and optional media collapsed.");
             Require(All<Button>(left.Panels.Single(p => p.PanelId == "widgets")).All(b => b.ActualHeight <= 42),
                 "Direct Add buttons retain compact heights instead of stretching to fill a panel.");
+            CheckContentSizing(window, vm, left, right, captures);
+            CheckDynamicContent(pump);
             var content = window.FindName("WidgetProperties");
             vm.CanvasSize = DisplayCanvasSize.Turing52; Flush(window);
             var original = vm.SelectedWidget!;
@@ -72,15 +74,18 @@ internal static class WorkspaceLayoutChecks
             Flush(window);
             Require(!firstOrder.SequenceEqual(left.CaptureLayout().Panels.Select(p => p.Id)), "The panel-up button changes stack order.");
             var splitter = All<GridSplitter>(left).Single();
-            var beforeWeights = left.CaptureLayout().Panels.Select(p => p.Weight).ToArray();
+            var beforeHeights = left.CaptureLayout().Panels.Select(p => p.PreferredHeight).ToArray();
             splitter.Focus();
+            splitter.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(window), 0, Key.Down)
+                { RoutedEvent = Keyboard.PreviewKeyDownEvent });
             splitter.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(window), 0, Key.Down)
                 { RoutedEvent = Keyboard.KeyDownEvent });
             splitter.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(window), 0, Key.Down)
                 { RoutedEvent = Keyboard.PreviewKeyUpEvent });
             Flush(window);
-            Require(!beforeWeights.SequenceEqual(left.CaptureLayout().Panels.Select(p => p.Weight)),
-                "Keyboard resizing changes and persists panel proportions.");
+            Require(!beforeHeights.SequenceEqual(left.CaptureLayout().Panels.Select(p => p.PreferredHeight)),
+                "Keyboard resizing creates a saved height while untouched panels stay automatic.");
+            Require(media.PreferredHeight is null, "Resizing Layers leaves Media in automatic sizing mode.");
             var grip = All<Thumb>(right).Single(t => AutomationProperties.GetName(t) == "Right panel width");
             var range = (IRangeValueProvider)FrameworkElementAutomationPeer.CreatePeerForElement(grip)!.GetPattern(PatternInterface.RangeValue)!;
             range.SetValue(390); Flush(window);
@@ -130,7 +135,7 @@ internal static class WorkspaceLayoutChecks
             vm.Document.Mode = ScreenMode.InfoScreen; Flush(window);
             var saved = left.CaptureLayout();
             var restored = new SettingsController(new AppSettingsService(path));
-            Require(restored.WorkspaceLayout.Left.Panels.Select(p => (p.Id, p.IsOpen, p.Weight)).SequenceEqual(saved.Panels.Select(p => (p.Id, p.IsOpen, p.Weight))) &&
+            Require(restored.WorkspaceLayout.Left.Panels.Select(p => (p.Id, p.IsOpen, p.PreferredHeight)).SequenceEqual(saved.Panels.Select(p => (p.Id, p.IsOpen, p.PreferredHeight))) &&
                 restored.WorkspaceLayout.Right.Width == 390 && restored.IsCanvasFit,
                 "Saved preferences restore open states, order, heights, widths and Fit.");
             using (var secondVm = new MainViewModel(restored, new SessionStateService(Path.Combine(root, "workspace-layout-second"))))
@@ -139,7 +144,7 @@ internal static class WorkspaceLayoutChecks
                 try
                 {
                     var secondLeft = (WorkspaceDock)secondWindow.FindName("LeftDock");
-                    Require(secondLeft.CaptureLayout().Panels.Select(p => (p.Id, p.IsOpen, p.Weight)).SequenceEqual(saved.Panels.Select(p => (p.Id, p.IsOpen, p.Weight))),
+                    Require(secondLeft.CaptureLayout().Panels.Select(p => (p.Id, p.IsOpen, p.PreferredHeight)).SequenceEqual(saved.Panels.Select(p => (p.Id, p.IsOpen, p.PreferredHeight))),
                         "A new window actually restores the saved arrangement.");
                 }
                 finally { secondWindow.MarkSessionSavedForExit(); secondWindow.Close(); }
@@ -147,6 +152,7 @@ internal static class WorkspaceLayoutChecks
             var beforeReset = (original.X, original.Y, original.Width, original.Height);
             Invoke(All<Button>(canvasArea).Single(b => Equals(b.Content, "Reset workspace"))); Flush(window);
             Require(vm.IsCanvasFit && left.PreferredPanelWidth == 300 && right.PreferredPanelWidth == 330 &&
+                left.CaptureLayout().Panels.All(p => p.PreferredHeight is null) &&
                 left.CaptureLayout().Panels.Select(p => p.Id).SequenceEqual(left.Panels.Select(p => p.PanelId)) &&
                 (original.X, original.Y, original.Width, original.Height) == beforeReset,
                 "Reset restores the default workspace without changing artwork.");
@@ -159,13 +165,105 @@ internal static class WorkspaceLayoutChecks
         finally { window.MarkSessionSavedForExit(); window.Close(); }
     }
 
+    private static void CheckContentSizing(Window window, MainViewModel vm, WorkspaceDock left, WorkspaceDock right, string? captures)
+    {
+        var leftLayout = left.CaptureLayout(); var rightLayout = right.CaptureLayout();
+        var mode = vm.Document.Mode; var selection = vm.SelectedWidget;
+        try
+        {
+            foreach (var current in new[] { ScreenMode.InfoScreen, ScreenMode.PhotoFrame, ScreenMode.Hybrid })
+            {
+                vm.Document.Mode = current; vm.SelectedWidget = null;
+                foreach (var panel in left.Panels.Concat(right.Panels)) panel.IsOpen = false;
+                var active = left.Panels.Single(p => p.PanelId == (current switch
+                    { ScreenMode.InfoScreen => "widgets", ScreenMode.Hybrid => "overlays", _ => "photos" }));
+                active.IsOpen = true;
+                var properties = right.Panels.Single(p => p.PanelId == "properties");
+                properties.IsOpen = true; Flush(window);
+                if (current != ScreenMode.PhotoFrame)
+                {
+                    Require(PanelHost(active).ActualHeight < 260 && PanelHost(active).ActualHeight < left.ActualHeight - 60,
+                        current + " opens its small Widgets panel at content height, leaving unused space below.");
+                    Require(PanelHost(properties).ActualHeight < 180,
+                        current + " keeps an empty Properties panel compact on the right.");
+                }
+                if (current != ScreenMode.InfoScreen)
+                {
+                    var tab = Tab(left, "Add photos panel");
+                    var label = All<TextBlock>(tab).Single(t => t.Text == "Add photos");
+                    var bounds = label.TransformToAncestor(tab).TransformBounds(new Rect(label.RenderSize));
+                    Require(bounds.Right <= tab.ActualWidth - 3, current + " keeps the complete Add photos label inside its narrow rail.");
+                }
+                Capture(window, captures, "Workspace-auto-" + current + ".png");
+            }
+        }
+        finally
+        {
+            vm.Document.Mode = mode; vm.SelectedWidget = selection;
+            left.RestoreLayout(leftLayout); right.RestoreLayout(rightLayout); Flush(window);
+        }
+    }
+
+    private static void CheckDynamicContent(Action<Func<bool>> pump)
+    {
+        var section = new Expander { Header = "More settings", Content = new Border { Height = 180 } };
+        var content = new StackPanel();
+        content.Children.Add(new Button { Content = "Example setting" }); content.Children.Add(section);
+        var first = new WorkspacePanel { PanelId = "first", Title = "Settings", Content = content };
+        var second = new WorkspacePanel { PanelId = "second", Title = "More", Content = new Button { Content = "Another setting" } };
+        var dock = new WorkspaceDock(); dock.Panels.Add(first); dock.Panels.Add(second);
+        var window = new Window { Width = 430, Height = 650, Content = dock };
+        try
+        {
+            window.Show(); pump(() => window.IsVisible); Flush(window);
+            var compact = PanelHost(first).ActualHeight;
+            Require(compact < 200 && PanelHost(second).ActualHeight < 130,
+                "Several short panels use content heights instead of dividing all available height.");
+            var splitter = All<GridSplitter>(dock).Single();
+            splitter.RaiseEvent(new DragStartedEventArgs(0, 0) { RoutedEvent = Thumb.DragStartedEvent });
+            splitter.RaiseEvent(new DragDeltaEventArgs(0, 20) { RoutedEvent = Thumb.DragDeltaEvent });
+            splitter.RaiseEvent(new DragCompletedEventArgs(0, 20, true) { RoutedEvent = Thumb.DragCompletedEvent });
+            Flush(window);
+            Require(first.PreferredHeight is null && Math.Abs(PanelHost(first).ActualHeight - compact) < 1,
+                "Cancelling a divider drag returns the panel to its automatic content height.");
+            second.IsOpen = false; Flush(window);
+            Require(Math.Abs(PanelHost(first).ActualHeight - compact) < 1,
+                "Closing a neighbour does not stretch the remaining short panel.");
+            section.IsExpanded = true; Flush(window);
+            Require(PanelHost(first).ActualHeight > compact + 150,
+                "Expanding content grows an automatic panel without reopening it.");
+            section.IsExpanded = false; Flush(window);
+            Require(Math.Abs(PanelHost(first).ActualHeight - compact) < 1,
+                "Collapsing content shrinks an automatic panel again.");
+            content.Children.Add(new Border { Height = 2000 }); second.IsOpen = true; Flush(window);
+            var scroll = All<ScrollViewer>(PanelHost(first)).Single();
+            Require(PanelHost(first).ActualHeight <= dock.ActualHeight / 2 + 1 && scroll.ScrollableHeight > 1000 && scroll.ViewportHeight > 0,
+                "Long panels are bounded and scroll while a neighbouring panel stays visible.");
+            Require(PanelHost(second).TransformToAncestor(dock).TransformBounds(new Rect(PanelHost(second).RenderSize)).Bottom <= dock.ActualHeight + 1,
+                "The next panel remains inside the viewport beside long content.");
+            var legacy = dock.CaptureLayout(); legacy.Panels[0].Weight = 10;
+            content.Children.RemoveAt(content.Children.Count - 1); dock.RestoreLayout(legacy); Flush(window);
+            Require(Math.Abs(PanelHost(first).ActualHeight - compact) < 1,
+                "Legacy proportional weights do not force blank space into automatic panels.");
+        }
+        finally { window.Close(); }
+    }
+
+    private static Border PanelHost(WorkspacePanel panel)
+    {
+        for (DependencyObject? current = panel; current is not null; current = VisualTreeHelper.GetParent(current))
+            if (current is Border { Child: Grid grid } border && grid.Children.OfType<DockPanel>().Any()) return border;
+        throw new InvalidOperationException("Open panel host not found.");
+    }
+
     private static void CheckPreferenceRepair(string root)
     {
         var path = Path.Combine(root, "workspace-layout-repair.json");
-        File.WriteAllText(path, """{"SettingsVersion":5,"WeatherCity":"Keep me","UsbBrightness":72,"WorkspaceLayout":{"Left":{"Width":-500,"Panels":[null,{"Id":"layers","Weight":0},{"Id":"layers","Weight":999}]},"Right":null}}""");
+        File.WriteAllText(path, """{"SettingsVersion":5,"WeatherCity":"Keep me","UsbBrightness":72,"WorkspaceLayout":{"Left":{"Width":-500,"Panels":[null,{"Id":"layers","Weight":0,"PreferredHeight":-200},{"Id":"layers","Weight":999}]},"Right":null}}""");
         var loaded = new AppSettingsService(path).Load();
         Require(loaded.WeatherCity == "Keep me" && loaded.UsbBrightness == 72 && loaded.WorkspaceLayout.Left.Width == 240 &&
-            loaded.WorkspaceLayout.Left.Panels.Count == 1 && loaded.WorkspaceLayout.Left.Panels[0].Weight == .1 && loaded.WorkspaceLayout.Right.Width == 330,
+            loaded.WorkspaceLayout.Left.Panels.Count == 1 && loaded.WorkspaceLayout.Left.Panels[0].Weight == .1 &&
+            loaded.WorkspaceLayout.Left.Panels[0].PreferredHeight is null && loaded.WorkspaceLayout.Right.Width == 330,
             "Malformed layout fields are repaired without losing unrelated valid preferences.");
     }
 
