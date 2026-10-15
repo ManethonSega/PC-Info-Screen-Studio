@@ -155,37 +155,12 @@
           </StackPanel>
         </controls:WorkspacePanel>
         <controls:WorkspacePanel PanelId="photos" Title="Photos" Icon="&#xE91B;" IsOpen="True">
-        <controls:WorkspacePanel.Style><Style TargetType="controls:WorkspacePanel"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.PhotoFrame}"><Setter Property="Visibility" Value="Visible" /></DataTrigger><DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.Hybrid}"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></controls:WorkspacePanel.Style>
-            <StackPanel Margin="0,12,0,0">
-              <StackPanel.Style>
-                <Style TargetType="StackPanel">
-                  <Setter Property="Visibility" Value="Collapsed" />
-                  <Style.Triggers>
-                    <DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.PhotoFrame}"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
-                    <DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.Hybrid}"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
-                  </Style.Triggers>
-                </Style>
-              </StackPanel.Style>
-
-              <TextBlock FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="4,2,0,7">
-                <TextBlock.Style>
-                  <Style TargetType="TextBlock">
-                    <Setter Property="Text" Value="Photo frame" />
-                    <Style.Triggers>
-                      <DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.Hybrid}">
-                        <Setter Property="Text" Value="Hybrid" />
-                      </DataTrigger>
-                    </Style.Triggers>
-                  </Style>
-                </TextBlock.Style>
-              </TextBlock>
-
-              <Expander Header="Add photos" IsExpanded="True" Margin="0,6,0,0">
-                <UniformGrid Columns="2" Margin="0,5,0,0">
+          <controls:WorkspacePanel.Style><Style TargetType="controls:WorkspacePanel"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.PhotoFrame}"><Setter Property="Visibility" Value="Visible" /></DataTrigger><DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.Hybrid}"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></controls:WorkspacePanel.Style>
+          <StackPanel>
+            <UniformGrid Columns="2" Margin="0,5,0,0">
                   <Button Content="Add files" Command="{Binding AddPhotosCommand}" Padding="10,7" ToolTip="Select one or several photo files. They remain linked to this PC." />
                   <Button Content="Add folder" Command="{Binding AddPhotoFolderCommand}" Padding="10,7" ToolTip="Add photos from a folder and its subfolders. Saving this mode's theme remembers the folder and reloads its photos when opened." />
                 </UniformGrid>
-              </Expander>
 
               <ListBox x:Name="PhotoPlaylist"
                        Height="220"
@@ -217,10 +192,12 @@
                 <Button Content="Remove" Command="{Binding RemovePhotoCommand}" ToolTip="Remove this photo from the playlist. The original file stays on your PC." />
               </UniformGrid>
               <TextBlock Text="{Binding PhotoPositionLabel}" HorizontalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
-
-              <Expander Header="Album settings" IsExpanded="True" Margin="0,6,0,0">
-                <StackPanel Margin="0,5,0,0">
-                  <Grid>
+          </StackPanel>
+        </controls:WorkspacePanel>
+        <controls:WorkspacePanel PanelId="slideshow" Title="Slideshow" Icon="&#xE768;" IsOpen="False">
+          <controls:WorkspacePanel.Style><Style TargetType="controls:WorkspacePanel"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.PhotoFrame}"><Setter Property="Visibility" Value="Visible" /></DataTrigger><DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.Hybrid}"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></controls:WorkspacePanel.Style>
+          <StackPanel>
+            <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                     <StackPanel Margin="0,0,4,0"><TextBlock Text="Photo duration (s)" Foreground="{StaticResource MutedTextBrush}" /><TextBox AutomationProperties.Name="Photo duration in seconds" controls:NumericValidation.Field="PhotoDuration" Text="{Binding Document.PhotoFrame.DefaultDurationSeconds, UpdateSourceTrigger=LostFocus}" ToolTip="How long every photo remains visible." /></StackPanel>
                     <StackPanel Grid.Column="1" Margin="4,0,0,0"><TextBlock Text="Transition time (s)" Foreground="{StaticResource MutedTextBrush}" /><TextBox AutomationProperties.Name="Transition duration in seconds" controls:NumericValidation.Field="TransitionDuration" Text="{Binding Document.PhotoFrame.TransitionDurationSeconds, UpdateSourceTrigger=LostFocus}" ToolTip="Duration of the transition between photos." /></StackPanel>
@@ -235,7 +212,12 @@
                     <CheckBox Content="Loop" IsChecked="{Binding Document.PhotoFrame.Loop}" Margin="0,3,15,3" ToolTip="Restart at the beginning after the last photo." />
                     <CheckBox Content="Shuffle" IsChecked="{Binding Document.PhotoFrame.Shuffle}" ToolTip="Choose the next photo randomly." />
                   </StackPanel>
-                  <CheckBox Content="Show captions" IsChecked="{Binding Document.PhotoFrame.ShowCaptions}" Margin="0,4,0,2" ToolTip="Show one globally configured caption style for all photos." />
+          </StackPanel>
+        </controls:WorkspacePanel>
+        <controls:WorkspacePanel PanelId="captions" Title="Captions" Icon="&#xE8D2;" IsOpen="False">
+          <controls:WorkspacePanel.Style><Style TargetType="controls:WorkspacePanel"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.PhotoFrame}"><Setter Property="Visibility" Value="Visible" /></DataTrigger><DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.Hybrid}"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></controls:WorkspacePanel.Style>
+          <StackPanel>
+            <CheckBox Content="Show captions" IsChecked="{Binding Document.PhotoFrame.ShowCaptions}" Margin="0,4,0,2" ToolTip="Show one globally configured caption style for all photos." />
                   <TextBlock Text="Caption source" Foreground="{StaticResource MutedTextBrush}" Margin="0,4,0,0" />
                   <ComboBox AutomationProperties.Name="Caption content" ItemsSource="{Binding PhotoCaptionModes}"
                             DisplayMemberPath="Label"
@@ -282,20 +264,12 @@
                       <TextBox AutomationProperties.Name="Caption outline thickness" controls:NumericValidation.Field="OutlineThickness" Text="{Binding Document.PhotoFrame.CaptionOutlineThickness, UpdateSourceTrigger=LostFocus}" ToolTip="Set to 0 for no outline." />
                     </StackPanel>
                   </Grid>
-                </StackPanel>
-              </Expander>
-
-              <Expander Header="Hybrid overlays" IsExpanded="True" Margin="0,6,0,0">
-                <Expander.Style>
-                  <Style TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}">
-                    <Setter Property="Visibility" Value="Collapsed" />
-                    <Style.Triggers>
-                      <DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.Hybrid}"><Setter Property="Visibility" Value="Visible" /></DataTrigger>
-                    </Style.Triggers>
-                  </Style>
-                </Expander.Style>
-                <StackPanel Margin="0,5,0,0">
-                  <TextBlock Text="Add only the information you want over the photos." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="2,0,2,4" />
+          </StackPanel>
+        </controls:WorkspacePanel>
+        <controls:WorkspacePanel PanelId="overlays" Title="Overlays" Icon="&#xE710;" IsOpen="False">
+          <controls:WorkspacePanel.Style><Style TargetType="controls:WorkspacePanel"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.Hybrid}"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></controls:WorkspacePanel.Style>
+          <StackPanel>
+            <TextBlock Text="Add only the information you want over the photos." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="2,0,2,4" />
                   <UniformGrid Columns="2">
                     <Button Content="Text" Command="{Binding AddWidgetCommand}" CommandParameter="Text" ToolTip="Add a text overlay." />
                     <Button Content="Value" Command="{Binding AddWidgetCommand}" CommandParameter="Value" ToolTip="Add a sensor value overlay." />
@@ -304,25 +278,23 @@
                     <Button Content="Bar" Command="{Binding AddWidgetCommand}" CommandParameter="BarGauge" ToolTip="Add a bar overlay." />
                     <Button Content="Graph" Command="{Binding AddWidgetCommand}" CommandParameter="Graph" ToolTip="Add a history graph overlay." />
                     <Button Content="Shape" Command="{Binding AddWidgetCommand}" CommandParameter="Shape" ToolTip="Add a rectangle, rounded rectangle, ellipse or line overlay." />
-                    <Button Content="Hardware name" Command="{Binding AddWidgetCommand}" CommandParameter="HardwareName" ToolTip="Automatically show a CPU, GPU, SSD or RAM name over your photos." />
+                    <Button Content="Hardware name" Command="{Binding AddWidgetCommand}" CommandParameter="HardwareName" Padding="4,6" ToolTip="Automatically show a CPU, GPU, SSD or RAM name over your photos." />
                     <Button Content="Video" Command="{Binding ImportVideoCommand}" ToolTip="Add a silent video overlay linked to its original file. Keep that file available when reopening Hybrid themes." />
                   </UniformGrid>
                   <TextBlock Text="{Binding VideoImportStatus}" Foreground="{StaticResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="4,3,4,0" />
-                </StackPanel>
-              </Expander>
-
-              <Expander Header="Watched folder &amp; playlists" IsExpanded="True" Margin="0,6,0,0">
-                <StackPanel Margin="0,5,0,0">
-                  <CheckBox Content="Watch folder for new photos" IsChecked="{Binding Document.PhotoFrame.WatchFolderEnabled}" ToolTip="Automatically add new images created in the selected folder." />
+          </StackPanel>
+        </controls:WorkspacePanel>
+        <controls:WorkspacePanel PanelId="sources" Title="Sources" Icon="&#xE8B7;" IsOpen="False">
+          <controls:WorkspacePanel.Style><Style TargetType="controls:WorkspacePanel"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.PhotoFrame}"><Setter Property="Visibility" Value="Visible" /></DataTrigger><DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.Hybrid}"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></controls:WorkspacePanel.Style>
+          <StackPanel>
+            <CheckBox Content="Watch folder for new photos" IsChecked="{Binding Document.PhotoFrame.WatchFolderEnabled}" ToolTip="Automatically add new images created in the selected folder." />
                   <TextBlock Text="{Binding Document.PhotoFrame.WatchedFolder}" TextTrimming="CharacterEllipsis" Foreground="{StaticResource MutedTextBrush}" ToolTip="{Binding Document.PhotoFrame.WatchedFolder}" />
                   <Button Content="Choose watched folder" Command="{Binding ChooseWatchedFolderCommand}" ToolTip="Select the folder monitored for new photos." />
                   <UniformGrid Columns="2">
                     <Button Content="Save playlist" Command="{Binding SaveAlbumPresetCommand}" ToolTip="Save this playlist as links to photos that remain on this PC." />
                     <Button Content="Load playlist" Command="{Binding LoadAlbumPresetCommand}" ToolTip="Replace the current playlist with a saved linked playlist." />
                   </UniformGrid>
-                </StackPanel>
-              </Expander>
-            </StackPanel>
+          </StackPanel>
         </controls:WorkspacePanel>
         <controls:WorkspacePanel PanelId="layers" Title="Layers" Icon="&#xE81E;" IsOpen="True" IsScrollable="False">
         <controls:WorkspacePanel.Style><Style TargetType="controls:WorkspacePanel"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.InfoScreen}"><Setter Property="Visibility" Value="Visible" /></DataTrigger><DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.Hybrid}"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></controls:WorkspacePanel.Style>

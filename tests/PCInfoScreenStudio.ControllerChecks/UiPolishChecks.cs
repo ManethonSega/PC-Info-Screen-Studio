@@ -300,11 +300,18 @@ internal static class UiPolishChecks
 
     private static void CheckPhotoNumbers(PCInfoScreenStudio.MainWindow window, MainViewModel vm)
     {
+        var dock = (WorkspaceDock)window.FindName("LeftDock");
+        dock.Panels.Single(p => p.PanelId == "slideshow").IsOpen = true;
+        dock.Panels.Single(p => p.PanelId == "captions").IsOpen = true;
+        Flush();
         var photos = vm.Document.PhotoFrame;
         CheckField(Field(window, "Document.PhotoFrame.DefaultDurationSeconds"), "0", "10", () => photos.DefaultDurationSeconds, 10);
         CheckField(Field(window, "Document.PhotoFrame.TransitionDurationSeconds"), "11", "0", () => photos.TransitionDurationSeconds, 0);
         CheckField(Field(window, "Document.PhotoFrame.CaptionFontSize"), "101", "22", () => photos.CaptionFontSize, 22);
         CheckField(Field(window, "Document.PhotoFrame.CaptionOutlineThickness"), "-1", "0", () => photos.CaptionOutlineThickness, 0);
+        dock.Panels.Single(p => p.PanelId == "slideshow").IsOpen = false;
+        dock.Panels.Single(p => p.PanelId == "captions").IsOpen = false;
+        Flush();
     }
 
     private static void CheckField(TextBox box, string invalid, string valid, Func<double> value, double expected)

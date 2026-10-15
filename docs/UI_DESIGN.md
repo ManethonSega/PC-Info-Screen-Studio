@@ -1,6 +1,6 @@
 # Studio UI refinement
 
-The app is a .NET 10 WPF operating interface. Use collapsible docks with Themes/Widgets/Media/Photos/Layers on the left, the physical-screen canvas in the centre and contextual Properties/Sensors on the right. Keep Editor/Hardware navigation, mode/model selection, Settings, brightness and Start/Stop in the top bar. Photo Frame and Hybrid retain their own workspaces and expanded sections. The owner explicitly requested the Photoshop-inspired panel layout on 15 October 2026.
+The app is a .NET 10 WPF operating interface. Use collapsible docks with Themes/Widgets/Media/Photos/Slideshow/Captions/Overlays/Sources/Layers on the left, the physical-screen canvas in the centre and contextual Properties/Sensors on the right. Keep Editor/Hardware navigation, mode/model selection, Settings, brightness and Start/Stop in the top bar. Photo Frame and Hybrid retain their own workspaces and expanded sections. The owner explicitly requested the Photoshop-inspired panel layout on 15 October 2026.
 
 ## Visual direction
 
@@ -49,3 +49,9 @@ Floating windows and free docking drag remain a later phase. This implementation
 
 - [WPF row resizing](https://learn.microsoft.com/en-us/dotnet/desktop/wpf/controls/how-to-resize-rows-with-a-gridsplitter), native keyboard/mouse splitters.
 - [UI Automation range provider](https://learn.microsoft.com/en-us/dotnet/api/system.windows.automation.provider.irangevalueprovider?view=windowsdesktop-10.0), accessible panel width control.
+
+## Photo and Hybrid panel scopes
+
+Photos contains Add files/folder, the photo list and playback/removal controls. Slideshow holds timing, transitions, fit, background, loop and shuffle. Captions holds global caption content and typography. Sources holds folder watching and saved linked playlists. Overlays holds Hybrid widget/video actions and is hidden in Photo Frame. Each is an independent labelled rail entry, with its own open state and stack position.
+
+The original Photos panel ID is retained, so existing arrangements keep their saved Photos and Layers state. Newly introduced sections start collapsed and use the existing dock persistence/reset behavior. The same scopes apply in Photo Frame and Hybrid, with mode-specific settings and playlists retained.

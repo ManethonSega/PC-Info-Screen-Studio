@@ -113,6 +113,14 @@ internal static class WorkspaceLayoutChecks
             CheckFits(designer);
             vm.Document.Mode = ScreenMode.Hybrid; Flush(window);
             Require(right.IsVisible && layers.IsOpen, "Hybrid restores its contextual editor panels.");
+            foreach (var name in new[] { "Slideshow", "Captions", "Overlays", "Sources" })
+            {
+                var tab = Tab(left, name + " panel");
+                Toggle(tab); Flush(window);
+                Require(left.Panels.Single(p => p.Title == name).IsOpen && left.Panels.Single(p => p.PanelId == "photos").IsOpen,
+                    name + " opens independently while Photos stays open.");
+                Toggle(tab); Flush(window);
+            }
             var hint = (Border)designer.FindName("PhotoEmptyState");
             var hintBounds = hint.TransformToAncestor(designer).TransformBounds(new Rect(hint.RenderSize));
             Require(hint.IsVisible && Math.Abs(hintBounds.Width - hint.ActualWidth) < .5,
