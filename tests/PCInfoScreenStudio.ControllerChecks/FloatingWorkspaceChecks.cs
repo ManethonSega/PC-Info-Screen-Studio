@@ -39,8 +39,12 @@ internal static class FloatingWorkspaceChecks
             var floating = docking.FloatingWindows.Single();
             Require(widgets.IsFloating && floating.IsVisible && ReferenceEquals(floating.Owner, owner) && !floating.ShowInTaskbar,
                 "The accessible Float menu opens a native owned tool window.");
-            var fileDrag = new DragEventArgs(new DataObject(DataFormats.FileDrop, new[] { Path.Combine(root, "example.png") }),
-                DragDropKeyStates.None, DragDropEffects.Copy, floating, new Point(20, 60)) { RoutedEvent = DragDrop.DragOverEvent };
+            // WPF's OLE event constructor is internal; create the actual event to exercise routed file drops.
+            var dragConstructor = typeof(DragEventArgs).GetConstructor(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic,
+                null, [typeof(IDataObject), typeof(DragDropKeyStates), typeof(DragDropEffects), typeof(DependencyObject), typeof(Point)], null)!;
+            var fileDrag = (DragEventArgs)dragConstructor.Invoke([new DataObject(DataFormats.FileDrop, new[] { Path.Combine(root, "example.png") }),
+                DragDropKeyStates.None, DragDropEffects.Copy, floating, new Point(20, 60)]);
+            fileDrag.RoutedEvent = DragDrop.DragOverEvent; fileDrag.Effects = DragDropEffects.None;
             floating.RaiseEvent(fileDrag);
             Require(floating.AllowDrop && fileDrag.Effects == DragDropEffects.Copy,
                 "Floating panels preserve the existing editor file-drop routing.");
