@@ -156,7 +156,7 @@ public sealed class WorkspaceDock : Grid
         _order.Insert(Math.Clamp(index, 0, _order.Count), panel);
     }
 
-    internal void PreviewDrop(bool show, int? index = null)
+    internal void ShowDockPreview(bool show, int? index = null)
     {
         _dropPreview.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         if (!show) { UpdateWidths(); return; }

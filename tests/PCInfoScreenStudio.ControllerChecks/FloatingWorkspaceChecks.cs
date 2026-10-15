@@ -58,7 +58,7 @@ internal static class FloatingWorkspaceChecks
             Require(header.IsMouseCaptured, "The header mouse-down handler captures input for dragging across windows.");
             docking.UpdateDrag(target); Flush(owner);
             Require(docking.IsDragging && All<TextBlock>(right).Any(t => t.IsVisible && t.Text == "Dock right"),
-                "A drag exposes a visible target on an otherwise empty dock.");
+                $"A drag exposes a visible target on an otherwise empty dock. Active={docking.IsDragging}; capture={header.IsMouseCaptured}; right={right.IsVisible}/{right.RenderSize}; labels={string.Join(",", All<TextBlock>(right).Where(t => t.Text.StartsWith("Dock ")).Select(t => t.Text + ":" + t.IsVisible))}");
             Capture(owner, captures, "Workspace-drag-target.png");
             header.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(floating), 0, Key.Escape)
                 { RoutedEvent = Keyboard.PreviewKeyDownEvent }); Flush(owner);
@@ -140,6 +140,15 @@ internal static class FloatingWorkspaceChecks
                 (widget.X, widget.Y, widget.Width, widget.Height) == geometry,
                 "All docking, floating and recovery actions preserve selection, artwork and dirty state.");
             var defaults = docking.DefaultLayout(); docking.Restore(defaults); Flush(owner);
+            var layers = left.Panels.Single(p => p.PanelId == "layers");
+            var below = left.PointToScreen(new Point(150, left.ActualHeight - 20));
+            docking.BeginDrag(widgets, Header(left.Host(widgets)), left.PointToScreen(new Point(150, 20)));
+            docking.UpdateDrag(below); docking.CompleteDrag(below, false); Flush(owner);
+            var order = left.CaptureLayout().Panels.Select(p => p.Id).ToList();
+            Require(order.IndexOf("widgets") > order.IndexOf("layers") && widgets.IsOpen && layers.IsOpen,
+                "Dropping below another open panel changes stack order while preserving independent open states.");
+            Capture(owner, captures, "Workspace-drag-reordered.png");
+            docking.Restore(defaults); Flush(owner);
             Require(docking.FloatingWindows.Count == 0 && left.Panels.Contains(widgets) && left.Panels.Contains(photos) &&
                 !widgets.IsFloating && widgets.PreferredHeight is null, "Workspace reset restores original sides and closes floating windows.");
             var corrupt = new EditorWorkspaceLayout
@@ -160,6 +169,7 @@ internal static class FloatingWorkspaceChecks
     {
         var button = All<Button>(host).Single(b => AutomationProperties.GetName(b) == name);
         ((IInvokeProvider)FrameworkElementAutomationPeer.CreatePeerForElement(button)!.GetPattern(PatternInterface.Invoke)!).Invoke();
+        Flush(Window.GetWindow(button)!);
         var menu = button.ContextMenu!;
         ((MenuItem)menu.Items.Cast<MenuItem>().Single(i => Equals(i.Header, action))).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
         menu.IsOpen = false;

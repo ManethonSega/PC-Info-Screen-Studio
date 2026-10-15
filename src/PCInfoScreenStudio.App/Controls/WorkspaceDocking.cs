@@ -198,7 +198,7 @@ internal sealed class WorkspaceDocking : IDisposable
             if (!dock.IsVisible) continue;
             var local = dock.PointFromScreen(screenPoint);
             var inside = new Rect(dock.RenderSize).Contains(local);
-            dock.PreviewDrop(true, inside ? dock.DropIndex(local) : null);
+            dock.ShowDockPreview(true, inside ? dock.DropIndex(local) : null);
         }
         var ownerPoint = _owner.PointFromScreen(screenPoint);
         _dragPreview.HorizontalOffset = ownerPoint.X + 14; _dragPreview.VerticalOffset = ownerPoint.Y + 18;
@@ -228,7 +228,7 @@ internal sealed class WorkspaceDocking : IDisposable
         var source = _dragSource; _dragSource = null; _dragPanel = null; _dragging = false;
         if (source is FrameworkElement element) element.ClearValue(FrameworkElement.CursorProperty);
         if (releaseCapture && source?.IsMouseCaptured == true) source.ReleaseMouseCapture();
-        foreach (var dock in _docks) dock.PreviewDrop(false);
+        foreach (var dock in _docks) dock.ShowDockPreview(false);
     }
 
     public void Dispose()
