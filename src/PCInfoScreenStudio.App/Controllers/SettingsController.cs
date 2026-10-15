@@ -171,13 +171,26 @@ public sealed class SettingsController : ObservableObject
 
     public double CanvasZoom
     {
-        get => Math.Clamp(_values.CanvasZoom, 0.5, 3.0);
+        get => Math.Clamp(_values.CanvasZoom, 0.1, 3.0);
         set
         {
-            var zoom = Math.Clamp(value, 0.5, 3.0);
+            if (!double.IsFinite(value)) return;
+            var zoom = Math.Clamp(value, 0.1, 3.0);
             if (Math.Abs(_values.CanvasZoom - zoom) < .001) return;
             Update(_values.CanvasZoom, zoom, v => _values.CanvasZoom = v);
         }
+    }
+
+    public bool IsCanvasFit
+    {
+        get => _values.IsCanvasFit;
+        set => Update(_values.IsCanvasFit, value, v => _values.IsCanvasFit = v);
+    }
+
+    public EditorWorkspaceLayout WorkspaceLayout
+    {
+        get => _values.WorkspaceLayout.ValidatedCopy();
+        set => Update(_values.WorkspaceLayout, value.ValidatedCopy(), v => _values.WorkspaceLayout = v);
     }
 
     public int LastPhotoIndex

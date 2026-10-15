@@ -21,6 +21,7 @@ internal static class SourceSearchChecks
         try
         {
             window.Show();
+            ((WorkspaceDock)window.FindName("RightDock")).Panels.Single(p => p.PanelId == "sensors").IsOpen = true;
             pump(() => window.IsEnabled);
             vm.SetEditorActive(false);
             var screenSelector = (ComboBox)window.FindName("ScreenSelector");

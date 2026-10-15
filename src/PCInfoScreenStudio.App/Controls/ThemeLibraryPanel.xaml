@@ -34,10 +34,10 @@
           </ContextMenu>
         </Button.ContextMenu>
       </Button>
-      <TextBlock Text="THEMES" Style="{StaticResource SectionTitleStyle}" VerticalAlignment="Center" />
+      <TextBlock Text="Themes" Style="{StaticResource SectionTitleStyle}" VerticalAlignment="Center" />
     </DockPanel>
-    <TextBlock Text="{Binding CurrentThemeName}" FontSize="14" FontWeight="SemiBold" Margin="4,0,4,4" TextTrimming="CharacterEllipsis" />
-    <ComboBox ItemsSource="{Binding ActiveThemes}" SelectedItem="{Binding ActiveThemeSelection}" Margin="2,0,2,5"
+    <TextBlock Text="{Binding CurrentThemeName}" ToolTip="{Binding CurrentThemeName}" FontSize="14" FontWeight="SemiBold" Margin="4,0,4,4" TextTrimming="CharacterEllipsis" />
+    <ComboBox AutomationProperties.Name="Saved theme" ItemsSource="{Binding ActiveThemes}" SelectedItem="{Binding ActiveThemeSelection}" Margin="2,0,2,5"
               ToolTip="Choose a theme for the current screen mode, then select Load." />
     <UniformGrid Columns="2">
       <Button Content="Load theme" Command="{Binding LoadThemeCommand}" ToolTip="Apply the selected theme. Photo and Hybrid themes keep your playlist." />

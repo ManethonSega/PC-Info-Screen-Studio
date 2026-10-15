@@ -1,0 +1,69 @@
+# Studio UI refinement
+
+The app is a .NET 10 WPF operating interface. Use collapsible docks with Themes/Widgets/Media/+ Photos/Slideshow/Captions/Layers on the left, the physical-screen canvas in the centre and contextual Properties/Sensors on the right. Keep Editor/Hardware navigation, mode/model selection, Settings, brightness and Start/Stop in the top bar. Photo Frame and Hybrid retain their own workspaces and expanded sections. The owner explicitly requested the Photoshop-inspired panel layout on 15 October 2026.
+
+## Visual direction
+
+Retain the MechKeyMesh navy/slate surfaces, silver text and cyan selection/action colours in App.xaml. Cyan identifies selection and primary actions; blue identifies keyboard focus. Neutral controls should recede while remaining recognizable. Use Segoe UI and the existing MDL2/vector icon vocabulary, with readable sentence-case section headings. Keep user-authored artwork, fonts, colours and colour emoji independent of the application chrome.
+
+Use spacing and typography to group controls before adding more containers. Toolbar utilities use a quieter shared button style, the canvas loses an unnecessary outer card, and inspector sections use a chevron and heading rather than a stack of dark boxes. Dense desktop fields keep their existing heights. The native layout uses WPF device-independent units, not mobile touch-size rules.
+
+Canvas tools wrap as whole groups when the centre column narrows. The toolbar row sizes to its content. Fit scales the preview from its available viewport while preserving aspect ratio and theme/widget geometry. Manual zoom (10% to 300%) and 100% view retain scrolling and remain stable during panel/window changes. Fit uses up to 300% magnification. Empty-state instructions live in the viewport outside the artwork transform, preserving native text size at small preview scales. Docks reserve layout space, so panels cannot cover the canvas. A 104-unit rail keeps icons and names visible. Open sections use native Auto rows at their content height, capped to a share of the viewport for long content. Expanding or collapsing a section updates its automatic height. Native GridSplitters create explicit height preferences, individual content scrolls, and an outer scroll fallback keeps every section reachable if many are opened in a short window. Width grips support dragging, arrow keys and the UI Automation range pattern. Header actions reorder panels without dragging. Compact windows reduce effective dock widths while preserving saved preferred widths and canvas space. Widget kinds use presentation-only labels; saved enum values and theme formats stay the same. Layer visibility and locking retain distinct actions and contextual accessible names.
+
+## Interaction and accessibility
+
+Keep editing, selection, alignment and keyboard actions immediate. Dropdowns open without fade; the brightness popup retains its current behaviour. Toolbar tooltips have an initial delay and a short path to subsequent hints. Hover and keyboard focus use distinct border colours. Settings supports Escape and cycles tab navigation inside its modal window.
+
+Give native controls meaningful UI Automation names independently of their current values, including X/Y/size fields, source filtering, editable fonts, colour actions, screen selection and mode selection. Preserve the existing inline numeric validation and command guards. Readable names and visible focus are implemented mechanisms, not a claim of complete screen-reader or high-contrast certification.
+
+## How the four skills contributed
+
+| Skill | Application to this interface |
+| --- | --- |
+| Impeccable | Operate-mode hierarchy, restrained framing, native Windows bridge and preservation of the incumbent layout/identity. |
+| Web Design Guidelines | Framework-neutral checks for named inputs, focus, long content and feedback. HTML/ARIA/URL rules are translated only where a WPF equivalent applies. |
+| UI/UX Pro Max | Executed `keyboard focus accessibility --stack wpf` and `form labels --domain ux`; applied the WPF and associated-label results. The existing palette stays authoritative. |
+| Emil Design Engineering | Immediate feedback for repetitive actions, no decorative layout motion, and quicker consecutive tooltips. CSS/React examples do not introduce a new framework. |
+
+## Framework references
+
+- [WPF WrapPanel](https://learn.microsoft.com/en-us/dotnet/api/system.windows.controls.wrappanel?view=windowsdesktop-10.0), native wrapping layout.
+- [WPF AutomationProperties](https://learn.microsoft.com/en-us/dotnet/api/system.windows.automation.automationproperties?view=windowsdesktop-10.0), accessible names independent of values.
+- [WPF focus and keyboard navigation](https://learn.microsoft.com/en-us/dotnet/desktop/wpf/advanced/focus-overview), native focus semantics and navigation containers.
+- [WPF consecutive tooltip timing](https://learn.microsoft.com/en-us/dotnet/api/system.windows.controls.tooltipservice.betweenshowdelay?view=windowsdesktop-10.0).
+- [Vercel Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines/blob/main/command.md), retrieved 15 October 2026 and scoped to relevant desktop outcomes.
+
+## Verification scope
+
+The Windows workflow builds WPF, exercises the existing controller/UI suite, captures wide and compact Info Screen/Photo Frame/Hybrid views plus Hardware and Settings, then checks the published EXE and extracted portable ZIP. Added checks inspect real WPF toolbar bounds and UI Automation peers. Build results and capture review belong in the matching validation note.
+
+Windows DPI settings at 125%, 150% and 200%, Narrator traversal and high-contrast operation still need their own interactive qualification. Source/XML checks or a web detector do not certify these. No physical display or media renderer behaviour is changed by the UI refinement.
+
+## Docked workspace persistence
+
+New installations and older settings default to Widgets/Layers open on the left and Properties on the right. Themes, Media and Sensors are optional sections; + Photos is open in Photo Frame/Hybrid. Mode-specific sections hide without losing their open state. Live view hides both docks. No panel is automatically closed on resize.
+
+Open states, panel order, preferred widths and optional explicit heights are app settings, independent of themes, session artwork and Undo. Layout values are bounded and repaired independently of valid brightness and other preferences. Reset workspace restores panel defaults, automatic heights and Fit, preserving artwork. Earlier relative weights are retained for compatibility but no longer stretch automatic panels. Collapsing keeps the same content controls and selected widget alive. Repeated panel operations are immediate, with no layout animation.
+
+Panel headers and rail entries support captured mouse dragging. Both sides display docking previews, with an insertion target for stack order; releasing outside the docks opens a native owned tool window. Escape or lost capture cancels without changing placement. The ⋯ menu supplies Float panel, Dock left and Dock right as keyboard-accessible alternatives; existing up/down actions remain available.
+
+Dock assignment, floating/open state, device-pixel screen position and logical window size are app preferences. Floating windows preserve the same controls, DataContext, ancestor-window bindings and editor shortcuts. They hide in Live view, Hardware, irrelevant modes, the tray and minimized state, and restore with the editor. Closing a tool window collapses it; its rail entry reopens it at its saved placement. Reset workspace closes all tool windows and restores original panel sides. Invalid bounds are repaired and missing-monitor positions are clamped to a current working area. Native title bars provide standard move/resize behavior. Floating windows may overlap the canvas by user choice; docking reserves canvas space and refits it.
+
+- [WPF owned windows](https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.owner?view=windowsdesktop-10.0), owner lifetime and tool-window behavior.
+
+- [WPF row resizing](https://learn.microsoft.com/en-us/dotnet/desktop/wpf/controls/how-to-resize-rows-with-a-gridsplitter), native keyboard/mouse splitters.
+- [UI Automation range provider](https://learn.microsoft.com/en-us/dotnet/api/system.windows.automation.provider.irangevalueprovider?view=windowsdesktop-10.0), accessible panel width control.
+
+## Photo and Hybrid panel scopes
+
++ Photos contains Add files/folder, the photo list, playback/removal controls and a collapsed Folders & playlists section for folder watching and saved linked playlists. These all manage photo inputs, so there is no separate Sources rail entry. Slideshow holds timing, transitions, fit, background, loop and shuffle. Captions holds global caption content and typography. Widgets uses the same name and icon in Info Screen and Hybrid; Hybrid includes the video-widget action. Widgets is hidden in Photo Frame. Each dock panel has its own open state and stack position.
+
+The original Photos panel ID and Hybrid widget-panel ID are retained, so existing arrangements keep their saved open states and positions. An older Sources layout entry is ignored when restoring the dock; its settings remain available inside + Photos. Slideshow, Captions and Hybrid Widgets start collapsed and use the existing dock persistence/reset behavior. The same photo scopes apply in Photo Frame and Hybrid, with mode-specific settings and playlists retained.
+
+- [WPF automatic layout and Auto rows](https://learn.microsoft.com/en-us/dotnet/desktop/wpf/advanced/use-automatic-layout-overview), content sizing instead of consuming spare viewport height.
+
+## Panel surfaces and photo scrolling
+
+The dock paints the workspace background below open sections. Each panel paints its own framed panel surface, and the width grip stops at the stack bottom. The navigation rail retains its panel background. This keeps short docked panels compact even when other panels are floating.
+
++ Photos uses a bounded playlist as its sole internal scrolling region, with import, playback, position and folder controls pinned outside it. Long names use ellipsis with their full name in a tooltip; horizontal photo scrolling is disabled. The playlist remains bounded for virtualization. Pinned-control panels reserve their measured header/footer minimum when sharing height, including expanded folder controls and explicit small saved heights. If the combined minimum of all open sections exceeds the window, the whole dock can still scroll.

@@ -8,7 +8,7 @@
         Icon="{StaticResource AppIconImage}"
         Width="720" Height="760" MinWidth="620" MinHeight="560"
         WindowStartupLocation="CenterOwner"
-        ShowInTaskbar="False">
+        ShowInTaskbar="False" KeyboardNavigation.TabNavigation="Cycle">
   <Grid Background="{StaticResource PageSurfaceBrush}">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
@@ -23,9 +23,9 @@
       </StackPanel>
     </Border>
 
-    <ScrollViewer Grid.Row="1" Background="{StaticResource PageSurfaceBrush}" VerticalScrollBarVisibility="Auto">
+    <ScrollViewer Grid.Row="1" Background="{StaticResource PageSurfaceBrush}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
       <StackPanel Margin="22,16,22,22">
-        <TextBlock Text="SCREEN &amp; CONNECTION" Style="{StaticResource PageSectionTitleStyle}" Margin="0,0,0,9" />
+        <TextBlock Text="Screen &amp; connection" Style="{StaticResource PageSectionTitleStyle}" Margin="0,0,0,9" />
         <Border Style="{StaticResource CardStyle}" Padding="14">
           <StackPanel>
             <TextBlock Text="{Binding DeviceStatus}" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,8" />
@@ -42,25 +42,25 @@
               <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
               <StackPanel Margin="0,0,6,0">
                 <TextBlock Text="Theme orientation" Foreground="{StaticResource MutedTextBrush}" />
-                <Button Command="{Binding ToggleOrientationCommand}" HorizontalContentAlignment="Left">
+                <Button Command="{Binding ToggleOrientationCommand}" AutomationProperties.Name="Change theme orientation" HorizontalContentAlignment="Left">
                   <StackPanel Orientation="Horizontal"><TextBlock Text="Current: " Foreground="{StaticResource MutedTextBrush}" /><TextBlock Text="{Binding Document.Orientation}" /></StackPanel>
                 </Button>
               </StackPanel>
               <StackPanel Grid.Column="1" Margin="6,0,0,0">
                 <TextBlock Text="Physical screen rotation" Foreground="{StaticResource MutedTextBrush}" />
-                <ComboBox ItemsSource="{Binding RotationOptions}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Document.DeviceRotation}" Margin="2" ToolTip="Rotate the physical display output without rotating individual widgets." />
+                <ComboBox AutomationProperties.Name="Physical screen rotation" ItemsSource="{Binding RotationOptions}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Document.DeviceRotation}" Margin="2" ToolTip="Rotate the physical display output without rotating individual widgets." />
               </StackPanel>
             </Grid>
 
             <TextBlock Text="USB protocol" Foreground="{StaticResource MutedTextBrush}" Margin="0,8,0,2" />
-            <ComboBox ItemsSource="{Binding DisplayProtocolOptions}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding DisplayProtocol}" ToolTip="Leave on Auto unless your confirmed screen requires another USB protocol." />
+            <ComboBox AutomationProperties.Name="USB protocol" ItemsSource="{Binding DisplayProtocolOptions}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding DisplayProtocol}" ToolTip="Leave on Auto unless your confirmed screen requires another USB protocol." />
             <TextBlock Text="Display colour compatibility" Foreground="{StaticResource MutedTextBrush}" Margin="0,8,0,2" />
-            <ComboBox ItemsSource="{Binding DisplayColorOptions}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding DisplayColorMode}" ToolTip="Leave on Auto. Change only if colours on the physical screen differ from the preview." />
+            <ComboBox AutomationProperties.Name="Display colour compatibility" ItemsSource="{Binding DisplayColorOptions}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding DisplayColorMode}" ToolTip="Leave on Auto. Change only if colours on the physical screen differ from the preview." />
             <Button Content="Run display colour test" Command="{Binding TestScreenCommand}" HorizontalAlignment="Left" Margin="2,8,2,2" ToolTip="Send test colours to the connected screen to diagnose colour or rotation problems." />
           </StackPanel>
         </Border>
 
-        <TextBlock Text="RUNTIME" Style="{StaticResource PageSectionTitleStyle}" Margin="0,20,0,9" />
+        <TextBlock Text="Runtime" Style="{StaticResource PageSectionTitleStyle}" Margin="0,20,0,9" />
         <Border x:Name="RuntimePanel" Style="{StaticResource CardStyle}" Padding="14">
           <StackPanel>
             <CheckBox Content="Start with Windows" IsChecked="{Binding StartWithWindows}" IsEnabled="{Binding CanChangeWindowsStartup}"
@@ -78,7 +78,7 @@
           </StackPanel>
         </Border>
 
-        <TextBlock Text="HARDWARE SENSORS" Style="{StaticResource PageSectionTitleStyle}" Margin="0,20,0,9" />
+        <TextBlock Text="Hardware sensors" Style="{StaticResource PageSectionTitleStyle}" Margin="0,20,0,9" />
         <Border x:Name="HardwareSensorsPanel" Style="{StaticResource CardStyle}" Padding="14">
           <StackPanel>
             <TextBlock Text="{Binding HardwareStatus}" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,7" />
@@ -91,18 +91,19 @@
           </StackPanel>
         </Border>
 
-        <TextBlock Text="TROUBLESHOOTING" Style="{StaticResource PageSectionTitleStyle}" Margin="0,20,0,9" />
+        <TextBlock Text="Troubleshooting" Style="{StaticResource PageSectionTitleStyle}" Margin="0,20,0,9" />
         <Border x:Name="DiagnosticsPanel" Style="{StaticResource CardStyle}" Padding="14"><StackPanel>
           <TextBlock Text="Save app and Windows versions, connection settings, performance counters and recent error codes. Photos, theme content, account names and personal paths are excluded. Nothing is sent automatically." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" />
           <Button Content="Export diagnostics" Command="{Binding ExportDiagnosticsCommand}" HorizontalAlignment="Left" Margin="2,8,2,2" ToolTip="Save a local JSON report to attach to a bug report." />
           <TextBlock Text="{Binding DiagnosticsStatus}" TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" FontSize="11" Margin="3,4,3,0" />
         </StackPanel></Border>
 
-        <TextBlock Text="EDITOR" Style="{StaticResource PageSectionTitleStyle}" Margin="0,20,0,9" />
+        <TextBlock Text="Editor" Style="{StaticResource PageSectionTitleStyle}" Margin="0,20,0,9" />
         <Border Style="{StaticResource CardStyle}" Padding="14">
           <StackPanel>
             <TextBlock Text="Canvas zoom" Foreground="{StaticResource MutedTextBrush}" />
-            <Slider Minimum="0.5" Maximum="3" SmallChange="0.1" LargeChange="0.5" Value="{Binding CanvasZoom}" ToolTip="Change editor magnification. The physical screen resolution stays unchanged." />
+            <CheckBox Content="Fit canvas to available space" IsChecked="{Binding IsCanvasFit}" ToolTip="Follow window and panel resizing while preserving the theme resolution." />
+            <Slider AutomationProperties.Name="Canvas zoom" Minimum="0.1" Maximum="3" SmallChange="0.1" LargeChange="0.5" Value="{Binding CanvasZoom}" IsEnabled="{Binding CanAdjustCanvasZoom}" ToolTip="Manual preview zoom. Clear Fit to adjust; the physical screen resolution stays unchanged." />
             <Button Content="Run setup assistant again" Command="{Binding ShowSetupAssistantCommand}" HorizontalAlignment="Left" Margin="2,8,2,2" ToolTip="Reopen the guided screen connection and starter-theme assistant." />
           </StackPanel>
         </Border>
@@ -110,7 +111,7 @@
     </ScrollViewer>
 
     <Border Grid.Row="2" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="12">
-      <Button Content="Close" IsDefault="True" Click="OnCloseClick" HorizontalAlignment="Right" Padding="22,7" />
+      <Button Content="Close" IsDefault="True" IsCancel="True" Click="OnCloseClick" HorizontalAlignment="Right" Padding="22,7" />
     </Border>
   </Grid>
 </Window>

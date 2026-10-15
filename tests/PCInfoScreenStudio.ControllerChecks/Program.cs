@@ -49,6 +49,7 @@ internal static class Program
             RunCheck("WorkflowChecks.Check", () => WorkflowChecks.Check(root, Await, PumpUntil));
             RunCheck("UiStateChecks.Check", () => UiStateChecks.Check());
             RunCheck("UiPolishChecks.Check", () => UiPolishChecks.Check(root, PumpUntil, args.Length == 2 && args[0] == "--capture-ui" ? args[1] : null));
+            RunCheck("WorkspaceLayoutChecks.Check", () => WorkspaceLayoutChecks.Check(root, PumpUntil, args.Length == 2 && args[0] == "--capture-ui" ? args[1] : null));
             if (args.Length == 2 && args[0] == "--capture-ui") RunCheck("UI previews", () => UiPreviews.Capture(args[1]));
             Console.WriteLine("PASS: preferences, startup task, session resume, editor, photos, device queue, mode themes, dashboard, and navigation checks.");
             return 0;
@@ -270,7 +271,7 @@ internal static class Program
         settings.CanvasZoom = 20;
         Assert(settings.CanvasZoom == 3, "Canvas zoom upper limit changed.");
         settings.CanvasZoom = 0;
-        Assert(settings.CanvasZoom == .5, "Canvas zoom lower limit changed.");
+        Assert(settings.CanvasZoom == .1, "Canvas zoom lower limit changed.");
         settings.LastPhotoIndex = 2;
         Assert(settings.RequestAdministratorAtStartup, "Sensor startup permission requests should be enabled by default.");
         settings.RequestAdministratorAtStartup = false;
@@ -278,7 +279,7 @@ internal static class Program
         settings.AutoStartDisplay = false;
         settings.ClearDisplayOnExit = true;
         var reloaded = Settings(root, "preferences");
-        Assert(!reloaded.CloseToTray && reloaded.CanvasZoom == .5 && reloaded.LastPhotoIndex == 2,
+        Assert(!reloaded.CloseToTray && reloaded.CanvasZoom == .1 && reloaded.LastPhotoIndex == 2,
             "Preferences did not persist independently of the editor.");
         Assert(!reloaded.StartWithWindows && !reloaded.AutoStartDisplay, "Startup and connection opt-outs must persist.");
         Assert(reloaded.ClearDisplayOnExit, "The clear-display-on-exit preference must persist.");

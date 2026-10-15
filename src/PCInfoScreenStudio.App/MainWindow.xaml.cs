@@ -29,6 +29,8 @@ public partial class MainWindow : Window
     public bool StartInTray { get; set; }
     private Point _photoDragStart;
     private PhotoFrameItem? _draggedPhoto;
+    private bool _restoringWorkspaceLayout;
+    private readonly Controls.WorkspaceDocking _workspaceDocking;
 
     public MainWindow() : this(new MainViewModel()) { }
 
@@ -37,6 +39,15 @@ public partial class MainWindow : Window
         _viewModel = viewModel;
         InitializeComponent();
         DataContext = _viewModel;
+        _workspaceDocking = new Controls.WorkspaceDocking(this, LeftDock, RightDock, window =>
+        {
+            window.AllowDrop = true;
+            window.DragOver += OnDragOver;
+            window.Drop += OnDrop;
+        });
+        RestoreWorkspaceLayout(_viewModel.WorkspaceLayout);
+        LeftDock.IsVisibleChanged += (_, _) => ConstrainWorkspacePanels();
+        RightDock.IsVisibleChanged += (_, _) => ConstrainWorkspacePanels();
 
         var trayMenu = new WinForms.ContextMenuStrip
         {
@@ -168,6 +179,51 @@ public partial class MainWindow : Window
             DataContext = _viewModel
         };
         window.ShowDialog();
+    }
+
+    private void RestoreWorkspaceLayout(EditorWorkspaceLayout layout)
+    {
+        _restoringWorkspaceLayout = true;
+        try { _workspaceDocking.Restore(layout); }
+        finally { _restoringWorkspaceLayout = false; }
+        ConstrainWorkspacePanels();
+    }
+
+    private void OnDockLayoutChanged(object? sender, EventArgs e)
+    {
+        if (_restoringWorkspaceLayout || LeftDock is null || RightDock is null) return;
+        ConstrainWorkspacePanels();
+        _viewModel.WorkspaceLayout = new EditorWorkspaceLayout { Left = LeftDock.CaptureLayout(), Right = RightDock.CaptureLayout() };
+    }
+
+    private void OnWorkspaceSizeChanged(object sender, SizeChangedEventArgs e) => ConstrainWorkspacePanels();
+    private void OnDockSizeChanged(object? sender, EventArgs e) => ConstrainWorkspacePanels();
+
+    private void ConstrainWorkspacePanels()
+    {
+        if (EditorWorkspace is null || LeftDock is null || RightDock is null) return;
+        var left = LeftDock.Visibility == Visibility.Visible && LeftDock.HasVisiblePanels;
+        var right = RightDock.Visibility == Visibility.Visible && RightDock.HasVisiblePanels;
+        var leftOpen = left && LeftDock.HasOpenPanels;
+        var rightOpen = right && RightDock.HasOpenPanels;
+        // Adaptive widths preserve the user's preferred widths while reserving canvas space.
+        var budget = Math.Max(240, EditorWorkspace.ActualWidth - 320 -
+            (left ? Controls.WorkspaceDock.RailWidth : 0) - (right ? Controls.WorkspaceDock.RailWidth : 0) -
+            (leftOpen ? Controls.WorkspaceDock.DividerWidth : 0) - (rightOpen ? Controls.WorkspaceDock.DividerWidth : 0));
+        var desired = (leftOpen ? LeftDock.PreferredPanelWidth : 0) + (rightOpen ? RightDock.PreferredPanelWidth : 0);
+        var ratio = desired > 0 ? Math.Min(1, budget / desired) : 1;
+        LeftDock.ConstrainPanelWidth(leftOpen ? LeftDock.PreferredPanelWidth * ratio : 460);
+        RightDock.ConstrainPanelWidth(rightOpen ? RightDock.PreferredPanelWidth * ratio : 460);
+    }
+
+    private void OnActualSizeClick(object sender, RoutedEventArgs e)
+    { _viewModel.CanvasZoom = 1; _viewModel.IsCanvasFit = false; }
+
+    private void OnResetWorkspaceClick(object sender, RoutedEventArgs e)
+    {
+        RestoreWorkspaceLayout(_workspaceDocking.DefaultLayout());
+        _viewModel.IsCanvasFit = true;
+        OnDockLayoutChanged(this, EventArgs.Empty);
     }
 
     private void OnPhotoPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -354,6 +410,7 @@ public partial class MainWindow : Window
     public void SaveSessionForWindowsShutdown()
     {
         if (_disposed || _sessionSaved) return;
+        OnDockLayoutChanged(this, EventArgs.Empty);
         _viewModel.CancelFileOperation();
         (_sessionSaveTask ?? _viewModel.SaveLastSessionAsync()).GetAwaiter().GetResult();
         _viewModel.ClearDisplayForExitAsync().GetAwaiter().GetResult();
@@ -365,7 +422,9 @@ public partial class MainWindow : Window
         if (_disposed)
             return;
 
+        OnDockLayoutChanged(this, EventArgs.Empty);
         _disposed = true;
+        _workspaceDocking.Dispose();
         _deviceChangeTimer?.Stop();
         if (_windowSource is not null)
         {

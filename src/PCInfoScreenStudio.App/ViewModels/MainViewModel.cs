@@ -445,9 +445,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public string ModeThemeSummary => Document.Mode == ScreenMode.Hybrid
         ? "Hybrid settings only (.pchybrid). Photos stay on this PC."
         : "Photo Frame settings only (.pcphoto). Photos stay on this PC.";
-    public GridLength LeftPanelWidth => IsLiveMode ? new GridLength(0) : new GridLength(320);
-    public GridLength PropertiesPanelWidth => IsLiveMode || Document.Mode == ScreenMode.PhotoFrame ? new GridLength(0) : new GridLength(330);
-    public GridLength EditorTopBarHeight => IsLiveMode ? new GridLength(0) : new GridLength(52);
+    public Visibility InspectorChromeVisibility => IsLiveMode || Document.Mode == ScreenMode.PhotoFrame ? Visibility.Collapsed : Visibility.Visible;
+    public GridLength EditorTopBarHeight => IsLiveMode ? new GridLength(0) : GridLength.Auto;
     public GridLength EditorBottomBarHeight => IsLiveMode ? new GridLength(0) : new GridLength(32);
     public Visibility EditorChromeVisibility => IsLiveMode ? Visibility.Collapsed : Visibility.Visible;
     public bool IsLiveMode
@@ -456,8 +455,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         private set
         {
             if (!SetProperty(ref _isLiveMode, value)) return;
-            RaisePropertyChanged(nameof(LeftPanelWidth));
-            RaisePropertyChanged(nameof(PropertiesPanelWidth));
+            RaisePropertyChanged(nameof(InspectorChromeVisibility));
             RaisePropertyChanged(nameof(EditorChromeVisibility));
             RaisePropertyChanged(nameof(EditorTopBarHeight));
             RaisePropertyChanged(nameof(EditorBottomBarHeight));
@@ -677,6 +675,39 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         get => _settings.CanvasZoom;
         set => _settings.CanvasZoom = value;
+    }
+
+    private double _canvasViewportWidth;
+    private double _canvasViewportHeight;
+    public bool IsCanvasFit
+    {
+        get => _settings.IsCanvasFit;
+        set => _settings.IsCanvasFit = value;
+    }
+    public bool CanAdjustCanvasZoom => !IsCanvasFit;
+    public double CanvasViewScale => IsCanvasFit && _canvasViewportWidth > 0 && _canvasViewportHeight > 0
+        ? Math.Clamp(Math.Min(_canvasViewportWidth / (Document.CanvasWidth + 2), _canvasViewportHeight / (Document.CanvasHeight + 2)), .01, 3)
+        : CanvasZoom;
+    public string CanvasZoomLabel => CanvasViewScale.ToString("P0");
+    public EditorWorkspaceLayout WorkspaceLayout
+    {
+        get => _settings.WorkspaceLayout;
+        set => _settings.WorkspaceLayout = value;
+    }
+
+    public void SetCanvasViewportSize(double width, double height)
+    {
+        if (!double.IsFinite(width) || !double.IsFinite(height) || width <= 0 || height <= 0) return;
+        if (Math.Abs(width - _canvasViewportWidth) < .01 && Math.Abs(height - _canvasViewportHeight) < .01) return;
+        _canvasViewportWidth = width; _canvasViewportHeight = height;
+        NotifyCanvasScale();
+    }
+
+    private void NotifyCanvasScale()
+    {
+        RaisePropertyChanged(nameof(CanvasViewScale));
+        RaisePropertyChanged(nameof(CanvasZoomLabel));
+        RaisePropertyChanged(nameof(CanAdjustCanvasZoom));
     }
 
     public bool IsDirty => _themeSessions.IsDirty(Document.Mode);
@@ -905,6 +936,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private void OnSettingsPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName is nameof(CanvasZoom) or nameof(IsCanvasFit)) NotifyCanvasScale();
         if (e.PropertyName == nameof(SettingsController.RecoveryNotice)) AddRecoveryNotice(_settings.RecoveryNotice);
         // Device compatibility properties are forwarded by DeviceController.
         if (e.PropertyName is not nameof(DisplayProtocol) and not nameof(DisplayColorMode)
@@ -1103,6 +1135,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         AttachPhotoFrame(settings);
         InitializePhotoFrameRuntime();
         RaisePropertyChanged(nameof(Document));
+        NotifyCanvasScale();
     }
 
     private void RaisePhotoCommandStates()
@@ -1606,6 +1639,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         InitializePhotoFrameRuntime();
         RaisePropertyChanged(nameof(Workspace));
         RaisePropertyChanged(nameof(Document));
+        NotifyCanvasScale();
         RaisePropertyChanged(nameof(CanvasSize));
         RaisePropertyChanged(nameof(IsDirty));
         RaisePropertyChanged(nameof(WindowTitle));
@@ -1640,7 +1674,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private void OnDocumentPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(ThemeDocument.CanvasWidth) or nameof(ThemeDocument.CanvasHeight))
+        {
             RaisePropertyChanged(nameof(CanvasSize));
+            NotifyCanvasScale();
+        }
         if (e.PropertyName == nameof(ThemeDocument.EditorWidgets)) return;
         if (e.PropertyName == nameof(ThemeDocument.Mode))
         {
@@ -1671,8 +1708,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             RefreshModeThemes();
             RaisePropertyChanged(nameof(ModeThemeTitle));
             RaisePropertyChanged(nameof(ModeThemeSummary));
-            RaisePropertyChanged(nameof(PropertiesPanelWidth));
-            RaisePropertyChanged(nameof(LeftPanelWidth));
+            RaisePropertyChanged(nameof(InspectorChromeVisibility));
             SaveModeThemeCommand.RaiseCanExecuteChanged();
             NotifyThemeState();
             ThemeChanged?.Invoke(this, EventArgs.Empty);

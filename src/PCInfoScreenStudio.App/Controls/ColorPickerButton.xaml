@@ -8,7 +8,7 @@
       <ColumnDefinition Width="Auto" />
     </Grid.ColumnDefinitions>
 
-    <Button Grid.Column="0" Click="OnClick" Padding="6,4" HorizontalContentAlignment="Stretch" ToolTip="Choose a colour. Background transparency is adjusted separately in the widget properties.">
+    <Button AutomationProperties.Name="{Binding (AutomationProperties.Name), ElementName=Root}" AutomationProperties.HelpText="{Binding HexColor, ElementName=Root}" Grid.Column="0" Click="OnClick" Padding="6,4" HorizontalContentAlignment="Stretch" ToolTip="Choose a colour. Background transparency is adjusted separately in the widget properties.">
       <Grid>
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="28" />
@@ -27,7 +27,7 @@
       </Grid>
     </Button>
 
-    <Button Grid.Column="1"
+    <Button AutomationProperties.Name="{Binding (AutomationProperties.Name), ElementName=Root, StringFormat=Make {0} transparent}" Grid.Column="1"
             Content="Clear"
             Click="OnTransparentClick"
             Padding="6,4"

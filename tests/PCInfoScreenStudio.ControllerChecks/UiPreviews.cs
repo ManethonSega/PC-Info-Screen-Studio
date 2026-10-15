@@ -49,6 +49,7 @@ internal static class UiPreviews
                 Path.Combine(directory, "Sensor-startup.png"));
             vm.ShowPage(false);
             vm.Document.Mode = ScreenMode.InfoScreen;
+            ((WorkspaceDock)window.FindName("LeftDock")).Panels.Single(p => p.PanelId == "themes").IsOpen = true;
             root.UpdateLayout();
             var panel = Find<ThemeLibraryPanel>(root) ?? throw new InvalidOperationException("Theme panel missing.");
             var actions = Find<Button>(panel, b => b.ContextMenu is not null) ?? throw new InvalidOperationException("Theme actions missing.");
@@ -64,13 +65,20 @@ internal static class UiPreviews
             vm.Document.PhotoFrame.CaptionFontFamily = "Orbitron";
             FlushBindings();
             root.UpdateLayout();
-            var album = Find<Expander>(root, e => Equals(e.Header, "ALBUM SETTINGS"))!;
-            var overlays = Find<Expander>(root, e => Equals(e.Header, "HYBRID OVERLAYS"))!;
-            var colours = Find<Expander>(root, e => Equals(e.Header, "COLOURS"))!;
+            var dock = (WorkspaceDock)window.FindName("LeftDock");
+            var captions = (FrameworkElement)dock.Panels.Single(p => p.PanelId == "captions").Content;
+            var slideshow = (FrameworkElement)dock.Panels.Single(p => p.PanelId == "slideshow").Content;
+            var overlays = (FrameworkElement)dock.Panels.Single(p => p.PanelId == "overlays").Content;
+            var photos = (FrameworkElement)dock.Panels.Single(p => p.PanelId == "photos").Content;
+            var folders = Find<Expander>(photos, e => Equals(e.Header, "Folders & playlists"))!;
+            folders.IsExpanded = true;
+            var colours = Find<Expander>(root, e => Equals(e.Header, "Colours"))!;
             if (colours.DataContext is not WidgetModel { Type: WidgetType.Shape, BackgroundTransparency: 40 })
                 throw new InvalidOperationException("Appearance preview did not bind the selected Shape and transparency.");
-            CapturePanel(album, vm, 310, 690, Path.Combine(directory, "Caption-settings.png"));
-            CapturePanel(overlays, vm, 310, 290, Path.Combine(directory, "Hybrid-overlays.png"));
+            CapturePanel(captions, vm, 310, 420, Path.Combine(directory, "Caption-settings.png"));
+            CapturePanel(slideshow, vm, 310, 300, Path.Combine(directory, "Slideshow-settings.png"));
+            CapturePanel(folders, vm, 310, 210, Path.Combine(directory, "Photo-folders-and-playlists.png"));
+            CapturePanel(overlays, vm, 310, 290, Path.Combine(directory, "Hybrid-widgets.png"));
             CapturePanel(colours, vm, 310, 260, Path.Combine(directory, "Widget-background.png"));
             vm.Document.Mode = ScreenMode.InfoScreen;
             vm.AddWidgetCommand.Execute("HardwareName");
@@ -109,11 +117,16 @@ internal static class UiPreviews
 
     private static void CapturePanel(FrameworkElement element, MainViewModel vm, int width, int height, string path)
     {
-        var parent = (Panel)VisualTreeHelper.GetParent(element);
-        var index = parent.Children.IndexOf(element);
+        var parent = LogicalTreeHelper.GetParent(element);
+        var parentPanel = parent as Panel;
+        var parentContent = parent as ContentControl;
+        var index = parentPanel?.Children.IndexOf(element) ?? -1;
+        if (index < 0 && parentContent?.Content != element)
+            throw new InvalidOperationException("Capture content must belong to a panel or content control.");
         var context = element.DataContext;
         var inheritedContext = element.ReadLocalValue(FrameworkElement.DataContextProperty) == DependencyProperty.UnsetValue;
-        parent.Children.Remove(element);
+        if (index >= 0) parentPanel!.Children.RemoveAt(index);
+        else parentContent!.Content = null;
         element.DataContext = context;
         var host = new Window { DataContext = vm };
         var background = new Border { Background = (Brush)Application.Current.Resources["PanelBrush"], Child = element };
@@ -130,7 +143,8 @@ internal static class UiPreviews
         {
             background.Child = null;
             host.Content = null;
-            parent.Children.Insert(index, element);
+            if (index >= 0) parentPanel!.Children.Insert(index, element);
+            else parentContent!.Content = element;
             if (inheritedContext) element.ClearValue(FrameworkElement.DataContextProperty);
         }
     }
