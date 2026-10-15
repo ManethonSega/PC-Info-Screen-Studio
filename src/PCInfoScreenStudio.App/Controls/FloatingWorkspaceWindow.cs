@@ -21,13 +21,14 @@ internal sealed class FloatingWorkspaceWindow : Window
     private bool _detaching;
     private bool _placing;
 
-    internal FloatingWorkspaceWindow(Window owner, WorkspacePanel panel, Border host, Action changed, Func<double> minimumHeight)
+    internal FloatingWorkspaceWindow(Window owner, WorkspaceDock dock, WorkspacePanel panel, Border host, Action changed, Func<double> minimumHeight)
     {
         Owner = owner; _panel = panel; _changed = changed; _minimumHeight = minimumHeight;
         SetBinding(DataContextProperty, new Binding(nameof(DataContext)) { Source = owner });
         foreach (var binding in owner.InputBindings.OfType<KeyBinding>())
             InputBindings.Add(new KeyBinding(binding.Command, binding.Key, binding.Modifiers)
                 { CommandParameter = binding.CommandParameter, CommandTarget = binding.CommandTarget });
+        SetResourceReference(StyleProperty, typeof(Window));
         Title = panel.Title; Content = host; ShowInTaskbar = false; ShowActivated = false;
         WindowStyle = WindowStyle.ToolWindow; ResizeMode = ResizeMode.CanResizeWithGrip;
         WindowStartupLocation = WindowStartupLocation.Manual;
@@ -37,7 +38,7 @@ internal sealed class FloatingWorkspaceWindow : Window
         else SizeToContent = SizeToContent.Height;
         SetResourceReference(BackgroundProperty, "PanelBrush");
         SetResourceReference(ForegroundProperty, "TextBrush");
-        SetBinding(IsEnabledProperty, new Binding(nameof(IsEnabled)) { Source = owner });
+        SetBinding(IsEnabledProperty, new Binding(nameof(IsEnabled)) { Source = dock });
         _saveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
         _saveTimer.Tick += (_, _) => { _saveTimer.Stop(); SaveBounds(); _changed(); };
         LocationChanged += (_, _) => QueueSave(); SizeChanged += (_, _) => QueueSave();

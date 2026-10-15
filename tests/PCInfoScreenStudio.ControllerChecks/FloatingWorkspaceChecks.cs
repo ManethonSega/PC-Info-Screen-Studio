@@ -50,6 +50,11 @@ internal static class FloatingWorkspaceChecks
                 "Floating panels preserve the existing editor file-drop routing.");
             Require(ReferenceEquals(widgets.Content, liveContent) && ReferenceEquals(widgets.DataContext, vm),
                 "Floating retains the live controls and view model.");
+            left.IsEnabled = false; Flush(owner);
+            Require(!floating.IsEnabled, "Floating controls retain the editor's inherited file-operation/input guard.");
+            left.ClearValue(UIElement.IsEnabledProperty); Flush(owner);
+            Require(floating.IsEnabled && floating.FontSize == owner.FontSize && floating.FontFamily.Equals(owner.FontFamily),
+                "Floating controls restore enabled state and native editor typography.");
             Require(canvas.ActualWidth > before + 200, "Floating the only open left panel releases its canvas space.");
             Capture(owner, captures, "Workspace-floating-owner.png"); Capture(floating, captures, "Workspace-floating-widgets.png");
             floating.Width = 390; floating.Height = 260; floating.UpdateLayout();

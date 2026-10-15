@@ -122,7 +122,7 @@ internal sealed class WorkspaceDocking : IDisposable
                     if (!_windows.TryGetValue(panel, out var window))
                     {
                         var host = dock.Host(panel); host.MaxHeight = double.PositiveInfinity;
-                        window = new FloatingWorkspaceWindow(_owner, panel, host, () => dock.NotifyChanged(), () => dock.GetMinimumHeight(panel));
+                        window = new FloatingWorkspaceWindow(_owner, dock, panel, host, () => dock.NotifyChanged(), () => dock.GetMinimumHeight(panel));
                         _configureWindow?.Invoke(window);
                         _windows.Add(panel, window);
                     }
