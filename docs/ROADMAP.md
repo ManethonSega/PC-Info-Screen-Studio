@@ -1,6 +1,6 @@
 # Roadmap
 
-Current source version: **0.10.0-alpha.26** (draft candidate).
+Current source version: **0.10.0-alpha.27** (draft candidate).
 
 The next milestone is product polish, not another broad feature category. Priorities remain **easy to use, lightweight, intuitive, and visually clear**. Checked items below describe implemented functionality, not a claim that every device or workload has been validated.
 
@@ -19,7 +19,7 @@ The next milestone is product polish, not another broad feature category. Priori
 
 - [x] Labelled collapsible panel strips with independent open sections, resizable stacks, keyboard reordering and saved workspace layout/reset.
 - [x] Automatic preview fitting across window/panel changes, with separate manual zoom and 100% view.
-- [ ] Free panel dragging and floating windows, following interactive qualification of the docked foundation.
+- [x] Free panel dragging with docking previews, cross-docking, keyboard menu alternatives and owned floating windows with saved bounds and off-screen recovery. Interactive mixed-DPI qualification remains open.
 
 ### Info Screen editor
 

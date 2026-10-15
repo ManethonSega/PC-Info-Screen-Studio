@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.0-alpha.27 (draft)
+
+- Drag panel headers or rail entries to reorder, move between sides, or float, with visible docking targets and Escape cancellation.
+- Added native resizable tool windows and keyboard-accessible Float / Dock left / Dock right menu actions.
+- Remember panel sides and floating bounds, recover off-screen positions, and restore original sides through Reset workspace.
+- Hide floating tools with Live view, Hardware, mode changes, the tray and minimized windows; retain their live controls and current edits.
+- Preserve content-sized dock surfaces, single photo-playlist scrolling and automatic canvas fitting.
+
 ## 0.10.0-alpha.21
 
 - Refined the native WPF editor using Impeccable, Web Design Guidelines, UI/UX Pro Max and Emil Design Engineering, retaining its three-pane structure and navy/cyan palette.

@@ -45,7 +45,11 @@ New installations and older settings default to Widgets/Layers open on the left 
 
 Open states, panel order, preferred widths and optional explicit heights are app settings, independent of themes, session artwork and Undo. Layout values are bounded and repaired independently of valid brightness and other preferences. Reset workspace restores panel defaults, automatic heights and Fit, preserving artwork. Earlier relative weights are retained for compatibility but no longer stretch automatic panels. Collapsing keeps the same content controls and selected widget alive. Repeated panel operations are immediate, with no layout animation.
 
-Floating windows and free docking drag remain a later phase. This implementation supplies explicit header reorder actions and resizing, not a full Photoshop docking framework.
+Panel headers and rail entries support captured mouse dragging. Both sides display docking previews, with an insertion target for stack order; releasing outside the docks opens a native owned tool window. Escape or lost capture cancels without changing placement. The ⋯ menu supplies Float panel, Dock left and Dock right as keyboard-accessible alternatives; existing up/down actions remain available.
+
+Dock assignment, floating/open state, device-pixel screen position and logical window size are app preferences. Floating windows preserve the same controls, DataContext, ancestor-window bindings and editor shortcuts. They hide in Live view, Hardware, irrelevant modes, the tray and minimized state, and restore with the editor. Closing a tool window collapses it; its rail entry reopens it at its saved placement. Reset workspace closes all tool windows and restores original panel sides. Invalid bounds are repaired and missing-monitor positions are clamped to a current working area. Native title bars provide standard move/resize behavior. Floating windows may overlap the canvas by user choice; docking reserves canvas space and refits it.
+
+- [WPF owned windows](https://learn.microsoft.com/en-us/dotnet/api/system.windows.window.owner?view=windowsdesktop-10.0), owner lifetime and tool-window behavior.
 
 - [WPF row resizing](https://learn.microsoft.com/en-us/dotnet/desktop/wpf/controls/how-to-resize-rows-with-a-gridsplitter), native keyboard/mouse splitters.
 - [UI Automation range provider](https://learn.microsoft.com/en-us/dotnet/api/system.windows.automation.provider.irangevalueprovider?view=windowsdesktop-10.0), accessible panel width control.
@@ -60,6 +64,6 @@ The original Photos panel ID and Hybrid widget-panel ID are retained, so existin
 
 ## Panel surfaces and photo scrolling
 
-The dock paints the workspace background below open sections. Each panel paints its own framed panel surface, and the width grip stops at the stack bottom. The navigation rail retains its panel background. This makes a short panel read as its own window without adding floating windows.
+The dock paints the workspace background below open sections. Each panel paints its own framed panel surface, and the width grip stops at the stack bottom. The navigation rail retains its panel background. This keeps short docked panels compact even when other panels are floating.
 
 + Photos uses a bounded playlist as its sole internal scrolling region, with import, playback, position and folder controls pinned outside it. Long names use ellipsis with their full name in a tooltip; horizontal photo scrolling is disabled. The playlist remains bounded for virtualization. Pinned-control panels reserve their measured header/footer minimum when sharing height, including expanded folder controls and explicit small saved heights. If the combined minimum of all open sections exceeds the window, the whole dock can still scroll.

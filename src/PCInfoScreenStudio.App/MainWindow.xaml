@@ -472,9 +472,9 @@
       </Grid>
 
       <controls:WorkspaceDock x:Name="RightDock" Grid.Column="2" RailOnRight="True"
-                              Visibility="{Binding InspectorChromeVisibility}"
+                              Visibility="{Binding EditorChromeVisibility}"
                               LayoutChanged="OnDockLayoutChanged" LayoutSizeChanged="OnDockSizeChanged">
-        <controls:WorkspacePanel PanelId="properties" Title="Properties" Icon="&#xE713;" IsOpen="True">
+        <controls:WorkspacePanel Visibility="{Binding InspectorChromeVisibility}" PanelId="properties" Title="Properties" Icon="&#xE713;" IsOpen="True">
           <StackPanel>
             <TextBlock Text="Select an item on the canvas or in Layers." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="2,20">
               <TextBlock.Style>
@@ -818,7 +818,7 @@
             </ContentControl>
           </StackPanel>
         </controls:WorkspacePanel>
-        <controls:WorkspacePanel PanelId="sensors" Title="Sensors" Icon="&#xE9D9;" IsOpen="False">
+        <controls:WorkspacePanel Visibility="{Binding InspectorChromeVisibility}" PanelId="sensors" Title="Sensors" Icon="&#xE9D9;" IsOpen="False">
           <StackPanel>            <Grid Margin="2,0,2,4">
               <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
               <TextBox AutomationProperties.Name="Find a sensor" x:Name="SourceSearchBox" TextChanged="OnSourceSearchChanged" Text="{Binding SourceSearchText, UpdateSourceTrigger=PropertyChanged}"

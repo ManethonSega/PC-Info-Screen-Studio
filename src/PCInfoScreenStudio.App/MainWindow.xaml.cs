@@ -30,6 +30,7 @@ public partial class MainWindow : Window
     private Point _photoDragStart;
     private PhotoFrameItem? _draggedPhoto;
     private bool _restoringWorkspaceLayout;
+    private readonly Controls.WorkspaceDocking _workspaceDocking;
 
     public MainWindow() : this(new MainViewModel()) { }
 
@@ -38,6 +39,7 @@ public partial class MainWindow : Window
         _viewModel = viewModel;
         InitializeComponent();
         DataContext = _viewModel;
+        _workspaceDocking = new Controls.WorkspaceDocking(this, LeftDock, RightDock);
         RestoreWorkspaceLayout(_viewModel.WorkspaceLayout);
         LeftDock.IsVisibleChanged += (_, _) => ConstrainWorkspacePanels();
         RightDock.IsVisibleChanged += (_, _) => ConstrainWorkspacePanels();
@@ -177,7 +179,7 @@ public partial class MainWindow : Window
     private void RestoreWorkspaceLayout(EditorWorkspaceLayout layout)
     {
         _restoringWorkspaceLayout = true;
-        try { LeftDock.RestoreLayout(layout.Left); RightDock.RestoreLayout(layout.Right); }
+        try { _workspaceDocking.Restore(layout); }
         finally { _restoringWorkspaceLayout = false; }
         ConstrainWorkspacePanels();
     }
@@ -195,8 +197,8 @@ public partial class MainWindow : Window
     private void ConstrainWorkspacePanels()
     {
         if (EditorWorkspace is null || LeftDock is null || RightDock is null) return;
-        var left = LeftDock.Visibility == Visibility.Visible;
-        var right = RightDock.Visibility == Visibility.Visible;
+        var left = LeftDock.Visibility == Visibility.Visible && LeftDock.HasVisiblePanels;
+        var right = RightDock.Visibility == Visibility.Visible && RightDock.HasVisiblePanels;
         var leftOpen = left && LeftDock.HasOpenPanels;
         var rightOpen = right && RightDock.HasOpenPanels;
         // Adaptive widths preserve the user's preferred widths while reserving canvas space.
@@ -214,13 +216,7 @@ public partial class MainWindow : Window
 
     private void OnResetWorkspaceClick(object sender, RoutedEventArgs e)
     {
-        RestoreWorkspaceLayout(new EditorWorkspaceLayout
-        {
-            Left = new DockLayout { Width = 300, Panels = LeftDock.Panels.Select(p => new WorkspacePanelLayout
-                { Id = p.PanelId, IsOpen = p.PanelId is "widgets" or "photos" or "layers" }).ToList() },
-            Right = new DockLayout { Width = 330, Panels = RightDock.Panels.Select(p => new WorkspacePanelLayout
-                { Id = p.PanelId, IsOpen = p.PanelId == "properties" }).ToList() }
-        });
+        RestoreWorkspaceLayout(_workspaceDocking.DefaultLayout());
         _viewModel.IsCanvasFit = true;
         OnDockLayoutChanged(this, EventArgs.Empty);
     }
@@ -421,6 +417,7 @@ public partial class MainWindow : Window
             return;
 
         _disposed = true;
+        _workspaceDocking.Dispose();
         _deviceChangeTimer?.Stop();
         if (_windowSource is not null)
         {

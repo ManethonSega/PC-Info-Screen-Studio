@@ -114,7 +114,7 @@ internal static class WorkspaceLayoutChecks
             }
             vm.Document.Orientation = ThemeOrientation.Landscape;
             vm.Document.Mode = ScreenMode.PhotoFrame; Flush(window);
-            Require(!right.IsVisible && left.Panels.Single(p => p.PanelId == "photos").IsVisible && layers.IsOpen,
+            Require(right.ActualWidth < 1 && left.Panels.Single(p => p.PanelId == "photos").IsVisible && layers.IsOpen,
                 "Photo Frame shows its own tools while preserving hidden editor panel preferences.");
             CheckFits(designer);
             vm.Document.Mode = ScreenMode.Hybrid; Flush(window);
@@ -160,6 +160,7 @@ internal static class WorkspaceLayoutChecks
             vm.ToggleEditorModeCommand.Execute(null); Flush(window); CheckFits(designer);
             Require(!left.IsVisible && !right.IsVisible, "Live view removes both rails without changing their preferences.");
             vm.ToggleEditorModeCommand.Execute(null); Flush(window);
+            FloatingWorkspaceChecks.Check(window, vm, left, right, root, pump, captures);
             CheckPreferenceRepair(root);
             Console.WriteLine("PASS: real WPF dock toggles, stacked resizing/reordering, range accessibility, responsive Fit, manual zoom, both screen families/orientations, mode visibility, persistence and reset.");
         }

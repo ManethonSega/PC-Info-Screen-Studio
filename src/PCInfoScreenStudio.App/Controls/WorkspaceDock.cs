@@ -28,6 +28,12 @@ public sealed class WorkspaceDock : Grid
     private readonly Dictionary<WorkspacePanel, Border> _hosts = [];
     private readonly Dictionary<WorkspacePanel, ToggleButton> _tabs = [];
     private readonly List<WorkspacePanel> _order = [];
+    private readonly Border _dropPreview = new() { IsHitTestVisible = false, Visibility = Visibility.Collapsed,
+        BorderThickness = new Thickness(2), VerticalAlignment = VerticalAlignment.Top, Padding = new Thickness(8),
+        Child = new TextBlock { Text = "Dock here", FontWeight = FontWeights.SemiBold } };
+    internal WorkspaceDocking? Docking { get; set; }
+    internal IEnumerable<WorkspacePanel> OrderedPanels => _order;
+    public bool HasVisiblePanels => _order.Any(p => p.Visibility == Visibility.Visible);
     private bool _ready;
     private bool _restoring;
     private double _maximumPanelWidth = 460;
@@ -36,7 +42,7 @@ public sealed class WorkspaceDock : Grid
 
     public ObservableCollection<WorkspacePanel> Panels { get; } = [];
     public bool RailOnRight { get; set; }
-    public bool HasOpenPanels => _order.Any(p => p.Visibility == Visibility.Visible && p.IsOpen);
+    public bool HasOpenPanels => _order.Any(p => p.Visibility == Visibility.Visible && p.IsOpen && !p.IsFloating);
     public double PreferredPanelWidth => _preferredPanelWidth;
     public double EffectivePanelWidth => HasOpenPanels ? _contentColumn.Width.Value : 0;
     public event EventHandler? LayoutChanged;
@@ -77,29 +83,90 @@ public sealed class WorkspaceDock : Grid
         SetColumn(_stackScroll, 1); Children.Add(_stackScroll);
         SetColumn(_widthGrip, RailOnRight ? 0 : 2); Children.Add(_widthGrip);
         AutomationProperties.SetName(_widthGrip, RailOnRight ? "Right panel width" : "Left panel width");
-        foreach (var panel in Panels)
-        {
-            // Collapsed panels remain bound even while their hosts are outside the visual tree.
-            panel.SetBinding(DataContextProperty, new Binding(nameof(DataContext)) { Source = this });
-            _order.Add(panel);
-            panel.HorizontalContentAlignment = HorizontalAlignment.Stretch;
-            panel.VerticalContentAlignment = VerticalAlignment.Stretch;
-            panel.StateChanged += OnPanelStateChanged;
-            var label = new StackPanel { Orientation = Orientation.Horizontal };
-            var icon = new TextBlock { Text = panel.Icon, FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 14,
-                Width = 18, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
-            label.Children.Add(icon);
-            label.Children.Add(new TextBlock { Text = panel.Title, VerticalAlignment = VerticalAlignment.Center });
-            var tab = new ToggleButton { Content = label, Margin = new Thickness(4, 3, 4, 0),
-                ToolTip = "Open or collapse " + panel.Title.ToLowerInvariant() + ". Other open panels stay visible." };
-            tab.SetResourceReference(StyleProperty, "WorkspaceTabStyle");
-            tab.SetBinding(ToggleButton.IsCheckedProperty, new Binding(nameof(WorkspacePanel.IsOpen)) { Source = panel, Mode = BindingMode.TwoWay });
-            AutomationProperties.SetName(tab, panel.Title + " panel");
-            _tabs.Add(panel, tab);
-            _hosts.Add(panel, CreateHost(panel));
-        }
+        _dropPreview.SetResourceReference(Border.BackgroundProperty, "PanelBrush");
+        _dropPreview.SetResourceReference(Border.BorderBrushProperty, "AccentBrush");
+        SetColumnSpan(_dropPreview, 3); SetZIndex(_dropPreview, 10); Children.Add(_dropPreview);
+        foreach (var panel in Panels.ToArray()) RegisterPanel(panel);
         _ready = true;
         RebuildStack();
+    }
+
+    private void RegisterPanel(WorkspacePanel panel)
+    {
+        // Collapsed panels remain bound even while their hosts are outside the visual tree.
+        panel.SetBinding(DataContextProperty, new Binding(nameof(DataContext)) { Source = this });
+        _order.Add(panel);
+        panel.HorizontalContentAlignment = HorizontalAlignment.Stretch;
+        panel.VerticalContentAlignment = VerticalAlignment.Stretch;
+        panel.StateChanged += OnPanelStateChanged;
+        var label = new StackPanel { Orientation = Orientation.Horizontal };
+        var icon = new TextBlock { Text = panel.Icon, FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 14,
+            Width = 18, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
+        label.Children.Add(icon);
+        label.Children.Add(new TextBlock { Text = panel.Title, VerticalAlignment = VerticalAlignment.Center });
+        var tab = new ToggleButton { Content = label, Margin = new Thickness(4, 3, 4, 0),
+            ToolTip = "Open or collapse " + panel.Title.ToLowerInvariant() + ". Other open panels stay visible." };
+        tab.SetResourceReference(StyleProperty, "WorkspaceTabStyle");
+        tab.SetBinding(ToggleButton.IsCheckedProperty, new Binding(nameof(WorkspacePanel.IsOpen)) { Source = panel, Mode = BindingMode.TwoWay });
+        AutomationProperties.SetName(tab, panel.Title + " panel");
+        _tabs.Add(panel, tab);
+        _hosts.Add(panel, CreateHost(panel));
+
+        Docking?.AttachDrag(tab, panel);
+    }
+
+
+    internal void TransferTo(WorkspacePanel panel, WorkspaceDock target)
+    {
+        EnsureReady(); target.EnsureReady();
+        if (ReferenceEquals(this, target)) return;
+        Docking?.CloseFloatingWindow(panel);
+        _stack.Children.Remove(_hosts[panel]);
+        panel.StateChanged -= OnPanelStateChanged;
+        // Remove the old wrapper before placing the live content in its new host.
+        if (panel.Parent is ScrollViewer scroll) scroll.Content = null;
+        else if (panel.Parent is Grid grid) grid.Children.Remove(panel);
+        _hosts.Remove(panel); _rail.Children.Remove(_tabs[panel]); _tabs.Remove(panel);
+        _order.Remove(panel); Panels.Remove(panel);
+        target.Panels.Add(panel); target.RegisterPanel(panel);
+        RebuildStack(); target.RebuildStack();
+    }
+
+    internal Border Host(WorkspacePanel panel) => _hosts[panel];
+    internal void Refresh() { RebuildStack(); Docking?.SyncWindows(); }
+    internal void NotifyChanged()
+    { LayoutSizeChanged?.Invoke(this, EventArgs.Empty); LayoutChanged?.Invoke(this, EventArgs.Empty); }
+
+    internal int DropIndex(Point point)
+    {
+        foreach (var panel in _order.Where(p => p.Visibility == Visibility.Visible && p.IsOpen && !p.IsFloating))
+        {
+            var host = _hosts[panel];
+            var top = host.TranslatePoint(new Point(), this).Y;
+            if (point.Y < top + host.ActualHeight / 2) return _order.IndexOf(panel);
+        }
+        return _order.Count;
+    }
+
+    internal void Place(WorkspacePanel panel, int index)
+    {
+        var old = _order.IndexOf(panel);
+        _order.Remove(panel);
+        if (old >= 0 && old < index) index--;
+        _order.Insert(Math.Clamp(index, 0, _order.Count), panel);
+    }
+
+    internal void PreviewDrop(bool show, int? index = null)
+    {
+        _dropPreview.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        if (!show) { UpdateWidths(); return; }
+        // Empty sides also offer a target while dragging.
+        ColumnDefinitions[RailOnRight ? 2 : 0].Width = new GridLength(RailWidth);
+        var next = index.HasValue ? _order.Skip(index.Value).FirstOrDefault(p => p.IsOpen && !p.IsFloating && p.Visibility == Visibility.Visible) : null;
+        var y = next is null ? _stack.ActualHeight : _hosts[next].TranslatePoint(new Point(), this).Y;
+        _dropPreview.Margin = new Thickness(3, Math.Clamp(y, 3, Math.Max(3, ActualHeight - 42)), 3, 0);
+        _dropPreview.Opacity = index.HasValue ? 1 : .65;
+        ((TextBlock)_dropPreview.Child).Text = RailOnRight ? "Dock right" : "Dock left";
     }
 
     private Border CreateHost(WorkspacePanel panel)
@@ -108,10 +175,31 @@ public sealed class WorkspaceDock : Grid
         host.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         host.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         var header = new DockPanel { Margin = new Thickness(10, 5, 5, 5), LastChildFill = true };
+        header.Background = Brushes.Transparent;
+        header.ToolTip = "Drag to reorder, dock on either side, or float. Press Escape to cancel.";
+        Docking?.AttachDrag(header, panel);
         var actions = new StackPanel { Orientation = Orientation.Horizontal };
         DockPanel.SetDock(actions, Dock.Right); header.Children.Add(actions);
         AddHeaderAction(actions, panel, "\uE70E", "Move " + panel.Title.ToLowerInvariant() + " panel up", () => MovePanel(panel, -1));
         AddHeaderAction(actions, panel, "\uE70D", "Move " + panel.Title.ToLowerInvariant() + " panel down", () => MovePanel(panel, 1));
+        if (Docking is not null)
+        {
+            var menu = new ContextMenu();
+            void Add(string name, Action action)
+            {
+                var item = new MenuItem { Header = name };
+                item.Click += (_, _) => action(); menu.Items.Add(item);
+            }
+            Add("Float panel", () => Docking.Float(panel));
+            Add("Dock left", () => Docking.Dock(panel, false));
+            Add("Dock right", () => Docking.Dock(panel, true));
+            var options = new Button { Content = "⋯", Width = 22, Height = 24, Padding = new Thickness(3), Margin = new Thickness(0),
+                ContextMenu = menu, ToolTip = "Panel options" };
+            options.SetResourceReference(StyleProperty, "QuietButtonStyle");
+            AutomationProperties.SetName(options, panel.Title + " panel options");
+            options.Click += (_, _) => { menu.PlacementTarget = options; menu.IsOpen = true; };
+            actions.Children.Add(options);
+        }
         AddHeaderAction(actions, panel, "\uE711", "Collapse " + panel.Title.ToLowerInvariant() + " panel", () => { panel.IsOpen = false; _tabs[panel].Focus(); });
         header.Children.Add(new TextBlock { Text = panel.Title, FontWeight = FontWeights.SemiBold,
             VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis });
@@ -141,7 +229,7 @@ public sealed class WorkspaceDock : Grid
     private void OnPanelStateChanged(object? sender, EventArgs e)
     {
         if (!_ready || _restoring) return;
-        RebuildStack();
+        Refresh();
         LayoutSizeChanged?.Invoke(this, EventArgs.Empty);
         LayoutChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -149,7 +237,7 @@ public sealed class WorkspaceDock : Grid
     private void RebuildStack()
     {
         _stack.Children.Clear(); _stack.RowDefinitions.Clear();
-        var open = _order.Where(p => p.Visibility == Visibility.Visible && p.IsOpen).ToArray();
+        var open = _order.Where(p => p.Visibility == Visibility.Visible && p.IsOpen && !p.IsFloating).ToArray();
         var tabs = _order.Select(p => _tabs[p]).ToArray();
         if (!_rail.Children.OfType<ToggleButton>().SequenceEqual(tabs))
         {
@@ -213,7 +301,7 @@ public sealed class WorkspaceDock : Grid
     private void SaveHeights()
     {
         _stack.UpdateLayout();
-        foreach (var panel in _order.Where(p => p.Visibility == Visibility.Visible && p.IsOpen))
+        foreach (var panel in _order.Where(p => p.Visibility == Visibility.Visible && p.IsOpen && !p.IsFloating))
         {
             var row = _stack.RowDefinitions[GetRow(_hosts[panel])];
             if (row.Height.IsAbsolute) panel.PreferredHeight = Math.Clamp(row.Height.Value, MinimumPanelHeight, 10000);
@@ -225,7 +313,7 @@ public sealed class WorkspaceDock : Grid
     private void UpdateStackLimits()
     {
         if (!_ready) return;
-        var open = _order.Where(p => p.Visibility == Visibility.Visible && p.IsOpen).ToArray();
+        var open = _order.Where(p => p.Visibility == Visibility.Visible && p.IsOpen && !p.IsFloating).ToArray();
         var available = Math.Max(MinimumPanelHeight, ActualHeight);
         var minimums = open.ToDictionary(p => p, GetMinimumHeight);
         var remaining = Math.Max(minimums.Values.Sum(), available - Math.Max(0, open.Length - 1) * DividerWidth);
@@ -250,7 +338,7 @@ public sealed class WorkspaceDock : Grid
         _widthGrip.Height = Math.Max(0, Math.Min(ActualHeight, _stack.ActualHeight));
     }
 
-    private double GetMinimumHeight(WorkspacePanel panel)
+    internal double GetMinimumHeight(WorkspacePanel panel)
     {
         // Non-scrolling panels pin their controls around a separately scrolling list.
         if (panel.IsScrollable || panel.Content is not Grid content) return MinimumPanelHeight;
@@ -268,6 +356,7 @@ public sealed class WorkspaceDock : Grid
 
     private void UpdateWidths()
     {
+        ColumnDefinitions[RailOnRight ? 2 : 0].Width = new GridLength(HasVisiblePanels ? RailWidth : 0);
         var width = Math.Min(_preferredPanelWidth, _maximumPanelWidth);
         _contentColumn.Width = new GridLength(HasOpenPanels ? width : 0);
         _dividerColumn.Width = new GridLength(HasOpenPanels ? DividerWidth : 0);
@@ -286,7 +375,7 @@ public sealed class WorkspaceDock : Grid
     public void MovePanel(WorkspacePanel panel, int direction)
     {
         EnsureReady();
-        var visible = _order.Where(p => p.Visibility == Visibility.Visible).ToList();
+        var visible = _order.Where(p => p.Visibility == Visibility.Visible && !p.IsFloating).ToList();
         var index = visible.IndexOf(panel); var target = index + Math.Sign(direction);
         if (index < 0 || target < 0 || target >= visible.Count) return;
         var fromIndex = _order.IndexOf(panel); var toIndex = _order.IndexOf(visible[target]);
@@ -300,12 +389,14 @@ public sealed class WorkspaceDock : Grid
         EnsureReady();
         return new DockLayout { Width = _preferredPanelWidth,
             Panels = _order.Select(p => new WorkspacePanelLayout
-                { Id = p.PanelId, IsOpen = p.IsOpen, Weight = p.Weight, PreferredHeight = p.PreferredHeight }).ToList() };
+                { Id = p.PanelId, IsOpen = p.IsOpen, Weight = p.Weight, PreferredHeight = p.PreferredHeight,
+                    IsFloating = p.IsFloating, FloatingBounds = FloatingPanelBounds.Copy(p.FloatingBounds) }).ToList() };
     }
 
     public void RestoreLayout(DockLayout layout)
     {
         EnsureReady(); _restoring = true;
+        foreach (var panel in Panels) Docking?.CloseFloatingWindow(panel);
         try
         {
             _preferredPanelWidth = layout.Width;
@@ -313,11 +404,13 @@ public sealed class WorkspaceDock : Grid
             _order.Clear();
             foreach (var state in layout.Panels)
                 if (known.Remove(state.Id, out var panel))
-                { panel.IsOpen = state.IsOpen; panel.Weight = state.Weight; panel.PreferredHeight = state.PreferredHeight; _order.Add(panel); }
+                { panel.IsOpen = state.IsOpen; panel.Weight = state.Weight; panel.PreferredHeight = state.PreferredHeight; panel.IsFloating = state.IsFloating;
+                    panel.FloatingBounds = FloatingPanelBounds.Copy(state.FloatingBounds); _order.Add(panel); }
             _order.AddRange(Panels.Where(p => known.ContainsKey(p.PanelId)));
             RebuildStack();
         }
         finally { _restoring = false; }
+        Docking?.SyncWindows();
         LayoutSizeChanged?.Invoke(this, EventArgs.Empty);
     }
 }
