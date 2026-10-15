@@ -1,6 +1,6 @@
 # Studio UI refinement
 
-The app is a .NET 10 WPF operating interface. Use collapsible docks with Themes/Widgets/Media/Photos/Slideshow/Captions/Overlays/Sources/Layers on the left, the physical-screen canvas in the centre and contextual Properties/Sensors on the right. Keep Editor/Hardware navigation, mode/model selection, Settings, brightness and Start/Stop in the top bar. Photo Frame and Hybrid retain their own workspaces and expanded sections. The owner explicitly requested the Photoshop-inspired panel layout on 15 October 2026.
+The app is a .NET 10 WPF operating interface. Use collapsible docks with Themes/Widgets/Media/Photos/Slideshow/Captions/Layers on the left, the physical-screen canvas in the centre and contextual Properties/Sensors on the right. Keep Editor/Hardware navigation, mode/model selection, Settings, brightness and Start/Stop in the top bar. Photo Frame and Hybrid retain their own workspaces and expanded sections. The owner explicitly requested the Photoshop-inspired panel layout on 15 October 2026.
 
 ## Visual direction
 
@@ -52,6 +52,6 @@ Floating windows and free docking drag remain a later phase. This implementation
 
 ## Photo and Hybrid panel scopes
 
-Photos contains Add files/folder, the photo list and playback/removal controls. Slideshow holds timing, transitions, fit, background, loop and shuffle. Captions holds global caption content and typography. Sources holds folder watching and saved linked playlists. Overlays holds Hybrid widget/video actions and is hidden in Photo Frame. Each is an independent labelled rail entry, with its own open state and stack position.
+Photos contains Add files/folder, the photo list, playback/removal controls and a collapsed Folders & playlists section for folder watching and saved linked playlists. These all manage photo inputs, so there is no separate Sources rail entry. Slideshow holds timing, transitions, fit, background, loop and shuffle. Captions holds global caption content and typography. Widgets uses the same name and icon in Info Screen and Hybrid; Hybrid includes the video-widget action. Widgets is hidden in Photo Frame. Each dock panel has its own open state and stack position.
 
-The original Photos panel ID is retained, so existing arrangements keep their saved Photos and Layers state. Newly introduced sections start collapsed and use the existing dock persistence/reset behavior. The same scopes apply in Photo Frame and Hybrid, with mode-specific settings and playlists retained.
+The original Photos panel ID and Hybrid widget-panel ID are retained, so existing arrangements keep their saved open states and positions. An older Sources layout entry is ignored when restoring the dock; its settings remain available inside Photos. Slideshow, Captions and Hybrid Widgets start collapsed and use the existing dock persistence/reset behavior. The same photo scopes apply in Photo Frame and Hybrid, with mode-specific settings and playlists retained.

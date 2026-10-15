@@ -138,7 +138,7 @@
               <Button Content="Clock" Command="{Binding AddWidgetCommand}" CommandParameter="AnalogClock" ToolTip="Add a traditional analogue clock." />
               <Button Content="Bar" Command="{Binding AddWidgetCommand}" CommandParameter="BarGauge" ToolTip="Add a segmented horizontal gauge." />
               <Button Content="Graph" Command="{Binding AddWidgetCommand}" CommandParameter="Graph" ToolTip="Add a live history graph." />
-              <Button Content="Shape" Command="{Binding AddWidgetCommand}" CommandParameter="Shape" ToolTip="Add a rectangle or ellipse." />
+              <Button Content="Shape" Command="{Binding AddWidgetCommand}" CommandParameter="Shape" ToolTip="Add a rectangle, rounded rectangle, ellipse or line." />
               <Button Content="Hardware name" Command="{Binding AddWidgetCommand}" CommandParameter="HardwareName" Padding="4,6" ToolTip="Automatically show your CPU, GPU, SSD or RAM name; edit the name afterwards." />
             </UniformGrid>
         </controls:WorkspacePanel>
@@ -192,6 +192,17 @@
                 <Button Content="Remove" Command="{Binding RemovePhotoCommand}" ToolTip="Remove this photo from the playlist. The original file stays on your PC." />
               </UniformGrid>
               <TextBlock Text="{Binding PhotoPositionLabel}" HorizontalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
+            <Expander Header="Folders &amp; playlists" Margin="0,10,0,0">
+              <StackPanel Margin="0,5,0,0">
+                <CheckBox Content="Watch folder for new photos" IsChecked="{Binding Document.PhotoFrame.WatchFolderEnabled}" ToolTip="Automatically add new images created in the selected folder." />
+                <TextBlock Text="{Binding Document.PhotoFrame.WatchedFolder}" TextTrimming="CharacterEllipsis" Foreground="{StaticResource MutedTextBrush}" ToolTip="{Binding Document.PhotoFrame.WatchedFolder}" />
+                <Button Content="Choose watched folder" Command="{Binding ChooseWatchedFolderCommand}" ToolTip="Select the folder monitored for new photos." />
+                <UniformGrid Columns="2">
+                  <Button Content="Save playlist" Command="{Binding SaveAlbumPresetCommand}" ToolTip="Save this playlist as links to photos that remain on this PC." />
+                  <Button Content="Load playlist" Command="{Binding LoadAlbumPresetCommand}" ToolTip="Replace the current playlist with a saved linked playlist." />
+                </UniformGrid>
+              </StackPanel>
+            </Expander>
           </StackPanel>
         </controls:WorkspacePanel>
         <controls:WorkspacePanel PanelId="slideshow" Title="Slideshow" Icon="&#xE768;" IsOpen="False">
@@ -266,34 +277,22 @@
                   </Grid>
           </StackPanel>
         </controls:WorkspacePanel>
-        <controls:WorkspacePanel PanelId="overlays" Title="Overlays" Icon="&#xE710;" IsOpen="False">
+        <controls:WorkspacePanel PanelId="overlays" Title="Widgets" Icon="&#xE710;" IsOpen="False">
           <controls:WorkspacePanel.Style><Style TargetType="controls:WorkspacePanel"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.Hybrid}"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></controls:WorkspacePanel.Style>
           <StackPanel>
-            <TextBlock Text="Add only the information you want over the photos." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="2,0,2,4" />
+            <TextBlock Text="Add widgets over your photos." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="2,0,2,4" />
                   <UniformGrid Columns="2">
-                    <Button Content="Text" Command="{Binding AddWidgetCommand}" CommandParameter="Text" ToolTip="Add a text overlay." />
-                    <Button Content="Value" Command="{Binding AddWidgetCommand}" CommandParameter="Value" ToolTip="Add a sensor value overlay." />
-                    <Button Content="Circle" Command="{Binding AddWidgetCommand}" CommandParameter="CircularGauge" ToolTip="Add a circular gauge overlay." />
-                    <Button Content="Clock" Command="{Binding AddWidgetCommand}" CommandParameter="AnalogClock" ToolTip="Add a clock overlay." />
-                    <Button Content="Bar" Command="{Binding AddWidgetCommand}" CommandParameter="BarGauge" ToolTip="Add a bar overlay." />
-                    <Button Content="Graph" Command="{Binding AddWidgetCommand}" CommandParameter="Graph" ToolTip="Add a history graph overlay." />
-                    <Button Content="Shape" Command="{Binding AddWidgetCommand}" CommandParameter="Shape" ToolTip="Add a rectangle, rounded rectangle, ellipse or line overlay." />
+                    <Button Content="Text" Command="{Binding AddWidgetCommand}" CommandParameter="Text" ToolTip="Add a fixed text label." />
+                    <Button Content="Value" Command="{Binding AddWidgetCommand}" CommandParameter="Value" ToolTip="Add a label and live sensor value." />
+                    <Button Content="Circle" Command="{Binding AddWidgetCommand}" CommandParameter="CircularGauge" ToolTip="Add a circular sensor gauge." />
+                    <Button Content="Clock" Command="{Binding AddWidgetCommand}" CommandParameter="AnalogClock" ToolTip="Add a traditional analogue clock." />
+                    <Button Content="Bar" Command="{Binding AddWidgetCommand}" CommandParameter="BarGauge" ToolTip="Add a segmented horizontal gauge." />
+                    <Button Content="Graph" Command="{Binding AddWidgetCommand}" CommandParameter="Graph" ToolTip="Add a live history graph." />
+                    <Button Content="Shape" Command="{Binding AddWidgetCommand}" CommandParameter="Shape" ToolTip="Add a rectangle, rounded rectangle, ellipse or line." />
                     <Button Content="Hardware name" Command="{Binding AddWidgetCommand}" CommandParameter="HardwareName" Padding="4,6" ToolTip="Automatically show a CPU, GPU, SSD or RAM name over your photos." />
-                    <Button Content="Video" Command="{Binding ImportVideoCommand}" ToolTip="Add a silent video overlay linked to its original file. Keep that file available when reopening Hybrid themes." />
+                    <Button Content="Video" Command="{Binding ImportVideoCommand}" ToolTip="Add a silent video widget linked to its original file. Keep that file available when reopening Hybrid themes." />
                   </UniformGrid>
                   <TextBlock Text="{Binding VideoImportStatus}" Foreground="{StaticResource MutedTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="4,3,4,0" />
-          </StackPanel>
-        </controls:WorkspacePanel>
-        <controls:WorkspacePanel PanelId="sources" Title="Sources" Icon="&#xE8B7;" IsOpen="False">
-          <controls:WorkspacePanel.Style><Style TargetType="controls:WorkspacePanel"><Setter Property="Visibility" Value="Collapsed" /><Style.Triggers><DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.PhotoFrame}"><Setter Property="Visibility" Value="Visible" /></DataTrigger><DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.Hybrid}"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers></Style></controls:WorkspacePanel.Style>
-          <StackPanel>
-            <CheckBox Content="Watch folder for new photos" IsChecked="{Binding Document.PhotoFrame.WatchFolderEnabled}" ToolTip="Automatically add new images created in the selected folder." />
-                  <TextBlock Text="{Binding Document.PhotoFrame.WatchedFolder}" TextTrimming="CharacterEllipsis" Foreground="{StaticResource MutedTextBrush}" ToolTip="{Binding Document.PhotoFrame.WatchedFolder}" />
-                  <Button Content="Choose watched folder" Command="{Binding ChooseWatchedFolderCommand}" ToolTip="Select the folder monitored for new photos." />
-                  <UniformGrid Columns="2">
-                    <Button Content="Save playlist" Command="{Binding SaveAlbumPresetCommand}" ToolTip="Save this playlist as links to photos that remain on this PC." />
-                    <Button Content="Load playlist" Command="{Binding LoadAlbumPresetCommand}" ToolTip="Replace the current playlist with a saved linked playlist." />
-                  </UniformGrid>
           </StackPanel>
         </controls:WorkspacePanel>
         <controls:WorkspacePanel PanelId="layers" Title="Layers" Icon="&#xE81E;" IsOpen="True" IsScrollable="False">
@@ -457,8 +456,8 @@
               <Style TargetType="TextBlock">
                 <Setter Property="Text" Value="Live sensor readings are enabled. Choose Preview.Value as a data source to set a design value." />
                 <Style.Triggers>
-                  <DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.PhotoFrame}"><Setter Property="Text" Value="Photo preview. Slideshow settings and sources are in the left workspace." /></DataTrigger>
-                  <DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.Hybrid}"><Setter Property="Text" Value="Arrange the selected Hybrid overlay over the photo preview." /></DataTrigger>
+                  <DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.PhotoFrame}"><Setter Property="Text" Value="Photo preview. Open Photos to manage files and folders; use Slideshow and Captions for presentation." /></DataTrigger>
+                  <DataTrigger Binding="{Binding Document.Mode}" Value="{x:Static models:ScreenMode.Hybrid}"><Setter Property="Text" Value="Arrange the selected widget over the photo preview." /></DataTrigger>
                 </Style.Triggers>
               </Style>
             </TextBlock.Style>

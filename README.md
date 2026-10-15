@@ -4,7 +4,7 @@ A visual Windows editor and runtime for 3.5-inch Turing/TURZX-style serial scree
 
 > **Status:** `0.10.0-alpha.20`. Actively developed alpha. A permanent Windows x64 [portable download](https://github.com/ManethonSega/PC-Info-Screen-Studio/releases/tag/v0.10.0-alpha.20) is available. Development builds are also available through GitHub Actions. There is no installer, code signing or automatic updater.
 
-The draft alpha.23 workspace adds labelled collapsible panel strips, resizable stacks, remembered panel arrangements and automatic canvas fitting. **Fit** follows window/panel resizing; **100%** and manual zoom preserve exact editing scale. **Reset workspace** restores the panel layout. This development candidate is separate from the published alpha.20 download.
+The draft alpha.24 workspace adds labelled collapsible panel strips, resizable stacks, remembered panel arrangements and automatic canvas fitting. **Widgets** has the same name in Info Screen and Hybrid. Photo Frame and Hybrid keep folder watching and linked playlists under **Photos > Folders & playlists**, alongside photo imports. **Fit** follows window/panel resizing; **100%** and manual zoom preserve exact editing scale. **Reset workspace** restores the panel layout. This development candidate is separate from the published alpha.20 download.
 
 Use **Brightness** beside **Start/Stop display** to adjust the selected physical screen from 0 to 100%, or reset it to 50%. Each screen family remembers its own level across restart/reconnect; this is an app setting, separate from themes.
 
@@ -16,7 +16,7 @@ Alpha.20 adds validated settings/session backups, guarded file operations with p
 
 ## Interface tour
 
-These screenshots were captured from the actual alpha.13 WPF interface in the [successful Windows release checks](https://github.com/ManethonSega/PC-Info-Screen-Studio/actions/runs/38543047505). Hardware readings are sample data; editor content is illustrative. They document the alpha.13 interface. The alpha.22 docked workspace is shown in the previews attached to [draft PR #32](https://github.com/ManethonSega/PC-Info-Screen-Studio/pull/32); neither set establishes physical-device validation.
+These screenshots were captured from the actual alpha.13 WPF interface in the [successful Windows release checks](https://github.com/ManethonSega/PC-Info-Screen-Studio/actions/runs/38543047505). Hardware readings are sample data; editor content is illustrative. They document the alpha.13 interface. The alpha.24 docked workspace is shown in the previews attached to [draft PR #32](https://github.com/ManethonSega/PC-Info-Screen-Studio/pull/32); neither set establishes physical-device validation.
 
 ### Hardware overview
 
@@ -32,7 +32,7 @@ Add widgets and manage layers on the left, arrange them on the canvas, and searc
 
 ### Hardware names and colour emoji
 
-Choose **Hardware name** under Add or Hybrid overlays, then choose CPU, GPU, SSD/drive or RAM in its properties. Edit **Displayed name** to keep custom wording, or enable **Use detected name** to follow the current PC. Emoji preserve their colours in the rendered canvas and display output.
+Choose **Hardware name** under **Widgets** in Info Screen or Hybrid, then choose CPU, GPU, SSD/drive or RAM in its properties. Edit **Displayed name** to keep custom wording, or enable **Use detected name** to follow the current PC. Emoji preserve their colours in the rendered canvas and display output.
 
 ![Hardware name widget with automatic/custom controls and coloured emoji in the canvas](docs/images/hardware-name-widget.png)
 
@@ -56,9 +56,9 @@ Each mode has a **Themes** panel with visible **Load theme** and **Save theme** 
 
 ### Caption fonts, Hybrid shapes and widget backgrounds
 
-Choose a global caption font in Photo Frame or Hybrid, add a **Shape** from Hybrid overlays, and adjust **Background transparency (%)** on any widget. The percentage affects the background fill while text, gauges, images and outlines keep their appearance.
+Choose a global caption font in Photo Frame or Hybrid, add a **Shape** from **Widgets** in Hybrid, and adjust **Background transparency (%)** on any widget. The percentage affects the background fill while text, gauges, images and outlines keep their appearance.
 
-| Caption settings | Hybrid overlays | Widget background |
+| Caption settings | Hybrid widgets | Widget background |
 | --- | --- | --- |
 | ![Global caption font, size, colour and outline controls](docs/images/caption-settings.png) | ![Hybrid Add controls including Shape](docs/images/hybrid-overlays.png) | ![Widget colours with a background-only transparency slider and percentage input](docs/images/widget-background.png) |
 
@@ -151,7 +151,7 @@ EXIF orientation is corrected when preparing photos. Per-photo crop, focal point
 
 ## Silent video and diagnostics
 
-Choose **Video** under Media in Info Screen or Hybrid overlays. H.264 MP4 is the recommended starting format. The imported file becomes a video widget; adjust Fit, Loop, Speed and FPS under Media properties. **Pause video** freezes its current frame; **Restart video** returns to the beginning. Non-looping clips hold their final displayed frame. Failed or unsupported media shows an inline status. Photo Frame remains a photo playlist; videos are widgets in Info Screen and Hybrid.
+Choose **Video** under Media in Info Screen or Widgets in Hybrid. H.264 MP4 is the recommended starting format. The imported file becomes a video widget; adjust Fit, Loop, Speed and FPS under Media properties. **Pause video** freezes its current frame; **Restart video** returns to the beginning. Non-looping clips hold their final displayed frame. Failed or unsupported media shows an inline status. Photo Frame remains a photo playlist; videos are widgets in Info Screen and Hybrid.
 
 | Display | Auto video rate | Maximum requested rate | Output |
 | --- | --- | --- | --- |

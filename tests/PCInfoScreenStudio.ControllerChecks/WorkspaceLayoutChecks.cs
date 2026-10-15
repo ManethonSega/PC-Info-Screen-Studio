@@ -113,12 +113,13 @@ internal static class WorkspaceLayoutChecks
             CheckFits(designer);
             vm.Document.Mode = ScreenMode.Hybrid; Flush(window);
             Require(right.IsVisible && layers.IsOpen, "Hybrid restores its contextual editor panels.");
-            foreach (var name in new[] { "Slideshow", "Captions", "Overlays", "Sources" })
+            foreach (var id in new[] { "slideshow", "captions", "overlays" })
             {
-                var tab = Tab(left, name + " panel");
+                var panel = left.Panels.Single(p => p.PanelId == id);
+                var tab = Tab(left, panel.Title + " panel");
                 Toggle(tab); Flush(window);
-                Require(left.Panels.Single(p => p.Title == name).IsOpen && left.Panels.Single(p => p.PanelId == "photos").IsOpen,
-                    name + " opens independently while Photos stays open.");
+                Require(panel.IsOpen && left.Panels.Single(p => p.PanelId == "photos").IsOpen,
+                    panel.Title + " opens independently while Photos stays open.");
                 Toggle(tab); Flush(window);
             }
             var hint = (Border)designer.FindName("PhotoEmptyState");
@@ -175,7 +176,7 @@ internal static class WorkspaceLayoutChecks
         Require(bounds.Left >= -.5 && bounds.Top >= -.5 && bounds.Right <= surface.ActualWidth + .5 && bounds.Bottom <= surface.ActualHeight + .5,
             $"Fit must keep the complete physical canvas inside its viewport: {bounds}, viewport {surface.RenderSize}.");
     }
-    private static ToggleButton Tab(WorkspaceDock dock, string name) => All<ToggleButton>(dock).Single(t => AutomationProperties.GetName(t) == name);
+    private static ToggleButton Tab(WorkspaceDock dock, string name) => All<ToggleButton>(dock).Single(t => t.IsVisible && AutomationProperties.GetName(t) == name);
     private static void Toggle(ToggleButton button) => ((IToggleProvider)FrameworkElementAutomationPeer.CreatePeerForElement(button)!.GetPattern(PatternInterface.Toggle)!).Toggle();
     private static void Invoke(Button button) => ((IInvokeProvider)FrameworkElementAutomationPeer.CreatePeerForElement(button)!.GetPattern(PatternInterface.Invoke)!).Invoke();
     private static void Flush(Window window)

@@ -69,14 +69,16 @@ internal static class UiPreviews
             var captions = (FrameworkElement)dock.Panels.Single(p => p.PanelId == "captions").Content;
             var slideshow = (FrameworkElement)dock.Panels.Single(p => p.PanelId == "slideshow").Content;
             var overlays = (FrameworkElement)dock.Panels.Single(p => p.PanelId == "overlays").Content;
-            var sources = (FrameworkElement)dock.Panels.Single(p => p.PanelId == "sources").Content;
+            var photos = (FrameworkElement)dock.Panels.Single(p => p.PanelId == "photos").Content;
+            var folders = Find<Expander>(photos, e => Equals(e.Header, "Folders & playlists"))!;
+            folders.IsExpanded = true;
             var colours = Find<Expander>(root, e => Equals(e.Header, "Colours"))!;
             if (colours.DataContext is not WidgetModel { Type: WidgetType.Shape, BackgroundTransparency: 40 })
                 throw new InvalidOperationException("Appearance preview did not bind the selected Shape and transparency.");
             CapturePanel(captions, vm, 310, 420, Path.Combine(directory, "Caption-settings.png"));
             CapturePanel(slideshow, vm, 310, 300, Path.Combine(directory, "Slideshow-settings.png"));
-            CapturePanel(sources, vm, 310, 180, Path.Combine(directory, "Photo-sources.png"));
-            CapturePanel(overlays, vm, 310, 290, Path.Combine(directory, "Hybrid-overlays.png"));
+            CapturePanel(folders, vm, 310, 210, Path.Combine(directory, "Photo-folders-and-playlists.png"));
+            CapturePanel(overlays, vm, 310, 290, Path.Combine(directory, "Hybrid-widgets.png"));
             CapturePanel(colours, vm, 310, 260, Path.Combine(directory, "Widget-background.png"));
             vm.Document.Mode = ScreenMode.InfoScreen;
             vm.AddWidgetCommand.Execute("HardwareName");

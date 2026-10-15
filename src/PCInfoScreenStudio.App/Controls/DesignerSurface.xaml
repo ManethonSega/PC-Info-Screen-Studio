@@ -151,8 +151,8 @@
                 </Style>
               </Border.Style>
               <StackPanel>
-                <TextBlock Text="Add an overlay" FontSize="17" FontWeight="SemiBold" TextAlignment="Center" />
-                <TextBlock Text="Open Overlays on the left to add an item." Foreground="{StaticResource MutedTextBrush}"
+                <TextBlock Text="Add a widget" FontSize="17" FontWeight="SemiBold" TextAlignment="Center" />
+                <TextBlock Text="Open Widgets on the left to add an item." Foreground="{StaticResource MutedTextBrush}"
                            TextAlignment="Center" TextWrapping="Wrap" Margin="0,6,0,0" />
               </StackPanel>
             </Border>
