@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.10.0-alpha.21
+
+- Refined the native WPF editor using Impeccable, Web Design Guidelines, UI/UX Pro Max and Emil Design Engineering, retaining its three-pane structure and navy/cyan palette.
+- Made canvas tool groups wrap with the available width instead of overlapping in a fixed-height row at compact window sizes.
+- Reduced toolbar and canvas framing, made section headings easier to scan, and replaced internal widget type names and ambiguous Copy/Del labels with readable wording.
+- Added contextual UI Automation names to editor fields, screen/mode choices, colour actions and layer controls. Editable font inputs inherit their control's accessible name.
+- Kept frequent editing interactions immediate, removed dropdown fade animation, and improved consecutive toolbar tooltip timing and expander focus indication.
+- Added Windows checks for compact toolbar geometry, rendered type labels and actual UI Automation field/colour names.
+
 ## 0.10.0-alpha.11
 
 - Consolidated the previously local alpha.7 through alpha.11 source into GitHub.

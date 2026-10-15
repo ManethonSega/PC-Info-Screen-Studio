@@ -2,6 +2,7 @@ using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Automation;
+using System.Windows.Automation.Peers;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Markup;
@@ -29,6 +30,7 @@ internal static class UiPolishChecks
             window.Show();
             pump(() => window.IsEnabled);
             vm.SetEditorActive(false);
+            CheckResponsiveToolbar(window);
             CheckBrightnessControl(window, vm, settings, pump, captureDirectory);
             var surface = All<DesignerSurface>(window).Single();
             var photoHint = (Border)surface.FindName("PhotoEmptyState");
@@ -66,6 +68,7 @@ internal static class UiPolishChecks
             Assert(!photoHint.IsVisible && !hybridHint.IsVisible && !properties.IsVisible, "Info Screen must not show photo prompts or blank property fields.");
             vm.AddWidgetCommand.Execute("CircularGauge");
             Flush();
+            CheckAccessibleProperties(window, properties);
             CheckAlignment(window, vm);
             CheckNumbers(window, vm);
             vm.Document.Mode = ScreenMode.PhotoFrame;
@@ -88,6 +91,55 @@ internal static class UiPolishChecks
             Console.WriteLine("PASS: actual WPF empty states, contextual properties, six alignment icons, draft validation, range relationships, photo settings and Hybrid.");
         }
         finally { window.MarkSessionSavedForExit(); window.Close(); }
+    }
+
+    private static void CheckResponsiveToolbar(PCInfoScreenStudio.MainWindow window)
+    {
+        var originalWidth = window.Width;
+        var originalHeight = window.Height;
+        try
+        {
+            foreach (var (width, height) in new[] { (1560d, 1040d), (1080d, 680d) })
+            {
+                window.Width = width; window.Height = height;
+                Flush(); window.UpdateLayout();
+                var toolbar = (WrapPanel)window.FindName("CanvasToolbar");
+                var groups = toolbar.Children.OfType<FrameworkElement>().Where(e => e.IsVisible).Select(e =>
+                    new Rect(e.TranslatePoint(new Point(), toolbar), e.RenderSize)).ToArray();
+                Assert(groups.All(r => r.Left >= 0 && r.Top >= 0 && r.Right <= toolbar.ActualWidth + .5 && r.Bottom <= toolbar.ActualHeight + .5),
+                    "Canvas control groups must remain inside their toolbar at window width " + width);
+                for (var i = 0; i < groups.Length; i++)
+                    for (var j = i + 1; j < groups.Length; j++)
+                    {
+                        var overlap = Rect.Intersect(groups[i], groups[j]);
+                        Assert(overlap.IsEmpty || overlap.Width < .5 || overlap.Height < .5,
+                            "Canvas controls must not overlap at window width " + width);
+                    }
+                if (width == 1080)
+                    Assert(toolbar.ActualHeight > 60, "The compact editor must allocate height for wrapped canvas controls.");
+            }
+        }
+        finally { window.Width = originalWidth; window.Height = originalHeight; Flush(); }
+    }
+
+    private static void CheckAccessibleProperties(PCInfoScreenStudio.MainWindow window, ContentControl properties)
+    {
+        Assert(All<TextBlock>(properties).Any(t => t.Text == "Circular gauge"),
+            "The inspector must present a readable widget type rather than its serialized enum name.");
+        foreach (var field in All<TextBox>(window).Where(t => t.IsVisible))
+        {
+            var peer = FrameworkElementAutomationPeer.CreatePeerForElement(field);
+            Assert(peer is not null && !string.IsNullOrWhiteSpace(peer.GetName()) && peer.GetName() != field.Text,
+                "A visible editor field must expose a meaningful UI Automation name, independently of its current value: " + field.Name);
+        }
+        foreach (var picker in All<ColorPickerButton>(properties))
+            foreach (var button in All<Button>(picker))
+            {
+                var peer = FrameworkElementAutomationPeer.CreatePeerForElement(button);
+                Assert(peer is not null && peer.GetName().Contains(AutomationProperties.GetName(picker), StringComparison.Ordinal) &&
+                    !string.IsNullOrWhiteSpace(AutomationProperties.GetName(picker)),
+                    "Colour actions must identify which widget colour they change.");
+            }
     }
 
     private static void CheckAlignment(PCInfoScreenStudio.MainWindow window, MainViewModel vm)

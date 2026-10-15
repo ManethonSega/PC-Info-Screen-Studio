@@ -64,9 +64,9 @@ internal static class UiPreviews
             vm.Document.PhotoFrame.CaptionFontFamily = "Orbitron";
             FlushBindings();
             root.UpdateLayout();
-            var album = Find<Expander>(root, e => Equals(e.Header, "ALBUM SETTINGS"))!;
-            var overlays = Find<Expander>(root, e => Equals(e.Header, "HYBRID OVERLAYS"))!;
-            var colours = Find<Expander>(root, e => Equals(e.Header, "COLOURS"))!;
+            var album = Find<Expander>(root, e => Equals(e.Header, "Album settings"))!;
+            var overlays = Find<Expander>(root, e => Equals(e.Header, "Hybrid overlays"))!;
+            var colours = Find<Expander>(root, e => Equals(e.Header, "Colours"))!;
             if (colours.DataContext is not WidgetModel { Type: WidgetType.Shape, BackgroundTransparency: 40 })
                 throw new InvalidOperationException("Appearance preview did not bind the selected Shape and transparency.");
             CapturePanel(album, vm, 310, 690, Path.Combine(directory, "Caption-settings.png"));
