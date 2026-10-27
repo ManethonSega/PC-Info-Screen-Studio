@@ -1,6 +1,6 @@
 # Matrix bitmap fonts
 
-The Matrix renderer uses editable binary glyph rows in `Assets/MatrixFonts.json`, never a scaled desktop fallback font. Four-, five- and ten-dot settings are saved independently. The selected tile exposes the menu for its actual row height. Existing numeric five-dot selections remain compatible.
+The Matrix renderer uses editable binary glyph rows in `Assets/MatrixFonts.json`, never a scaled desktop fallback font. Every tile saves independent four-, five- and ten-dot settings. The selected tile exposes the menu for its actual row height; edits affect only that tile. Earlier workspace-wide values are read as migration defaults for missing tile fields, while explicit tile values (including enum value zero) take precedence. Existing numeric five-dot selections remain compatible.
 
 | Height | Choices | Source and terms |
 | --- | --- | --- |
@@ -29,6 +29,10 @@ The Matrix renderer uses editable binary glyph rows in `Assets/MatrixFonts.json`
 ## Development inclusion and release review
 
 All fourteen bitmap choices are embedded and work immediately. At the project owner's explicit request, the development build also includes Limitdot H4 and piconano-derived glyphs. No local font-file loading step is required. This instruction is a development-scope decision, not evidence of a redistribution license. Permission for these two sources remains unverified and must be resolved before a public distributable release. Source links and the observed TTF metadata are retained above and in the bundled notices. The original TTF files are not bundled.
+
+## Per-tile alignment
+
+Text, sensor values and UTC time use each tile’s saved Left, Centre or Right alignment. The content region clips overflow, and long scrolling text uses the full viewport from its first frame. Pixel art retains its authored coordinates. Invalid alignment values recover to Left.
 
 ## Two-row geometry
 

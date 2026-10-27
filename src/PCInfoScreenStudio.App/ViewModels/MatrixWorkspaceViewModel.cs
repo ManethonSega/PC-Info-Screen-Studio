@@ -53,9 +53,13 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
     public IReadOnlyList<MatrixTenDotFontOption> TenDotFonts { get; } =
         [new("PixelFont 5×5 Thin ×2", MatrixTenDotFont.Pixel5x5Double), new("PixelFont 5×10 Condensed", MatrixTenDotFont.Pixel5x10Condensed),
          new("Micro 3×10", MatrixTenDotFont.Micro3x10), new("piconano 3×10", MatrixTenDotFont.Piconano3x10)];
-    public MatrixFourDotFont FourDotFont { get => _draft.FourDotFont; set { if (!Enum.IsDefined(value) || value == FourDotFont) return; _draft.FourDotFont = value; RefreshFields(); Changed(); } }
-    public MatrixFiveDotFont FiveDotFont { get => _draft.FiveDotFont; set { if (!Enum.IsDefined(value) || value == FiveDotFont) return; _draft.FiveDotFont = value; RefreshFields(); Changed(); } }
-    public MatrixTenDotFont TenDotFont { get => _draft.TenDotFont; set { if (!Enum.IsDefined(value) || value == TenDotFont) return; _draft.TenDotFont = value; RefreshFields(); Changed(); } }
+    public IReadOnlyList<MatrixAlignmentOption> Alignments { get; } =
+        [new("Left", MatrixAlignment.Left), new("Centre", MatrixAlignment.Centre), new("Right", MatrixAlignment.Right)];
+    public MatrixAlignment Alignment { get => Tile.Alignment; set { if (!Enum.IsDefined(value) || value == Alignment) return; Tile.Alignment = value; RaisePropertyChanged(); Changed(); } }
+    public Visibility AlignmentVisibility => ContentKind != MatrixContent.PixelArt ? Visibility.Visible : Visibility.Collapsed;
+    public MatrixFourDotFont FourDotFont { get => Tile.FourDotFont ?? MatrixFourDotFont.Mem; set { if (!Enum.IsDefined(value) || value == FourDotFont) return; Tile.FourDotFont = value; RefreshFields(); Changed(); } }
+    public MatrixFiveDotFont FiveDotFont { get => Tile.FiveDotFont ?? MatrixFiveDotFont.TomThumb; set { if (!Enum.IsDefined(value) || value == FiveDotFont) return; Tile.FiveDotFont = value; RefreshFields(); Changed(); } }
+    public MatrixTenDotFont TenDotFont { get => Tile.TenDotFont ?? MatrixTenDotFont.Pixel5x5Double; set { if (!Enum.IsDefined(value) || value == TenDotFont) return; Tile.TenDotFont = value; RefreshFields(); Changed(); } }
     public Visibility FourDotFontVisibility => FontVisibility(4);
     public Visibility FiveDotFontVisibility => FontVisibility(5);
     public Visibility TenDotFontVisibility => FontVisibility(10);
@@ -108,7 +112,7 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
     public void Initialize() => RefreshFields();
     private void RefreshFields()
     {
-        foreach (var name in new[] { nameof(Layout), nameof(RowHeight), nameof(FourDotFont), nameof(FiveDotFont), nameof(TenDotFont), nameof(RowHeightVisibility), nameof(FourDotFontVisibility), nameof(FiveDotFontVisibility), nameof(TenDotFontVisibility), nameof(FontNote), nameof(SelectedTile), nameof(SelectedTileLabel), nameof(ContentKind), nameof(Text), nameof(Source), nameof(Colour), nameof(Scroll), nameof(Alarm), nameof(AlarmThreshold), nameof(Brightness), nameof(TextVisibility), nameof(SensorVisibility), nameof(PixelVisibility), nameof(PreviewReading), nameof(Validation) }) RaisePropertyChanged(name);
+        foreach (var name in new[] { nameof(Layout), nameof(RowHeight), nameof(FourDotFont), nameof(FiveDotFont), nameof(TenDotFont), nameof(RowHeightVisibility), nameof(FourDotFontVisibility), nameof(FiveDotFontVisibility), nameof(TenDotFontVisibility), nameof(FontNote), nameof(Alignment), nameof(AlignmentVisibility), nameof(SelectedTile), nameof(SelectedTileLabel), nameof(ContentKind), nameof(Text), nameof(Source), nameof(Colour), nameof(Scroll), nameof(Alarm), nameof(AlarmThreshold), nameof(Brightness), nameof(TextVisibility), nameof(SensorVisibility), nameof(PixelVisibility), nameof(PreviewReading), nameof(Validation) }) RaisePropertyChanged(name);
     }
     private void Changed()
     {

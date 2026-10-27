@@ -6,7 +6,7 @@ namespace PCInfoScreenStudio.Rendering;
 /// <summary>The same bounded, binary pixel masks feed the editor and HID output.</summary>
 public static class MatrixPixelRenderer
 {
-    private sealed record Mask(int Width, int Height, bool[] Ink);
+    private sealed record Mask(int Width, int Height, bool[] Ink, int Left, int Right);
     private static readonly Dictionary<(string, int, string), Mask> Masks = [];
     private static readonly object CacheGate = new();
 
@@ -34,13 +34,19 @@ public static class MatrixPixelRenderer
                 };
                 var colour = original.Content == MatrixContent.Sensor && original.Alarm && value is int alarmValue && alarmValue >= original.AlarmThreshold
                     ? SKColors.Red : SKColor.Parse(original.Colour);
-                var mask = TextMask(text, content.Height, output.FontKey(content.Height));
-                int step = original.Content == MatrixContent.Text && original.Scroll && mask.Width > content.Width
-                    ? (int)(Math.Max(0, scrollStep) % (mask.Width + 3)) : 0;
+                var mask = TextMask(text, content.Height, output.FontKey(content.Height, i));
+                bool scrolling = original.Content == MatrixContent.Text && original.Scroll && mask.Width > content.Width;
+                int step = scrolling ? (int)(Math.Max(0, scrollStep) % (mask.Width + 3)) : 0;
+                int left = scrolling ? 0 : original.Alignment switch
+                {
+                    MatrixAlignment.Centre => (content.Width - (mask.Right - mask.Left + 1)) / 2 - mask.Left,
+                    MatrixAlignment.Right => content.Width - 1 - mask.Right,
+                    _ => 0
+                };
                 for (int y = 0; y < content.Height; y++) for (int x = 0; x < content.Width; x++)
                 {
-                    int sx = step == 0 ? x : (x + step) % (mask.Width + 3);
-                    if (sx >= mask.Width || !mask.Ink[y * mask.Width + sx]) continue;
+                    int sx = scrolling ? (x + step) % (mask.Width + 3) : x - left;
+                    if (sx < 0 || sx >= mask.Width || !mask.Ink[y * mask.Width + sx]) continue;
                     int p = ((y + content.Y - native.Y) * native.Width + x) * 3;
                     rgb[p] = colour.Red; rgb[p + 1] = colour.Green; rgb[p + 2] = colour.Blue;
                 }
@@ -68,7 +74,9 @@ public static class MatrixPixelRenderer
             var cacheKey = (text, height, key);
             if (Masks.TryGetValue(cacheKey, out var cached)) return cached;
             var native = MatrixBitmapFonts.Render(text, height, key);
-            var result = new Mask(native.Width, height, native.Ink);
+            // Align visible pixels, excluding a monospaced font's empty edge columns.
+            var columns = Enumerable.Range(0, native.Width).Where(x => Enumerable.Range(0, height).Any(y => native.Ink[y * native.Width + x])).ToArray();
+            var result = new Mask(native.Width, height, native.Ink, columns.Length == 0 ? 0 : columns[0], columns.Length == 0 ? -1 : columns[^1]);
             if (Masks.Count >= 32) Masks.Clear();
             Masks[cacheKey] = result;
             return result;

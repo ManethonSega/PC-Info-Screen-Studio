@@ -23,10 +23,10 @@ internal static class MatrixTypographyChecks
         Require(Enumerable.Range(0, 10).All(y => RowLit(frame, y) == (y is not (4 or 5))), "Default two-row content fills four rows each and leaves exactly two rows dark.");
         settings.RowHeight = 5; frame = Frame(settings, time);
         var narrow = frame;
-        settings.FiveDotFont = MatrixFiveDotFont.Pixel5x5Thin; frame = Frame(settings, time);
+        settings.LegacyFiveDotFont = MatrixFiveDotFont.Pixel5x5Thin; frame = Frame(settings, time);
         Require(!frame.SequenceEqual(narrow), "Font choice changes actual RGB pixels.");
-        Require(settings.ValidatedCopy().FiveDotFont == MatrixFiveDotFont.Pixel5x5Thin, "Font survives validated snapshots.");
-        settings.FiveDotFont = MatrixFiveDotFont.TomThumb;
+        Require(settings.ValidatedCopy().Tiles[0].FiveDotFont == MatrixFiveDotFont.Pixel5x5Thin, "Font survives validated snapshots.");
+        settings.LegacyFiveDotFont = MatrixFiveDotFont.TomThumb;
         Require(Enumerable.Range(0, 10).All(y => RowLit(frame, y)), "Five-row content fills both rows without a gap.");
         settings.RowHeight = 4;
         foreach (var tile in settings.Tiles) { tile.Content = MatrixContent.PixelArt; Array.Fill(tile.Pixels, (byte)255); }
@@ -50,8 +50,15 @@ internal static class MatrixTypographyChecks
         }
         foreach (int rowHeights in new[] { 4, 5, 45, 54 })
         {
-            var mixed = new MatrixSettings { Layout = 9, RowHeight = rowHeights, FourDotFont = MatrixFourDotFont.Able4, FiveDotFont = MatrixFiveDotFont.Petty5H };
+            var mixed = new MatrixSettings { Layout = 9, RowHeight = rowHeights, LegacyFourDotFont = MatrixFourDotFont.Able4, LegacyFiveDotFont = MatrixFiveDotFont.Petty5H };
             foreach (var item in mixed.Tiles) { item.Content = MatrixContent.Text; item.Text = "H"; item.Scroll = false; }
+            for (int i = 0; i < 6; i++)
+            {
+                mixed.Tiles[i].FourDotFont = (MatrixFourDotFont)(i % 4);
+                mixed.Tiles[i].FiveDotFont = (MatrixFiveDotFont)(i % 6);
+                mixed.Tiles[i].TenDotFont = (MatrixTenDotFont)(i % 4);
+                mixed.Tiles[i].Alignment = (MatrixAlignment)(i % 3);
+            }
             var mixedFake = new Matrix900ProtocolChecks.Connection();
             using var mixedVm = new MatrixWorkspaceViewModel(mixed, _ => { }, new Matrix900Device(() => mixedFake));
             mixedVm.Initialize(); Run(mixedVm.ToggleAsync(), pump); Run(mixedVm.ApplyAsync(), pump);

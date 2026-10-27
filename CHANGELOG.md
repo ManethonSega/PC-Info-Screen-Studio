@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.0-alpha.32 (draft)
+
+- Fixed Matrix font selection changing all tiles. Each tile now saves its own four-, five- and ten-dot font choices.
+- Added independent Left, Centre and Right text/sensor/clock alignment for every Matrix tile.
+- Preserved older shared font preferences during migration and retained independent choices across layout changes and restart.
+- Added regression checks for isolated tile pixels, actual WPF font selection and tile-specific preview-to-USB identity.
+
 ## 0.10.0-alpha.31 (draft)
 
 - Added the selected 4-/5-/10-dot Matrix font collection, with saved choices per height.

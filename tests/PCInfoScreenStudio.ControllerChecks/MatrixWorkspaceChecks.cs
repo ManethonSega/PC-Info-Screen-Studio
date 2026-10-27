@@ -79,6 +79,28 @@ internal static class MatrixWorkspaceChecks
             var fontSelector = (ComboBox)matrix.FindName("FiveDotFontSelector");
             fontSelector.SetCurrentValue(Selector.SelectedValueProperty, MatrixFiveDotFont.Pixel5x5Thin); fontSelector.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource(); Flush(window);
             Require(vm.Matrix.FiveDotFont == MatrixFiveDotFont.Pixel5x5Thin && fontSelector.IsVisible, "Five-dot font selector updates actual settings.");
+            vm.Matrix.SelectedTile = 5; vm.Matrix.ContentKind = MatrixContent.Text; vm.Matrix.Scroll = false; vm.Matrix.Text = "HH"; Flush(window);
+            Require(vm.Matrix.FiveDotFont == MatrixFiveDotFont.TomThumb && (MatrixFiveDotFont)fontSelector.SelectedValue == MatrixFiveDotFont.TomThumb, "Selecting a neighbor restores its independent font selection in the real combo box.");
+            var beforeOtherEdit = vm.Matrix.PreviewPixels();
+            fontSelector.SetCurrentValue(Selector.SelectedValueProperty, MatrixFiveDotFont.Petty5H); fontSelector.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource(); Flush(window);
+            var afterOtherEdit = vm.Matrix.PreviewPixels();
+            Require(!beforeOtherEdit.SequenceEqual(afterOtherEdit), "The selected tile's font edit changes visible pixels.");
+            for (int y = 0; y < 10; y++) for (int x = 0; x < 90; x++)
+                if (x < 60 || y < 5) Require(beforeOtherEdit.AsSpan((y * 90 + x) * 3, 3).SequenceEqual(afterOtherEdit.AsSpan((y * 90 + x) * 3, 3)), "The font control cannot alter any neighboring tile's pixels.");
+            Require(vm.Matrix.Snapshot.Tiles[4].FiveDotFont == MatrixFiveDotFont.Pixel5x5Thin, "Editing tile six leaves tile five's font unchanged.");
+            vm.Matrix.SelectedTile = 4; Flush(window);
+            Require(vm.Matrix.FiveDotFont == MatrixFiveDotFont.Pixel5x5Thin && (MatrixFiveDotFont)fontSelector.SelectedValue == MatrixFiveDotFont.Pixel5x5Thin, "Returning to a tile restores its saved font in the editor.");
+            var alignmentSelector = (ComboBox)matrix.FindName("AlignmentSelector");
+            Require(alignmentSelector.Items.Count == 3 && alignmentSelector.IsVisible, "The selected tile offers Left, Centre and Right alignment.");
+            vm.Matrix.Text = "H"; vm.Matrix.Scroll = false;
+            alignmentSelector.SetCurrentValue(Selector.SelectedValueProperty, MatrixAlignment.Right); alignmentSelector.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource(); Flush(window);
+            Require(vm.Matrix.Alignment == MatrixAlignment.Right && vm.Matrix.Snapshot.Tiles[5].Alignment == MatrixAlignment.Left, "Right alignment updates the selected tile without touching its neighbor.");
+            vm.Matrix.SelectedTile = 5; Flush(window);
+            Require((MatrixAlignment)alignmentSelector.SelectedValue == MatrixAlignment.Left, "Selecting another tile restores its alignment control.");
+            alignmentSelector.SetCurrentValue(Selector.SelectedValueProperty, MatrixAlignment.Centre); alignmentSelector.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource(); Flush(window);
+            vm.Matrix.SelectedTile = 4; Flush(window);
+            Require((MatrixAlignment)alignmentSelector.SelectedValue == MatrixAlignment.Right, "Re-selecting the first tile retains its independent alignment.");
+            Capture(window, captures, "Matrix900-independent-five-dot-fonts.png");
             Capture(window, captures, "Matrix900-five-row.png");
             Require(vm.Matrix.FourDotFonts.Count == 4 && vm.Matrix.FiveDotFonts.Count == 6 && vm.Matrix.TenDotFonts.Count == 4 && heightSelector.Items.Count == 4, "The controls expose all fourteen choices and four row arrangements.");
             foreach (int rows in new[] { 45, 54 })
@@ -113,7 +135,7 @@ internal static class MatrixWorkspaceChecks
         }
         finally { window.MarkSessionSavedForExit(); window.Close(); }
         var loaded = new SettingsController(new AppSettingsService(path));
-        Require(loaded.Matrix.Selected && loaded.Matrix.Layout == 9 && loaded.Matrix.RowHeight == 54 && loaded.Matrix.FourDotFont == MatrixFourDotFont.Able4 && loaded.Matrix.FiveDotFont == MatrixFiveDotFont.Able5 && loaded.Matrix.TenDotFont == MatrixTenDotFont.Micro3x10 && loaded.Matrix.Tiles[4].Text == "PERSIST ME" && loaded.Matrix.Tiles[4].Pixels[93] == 33,
+        Require(loaded.Matrix.Selected && loaded.Matrix.Layout == 9 && loaded.Matrix.RowHeight == 54 && loaded.Matrix.Tiles[4].FourDotFont == MatrixFourDotFont.Able4 && loaded.Matrix.Tiles[4].FiveDotFont == MatrixFiveDotFont.Able5 && loaded.Matrix.Tiles[0].TenDotFont == MatrixTenDotFont.Micro3x10 && loaded.Matrix.Tiles[1].FiveDotFont == MatrixFiveDotFont.TomThumb && loaded.Matrix.Tiles[4].Alignment == MatrixAlignment.Right && loaded.Matrix.Tiles[5].Alignment == MatrixAlignment.Centre && loaded.Matrix.Tiles[4].Text == "PERSIST ME" && loaded.Matrix.Tiles[4].Pixels[93] == 33,
             "Exit flushes the latest Matrix layout, selection target, text and pixels to validated settings.");
         using var secondVm = new MainViewModel(loaded, new SessionStateService(Path.Combine(root, "matrix-second")));
         Require(secondVm.IsMatrixWorkspace && secondVm.Matrix.Layout == 9 && secondVm.Matrix.SelectedTile == 0, "Restart restores Matrix without changing the LCD theme format.");
