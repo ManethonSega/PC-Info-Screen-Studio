@@ -7,6 +7,9 @@ internal static class MatrixGraphicsChecks
     public static void Check(string? previewPath = null)
     {
         var previews = new List<object>();
+        var arrow=MatrixGraphicsRenderer.Render(new() { Content=MatrixContent.ProgressBar,BarStyle=MatrixBarStyle.Arrows,Colour="#F43CCC",Width=40,Height=10,UseSensor=false,ManualValue=100 },MatrixWidgetReading.Unavailable,0);
+        int ArrowStart(int y)=>Enumerable.Range(1,38).First(x=>arrow[(y*90+x)*3]>200 && arrow[(y*90+x)*3+2]>100);
+        Require(ArrowStart(4)>ArrowStart(1),"Arrow segments must point right, with their centre farther right than their top stroke.");
         foreach(var style in MatrixBarPresets.All) foreach(int h in new[] {4,5,10})
         {
             var w = new MatrixWidgetSettings { Content=MatrixContent.ProgressBar, BarStyle=style.Value, Colour=style.Colour, Width=40, Height=h, UseSensor=false };

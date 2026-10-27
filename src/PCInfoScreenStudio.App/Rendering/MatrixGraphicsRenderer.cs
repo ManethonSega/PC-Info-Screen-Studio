@@ -94,7 +94,12 @@ public static class MatrixGraphicsRenderer
                 gap=u>0 && segment != (u-1)*segmentCount/Math.Max(1,inside);
                 on=segment < (int)Math.Ceiling(fraction*segmentCount);
             }
-            else if(preset.Pattern == MatrixBarPattern.Chevrons) gap=(u-Math.Abs(y-(w.Height-1)/2)+100)%5 >= 3;
+            else if(preset.Pattern == MatrixBarPattern.Chevrons)
+            {
+                int point=(int)Math.Floor((w.Height-3)/2d-Math.Abs(y-(w.Height-1)/2d));
+                int repeat=Math.Max(4,w.Height/2+2);
+                gap=(u-point+repeat)%repeat>=2;
+            }
             else if(preset.Pattern == MatrixBarPattern.Diagonal) gap=(u+y)%5 == 0;
             Put(x,y,gap || !on ? dark : y==1 ? light : fill);
         }
