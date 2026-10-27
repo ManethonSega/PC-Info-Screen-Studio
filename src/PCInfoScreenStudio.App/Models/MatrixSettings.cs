@@ -12,7 +12,7 @@ public sealed record MatrixFourDotFontOption(string Label, MatrixFourDotFont Val
 public sealed record MatrixTenDotFontOption(string Label, MatrixTenDotFont Value);
 public enum MatrixAlignment { Left, Centre, Right }
 public sealed record MatrixAlignmentOption(string Label, MatrixAlignment Value);
-public enum MatrixContent { Text, Sensor, Clock, PixelArt }
+public enum MatrixContent { Text, Sensor, Clock, PixelArt, ProgressBar, FlyingArt }
 public sealed record MatrixContentOption(string Label, MatrixContent Value);
 public sealed record MatrixLayoutOption(string Label, int Value);
 public sealed record MatrixRowHeightOption(string Label, int Value);
@@ -35,7 +35,7 @@ public class MatrixTileSettings
     public byte[] Pixels { get; set; } = new byte[2700];
     internal MatrixTileSettings Copy(MatrixSettings legacy) => new()
     {
-        Content = Enum.IsDefined(Content) ? Content : MatrixContent.Text,
+        Content = Content is >= MatrixContent.Text and <= MatrixContent.PixelArt ? Content : MatrixContent.Text,
         Text = (Text ?? string.Empty)[..Math.Min(Text?.Length ?? 0, 200)],
         Source = Sources.Any(s => s.Key == Source) ? Source : Sources[0].Key,
         Colour = System.Text.RegularExpressions.Regex.IsMatch(Colour ?? "", "^#[0-9a-fA-F]{6}$") ? Colour! : "#21E6E8",

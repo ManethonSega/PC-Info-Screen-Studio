@@ -104,7 +104,22 @@ internal static class MatrixTypographyChecks
             vm.UpdateMetrics(new Dictionary<string, MetricValue> { ["Hardware.GPUName"] = new(Text: "RX 7800 XT") });
             Run(vm.ApplyAsync(), pump); Require(vm.PreviewReading == "GPU: RX 7800 XT" && LastFrame(sensorFake).SequenceEqual(vm.PreviewPixels()), "Text-valued catalog sources also support Apply and exact preview-to-output pixels.");
         }
-        Console.WriteLine("PASS: exact Matrix text height/word gap, row/artwork geometry, clocks/scroll, actual sensor units and prefixes, full-source Apply, output identity, changed-only updates and failed-update cleanup.");
+        var barFake=new Matrix900ProtocolChecks.Connection();
+        using(var vm=new MatrixWorkspaceViewModel(new() { Widgets=[new() { Content=MatrixContent.ProgressBar,Source="GPU.Usage",Width=30,Height=5,AutoWidth=false,BarStyle=MatrixBarStyle.Potion,Colour="#43D536" }] },_=>{},new Matrix900Device(()=>barFake)))
+        {
+            vm.Initialize();vm.UpdateMetrics(new Dictionary<string,MetricValue>{["GPU.Usage"]=new(25,Unit:"%")});Run(vm.ToggleAsync(),pump);Run(vm.ApplyAsync(),pump);
+            Require(LastFrame(barFake).SequenceEqual(vm.PreviewPixels()),"A sensor-driven bar uploads the exact preview pixels through the existing ACK-gated transport.");
+            var before=LastFrame(barFake);vm.UpdateMetrics(new Dictionary<string,MetricValue>{["GPU.Usage"]=new(85,Unit:"%")});Run(vm.TickAsync(),pump);
+            Require(!before.SequenceEqual(LastFrame(barFake)),"Live sensor values change the applied progress fill.");
+        }
+        var rocket=MatrixArtBank.Get("rocket",10);var flightFake=new Matrix900ProtocolChecks.Connection();
+        using(var vm=new MatrixWorkspaceViewModel(new() { Widgets=[new() { Content=MatrixContent.FlyingArt,ArtKey="rocket",ArtWidth=rocket.Width,Pixels=rocket.Pixels,Width=60,Height=10,AutoWidth=false,FlightSpeed=5 }] },_=>{},new Matrix900Device(()=>flightFake)))
+        {
+            vm.Initialize();Run(vm.ToggleAsync(),pump);Run(vm.ApplyAsync(),pump);var first=LastFrame(flightFake);int pages=PageCount(flightFake);
+            pump(()=>PageCount(flightFake)>=pages+49);
+            Require(!first.SequenceEqual(LastFrame(flightFake)),"Applied rocket flight updates acknowledged frames without enabling the editor preview timer.");
+        }
+        Console.WriteLine("PASS: native Matrix typography, real sensor units/prefixes, sensor-driven progress bars, applied rocket animation, output identity, changed-only updates and failed-update cleanup.");
     }
     private static byte[] Frame(MatrixSettings settings, DateTime time) => MatrixPixelRenderer.Compose(MatrixPixelRenderer.Render(settings, _ => 42, time));
     private static bool RowLit(byte[] rgb, int row) => rgb.Skip(row * 270).Take(270).Any(b => b != 0);

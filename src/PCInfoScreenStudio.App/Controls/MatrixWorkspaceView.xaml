@@ -14,7 +14,21 @@
       <Button x:Name="AddClockButton" Content="Clock" Command="{Binding AddClockCommand}" AutomationProperties.Name="Add Matrix clock widget"/>
       <Button x:Name="AddPixelArtButton" Content="Pixel art" Command="{Binding AddPixelArtCommand}" AutomationProperties.Name="Add Matrix pixel art widget"/>
       <Button x:Name="AddEmojiButton" Content="Emoji" Command="{Binding AddEmojiCommand}" AutomationProperties.Name="Add Matrix emoji widget"/>
+      <Button x:Name="AddProgressBarButton" Content="Progress bar" Command="{Binding AddProgressBarCommand}" AutomationProperties.Name="Add Matrix progress bar"/>
+      <Button x:Name="AddRocketButton" Content="Rocket flight" Command="{Binding AddRocketCommand}" AutomationProperties.Name="Add flying rocket"/>
      </UniformGrid>
+     <Expander x:Name="ArtBankExpander" Header="Pixel art bank" Margin="0,9,0,0">
+      <ScrollViewer MaxHeight="165" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+       <ItemsControl x:Name="ArtBankItems" ItemsSource="{Binding ArtChoices}">
+        <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate><DataTemplate>
+         <Button Command="{Binding DataContext.AddBankArtCommand,RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding Key}" ToolTip="{Binding Label}" AutomationProperties.Name="{Binding Label}" Padding="3,5">
+          <StackPanel><Image Source="{Binding Image}" Height="24" MaxWidth="68" Stretch="Uniform" RenderOptions.BitmapScalingMode="NearestNeighbor"/><TextBlock Text="{Binding Label}" FontSize="10" TextAlignment="Center" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/></StackPanel>
+         </Button>
+        </DataTemplate></ItemsControl.ItemTemplate>
+       </ItemsControl>
+      </ScrollViewer>
+     </Expander>
     </StackPanel>
    </Border>
    <Border Grid.Row="2" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Padding="12">
@@ -43,7 +57,13 @@
    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
    <StackPanel><TextBlock Text="Phanteks Matrix 900" FontSize="22" FontWeight="SemiBold"/><TextBlock Text="90 × 10 LED canvas" Foreground="{StaticResource MutedTextBrush}" Margin="0,6,0,0"/></StackPanel>
    <Border Grid.Row="1" Background="{StaticResource InputBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Padding="12" Margin="0,20,0,12">
-    <local:MatrixSurface x:Name="MatrixPreview" Height="150" Focusable="True" AutomationProperties.Name="Matrix widget canvas" AutomationProperties.ItemStatus="{Binding SelectedTileLabel}" AutomationProperties.HelpText="Select and drag a widget. It snaps to individual LEDs. Arrow keys nudge, Shift plus arrows moves ten LEDs, Escape cancels a drag. Use Paint pixels for pixel art."/>
+    <StackPanel>
+     <Grid Margin="0,0,0,4"><Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+      <TextBlock Text="Side panel · 60 dots" FontSize="11" Foreground="{StaticResource MutedTextBrush}"/>
+      <TextBlock Grid.Column="1" Text="Front · 30 dots" FontSize="11" Foreground="{StaticResource MutedTextBrush}" TextAlignment="Right"/>
+     </Grid>
+     <local:MatrixSurface x:Name="MatrixPreview" Height="150" Focusable="True" AutomationProperties.Name="Matrix widget canvas" AutomationProperties.ItemStatus="{Binding SelectedTileLabel}" AutomationProperties.HelpText="The guide separates the first 60 side-panel LEDs from the 30 front-panel LEDs. Select and drag a widget. It snaps to individual LEDs. Arrow keys nudge, Shift plus arrows moves ten LEDs, Escape cancels a drag. Use Paint pixels for pixel art."/>
+    </StackPanel>
    </Border>
    <TextBlock Grid.Row="2" Text="Drag widgets onto the LED grid. Arrow keys move one dot; Shift + arrows move ten. Layers at the top draw in front." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap"/>
    <TextBlock Grid.Row="3" Text="{Binding Status}" TextWrapping="Wrap" Margin="0,20,0,12"/>
@@ -81,6 +101,26 @@
       <ComboBox x:Name="TenDotFontSelector" AutomationProperties.Name="Selected widget 10-dot font" ItemsSource="{Binding TenDotFonts}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding TenDotFont}" Margin="0,5,0,0"/>
      </StackPanel>
      <TextBlock Text="{Binding FontNote}" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+     <StackPanel Visibility="{Binding BarVisibility}" Margin="0,0,0,12">
+      <TextBlock Text="Bar style" Foreground="{StaticResource MutedTextBrush}"/>
+      <ComboBox x:Name="BarStyleSelector" ItemsSource="{Binding BarStyles}" SelectedValuePath="Value" SelectedValue="{Binding BarStyle}" AutomationProperties.Name="Progress bar style" Margin="0,5,0,9">
+       <ComboBox.ItemTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Image Source="{Binding Image}" Width="70" Height="18" Stretch="Uniform" RenderOptions.BitmapScalingMode="NearestNeighbor" Margin="0,0,7,0"/><TextBlock Text="{Binding Label}" FontSize="10" VerticalAlignment="Center"/></StackPanel></DataTemplate></ComboBox.ItemTemplate>
+      </ComboBox>
+      <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+       <StackPanel Margin="0,0,5,0"><TextBlock Text="Minimum"/><TextBox Text="{Binding RangeMinimum,UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Bar minimum"/></StackPanel>
+       <StackPanel Grid.Column="1"><TextBlock Text="Maximum"/><TextBox Text="{Binding RangeMaximum,UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Bar maximum"/></StackPanel>
+      </Grid>
+      <CheckBox x:Name="BarUseSensorCheckBox" Content="Use sensor reading" IsChecked="{Binding UseSensor}" Margin="0,9,0,7"/>
+      <StackPanel Visibility="{Binding ManualBarVisibility}"><TextBlock Text="Value"/><TextBox x:Name="ManualBarValueBox" Text="{Binding ManualValue,UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Manual bar value"/></StackPanel>
+     </StackPanel>
+     <StackPanel Visibility="{Binding FlightVisibility}" Margin="0,0,0,12">
+      <TextBlock Text="Flight direction" Foreground="{StaticResource MutedTextBrush}"/>
+      <ComboBox x:Name="FlightDirectionSelector" ItemsSource="{Binding FlightDirections}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding FlightDirection}" AutomationProperties.Name="Rocket direction" Margin="0,5,0,9"/>
+      <TextBlock Text="Speed (dots per second)" Foreground="{StaticResource MutedTextBrush}"/>
+      <TextBox Text="{Binding FlightSpeed,UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Rocket speed" Margin="0,5,0,9"/>
+      <CheckBox Content="Play animation" IsChecked="{Binding AnimationPlaying}" ToolTip="Turn off to show a static rocket at the starting edge of the flight area." Margin="0,0,0,9"/>
+      <TextBlock Text="Width sets the flight area. Use 60 or 30 dots to keep the rocket on one panel, or 90 for both. The rocket faces its flight direction." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap"/>
+     </StackPanel>
      <StackPanel Visibility="{Binding AlignmentVisibility}" Margin="0,0,0,14">
       <TextBlock Text="Text alignment · this widget" Foreground="{StaticResource MutedTextBrush}"/>
       <ComboBox x:Name="AlignmentSelector" AutomationProperties.Name="Selected widget text alignment" ItemsSource="{Binding Alignments}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Alignment}" ToolTip="Align text, sensor values and the clock. Long scrolling messages use the full tile width." Margin="0,5,0,0"/>
@@ -91,8 +131,8 @@
       <CheckBox Content="Scroll message" IsChecked="{Binding Scroll}" Margin="0,0,0,12"/>
      </StackPanel>
      <StackPanel Visibility="{Binding SensorVisibility}">
-      <TextBlock Text="Label before value" Foreground="{StaticResource MutedTextBrush}"/>
-      <TextBox x:Name="ValueLabelBox" AutomationProperties.Name="Matrix value label" Text="{Binding Prefix, UpdateSourceTrigger=PropertyChanged}" MaxLength="512" ToolTip="For example CPU: shows CPU: 42°C. Emoji are supported too." Margin="0,5,0,9"/>
+      <TextBlock Text="Label before value" Visibility="{Binding ValueLabelVisibility}" Foreground="{StaticResource MutedTextBrush}"/>
+      <TextBox x:Name="ValueLabelBox" Visibility="{Binding ValueLabelVisibility}" AutomationProperties.Name="Matrix value label" Text="{Binding Prefix, UpdateSourceTrigger=PropertyChanged}" MaxLength="512" ToolTip="For example CPU: shows CPU: 42°C. Emoji are supported too." Margin="0,5,0,9"/>
       <Grid Margin="0,0,0,4"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
        <TextBox x:Name="SourceSearchBox" AutomationProperties.Name="Find a Matrix sensor" Text="{Binding SourceSearchText, UpdateSourceTrigger=PropertyChanged}" TextChanged="SourceSearchChanged" ToolTip="Search the same data sources as Info Screen, for example GPU power or CPU temperature."/>
        <Button Grid.Column="1" Content="Clear" Command="{Binding ClearSourceSearchCommand}" Visibility="{Binding ClearSourceSearchVisibility}" Margin="6,0,0,0" Padding="7,4"/>
@@ -102,13 +142,13 @@
       <local:SourcePicker x:Name="SensorSourcePicker" AutomationProperties.Name="Matrix sensor source" Style="{StaticResource {x:Type ComboBox}}" ItemsSource="{Binding FilteredDataSources}" SelectedSource="{Binding Source, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,5,0,9"/>
       <CheckBox x:Name="AdvancedSensorsCheckBox" Content="Show advanced sensors" IsChecked="{Binding DataContext.ShowAdvancedSensors, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" ToolTip="Include individually discovered sensors, using the same preference as Info Screen." Margin="0,0,0,9"/>
       <TextBlock Text="{Binding PreviewReading}" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,9"/>
-      <CheckBox Content="Scroll long value" IsChecked="{Binding Scroll}" Margin="0,0,0,9"/>
+      <CheckBox Content="Scroll long value" IsChecked="{Binding Scroll}" Visibility="{Binding ValueLabelVisibility}" Margin="0,0,0,9"/>
       <CheckBox Content="High-value colour alarm" IsChecked="{Binding Alarm}"/>
       <TextBlock Text="Alarm threshold (source units)" Foreground="{StaticResource MutedTextBrush}" Margin="0,8,0,4"/>
       <TextBox AutomationProperties.Name="Matrix alarm threshold" Text="{Binding AlarmThreshold, UpdateSourceTrigger=LostFocus}" Margin="0,0,0,12"/>
      </StackPanel>
-     <TextBlock Text="Colour / brush" Foreground="{StaticResource MutedTextBrush}"/>
-     <local:ColorPickerButton HexColor="{Binding Colour}" AutomationProperties.Name="Matrix colour" Margin="0,5,0,12"/>
+     <TextBlock Text="Colour / brush" Visibility="{Binding ColourVisibility}" Foreground="{StaticResource MutedTextBrush}"/>
+     <local:ColorPickerButton HexColor="{Binding Colour}" Visibility="{Binding ColourVisibility}" AutomationProperties.Name="Matrix colour" Margin="0,5,0,12"/>
      <StackPanel Visibility="{Binding PixelVisibility}">
       <CheckBox Content="Paint pixels" IsChecked="{Binding IsPainting}" Margin="0,0,0,8"/>
       <Button Content="Import image" Command="{Binding ImportImageCommand}" ToolTip="Resize an image into the selected widget. Animated files use their first frame."/>

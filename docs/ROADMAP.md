@@ -1,6 +1,6 @@
 # Roadmap
 
-Current source version: **0.10.0-alpha.34** (draft candidate).
+Current source version: **0.10.0-alpha.35** (draft candidate).
 
 The next milestone is product polish, not another broad feature category. Priorities remain **easy to use, lightweight, intuitive, and visually clear**. Checked items below describe implemented functionality, not a claim that every device or workload has been validated.
 
@@ -23,6 +23,7 @@ The next milestone is product polish, not another broad feature category. Priori
 
 - [x] Experimental Phanteks Matrix 900 workspace, direct tile selection, exact-height pixel typography and configurable row spacing; physical-device qualification remains open.
 - [x] Matrix widget buttons and layers, LED-snapped dragging, content-fitted widths, read-only widget headings, value labels and the shared full sensor picker.
+- [x] Twelve native progress-bar styles, a curated pixel-art bank, reversible rocket flight and the 60/30 panel guide.
 
 ### Info Screen editor
 

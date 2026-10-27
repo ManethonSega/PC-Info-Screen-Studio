@@ -23,13 +23,14 @@ public static class MatrixLayerRenderer
         foreach (var w in settings.Widgets ?? [])
         {
             if (!w.Visible) continue;
-            if (w.Content == MatrixContent.PixelArt)
+            if (w.Content is MatrixContent.PixelArt or MatrixContent.ProgressBar or MatrixContent.FlyingArt)
             {
+                var source = w.Content == MatrixContent.PixelArt ? w.Pixels : MatrixGraphicsRenderer.Render(w,w.UseSensor ? reading(w.Source) : MatrixWidgetReading.Unavailable,step);
                 for (int y = 0; y < w.Height; y++) for (int x = 0; x < w.Width; x++)
                 {
                     int p = (y * 90 + x) * 3, d = ((w.Y + y) * 90 + w.X + x) * 3;
-                    if (w.Pixels[p] == 0 && w.Pixels[p + 1] == 0 && w.Pixels[p + 2] == 0) continue;
-                    Array.Copy(w.Pixels, p, frame, d, 3);
+                    if (source[p] == 0 && source[p + 1] == 0 && source[p + 2] == 0) continue;
+                    Array.Copy(source, p, frame, d, 3);
                 }
                 continue;
             }
@@ -54,7 +55,7 @@ public static class MatrixLayerRenderer
     {
         foreach (var w in settings.Widgets ?? [])
         {
-            if (!w.AutoWidth || w.Content == MatrixContent.PixelArt) continue;
+            if (!w.AutoWidth || w.Content is MatrixContent.PixelArt or MatrixContent.ProgressBar or MatrixContent.FlyingArt) continue;
             var bounds = InkBounds(WidgetRaster(w, w.Content == MatrixContent.Sensor ? reading(w.Source) : MatrixWidgetReading.Unavailable, utc));
             w.Width = Math.Clamp(bounds.Right - bounds.Left + 1, 1, 90);
             w.X = Math.Min(w.X, 90 - w.Width);

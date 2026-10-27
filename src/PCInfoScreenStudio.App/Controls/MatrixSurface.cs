@@ -43,6 +43,8 @@ public sealed class MatrixSurface : FrameworkElement
             Brush brush = rgb[p] == 0 && rgb[p + 1] == 0 && rgb[p + 2] == 0 ? (Brush)FindResource("BorderBrush") : new SolidColorBrush(Color.FromRgb(rgb[p], rgb[p + 1], rgb[p + 2]));
             dc.DrawRectangle(brush, null, new Rect(g.Left + x * g.Scale, g.Top + y * g.Scale, g.Scale * .84, g.Scale * .84));
         }
+        double split = g.Left + 60 * g.Scale - g.Scale * .08;
+        dc.DrawLine(new Pen((Brush)FindResource("AccentBrush"),1),new Point(split,g.Top-4),new Point(split,g.Top+10*g.Scale+4));
         if (_model.SelectedWidget is not { } w) return;
         dc.DrawRectangle(null, new Pen((Brush)FindResource("AccentBrush"), 1), new Rect(g.Left + w.X * g.Scale - 1, g.Top + w.Y * g.Scale - 1, w.Width * g.Scale, w.Height * g.Scale));
         if (_model.IsPainting && IsKeyboardFocusWithin)

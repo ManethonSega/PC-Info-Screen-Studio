@@ -7,7 +7,9 @@
   <Compile Include="../../src/PCInfoScreenStudio.App/Rendering/Matrix*.cs" Link="%(Filename)%(Extension)"/>
   <Compile Include="../PCInfoScreenStudio.ControllerChecks/MatrixFontChecks.cs" Link="MatrixFontChecks.cs"/>
   <Compile Include="../PCInfoScreenStudio.ControllerChecks/MatrixWidgetChecks.cs" Link="MatrixWidgetChecks.cs"/>
+  <Compile Include="../PCInfoScreenStudio.ControllerChecks/MatrixGraphicsChecks.cs" Link="MatrixGraphicsChecks.cs"/>
   <EmbeddedResource Include="../../src/PCInfoScreenStudio.App/Assets/MatrixFonts.json" LogicalName="PCInfoScreenStudio.Assets.MatrixFonts.json"/>
+  <EmbeddedResource Include="../../src/PCInfoScreenStudio.App/Assets/MatrixArtBank.json" LogicalName="PCInfoScreenStudio.Assets.MatrixArtBank.json"/>
   <PackageReference Include="SkiaSharp.HarfBuzz" Version="3.119.1"/>
   <PackageReference Include="SkiaSharp" Version="3.119.1"/>
   <PackageReference Include="HidSharp" Version="2.6.4"/>

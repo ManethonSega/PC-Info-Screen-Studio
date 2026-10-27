@@ -17,7 +17,7 @@ internal static class MatrixWorkspaceChecks
 {
     public static void Check(string root, Action<Func<bool>> pump, string? captures)
     {
-        MatrixWidgetChecks.Check(); MatrixTypographyChecks.Check(pump);
+        MatrixWidgetChecks.Check(); MatrixGraphicsChecks.Check(); MatrixTypographyChecks.Check(pump);
         var path = Path.Combine(root, "matrix-workspace.json");
         var settings = new SettingsController(new AppSettingsService(path)) { FirstRunCompleted = true, AutoStartDisplay = false, CloseToTray = false, StartWithWindows = false };
         var vm = new MainViewModel(settings, new SessionStateService(Path.Combine(root, "matrix-session")));
@@ -113,6 +113,33 @@ internal static class MatrixWorkspaceChecks
             var bounds = surface.TransformToAncestor(window).TransformBounds(new Rect(surface.RenderSize));
             Require(bounds.Right <= window.ActualWidth && bounds.Bottom <= window.ActualHeight, "The complete LED canvas fits a compact window with both side panels open.");
             Capture(window, captures, "Matrix900-widgets-compact.png");
+            window.Width=1440;window.Height=900;Flush(window);
+            foreach(var layer in model.Layers)layer.Visible=false;model.LayerFlagsChanged();
+            Execute(matrix,"AddProgressBarButton");
+            var styles=(ComboBox)matrix.FindName("BarStyleSelector");Require(styles.Items.Count==12,"All twelve progress-bar styles are available in the actual Properties selector.");
+            var sensorToggle=(CheckBox)matrix.FindName("BarUseSensorCheckBox");sensorToggle.SetCurrentValue(ToggleButton.IsCheckedProperty,false);sensorToggle.GetBindingExpression(ToggleButton.IsCheckedProperty)!.UpdateSource();
+            Set(styles,MatrixBarStyle.Arrows);model.ManualValue=65;
+            foreach(int h in new[] {4,5,10}) { Set(size,h);Flush(window);Require(model.Tile.Content==MatrixContent.ProgressBar && model.WidgetHeight==h && !model.AutoWidth,"The bar widget retains its custom span at all three native heights."); }
+            Capture(window,captures,"Matrix900-progress-bar-and-panel-guide.png");
+            var bank=(Expander)matrix.FindName("ArtBankExpander");bank.IsExpanded=true;Flush(window);
+            var bankItems=(ItemsControl)matrix.FindName("ArtBankItems");Require(bankItems.Items.Count==21,"The selected EPS artwork is available as a 21-entry pixel-art bank.");
+            var star=Descendants<Button>(bankItems).Single(b=>Equals(b.CommandParameter,"star"));star.Command.Execute(star.CommandParameter);
+            Require(model.Tile.Content==MatrixContent.PixelArt && model.Tile.ArtKey=="star" && model.Tile.Pixels.Any(b=>b!=0),"Clicking a bank thumbnail adds an editable pixel-art layer.");
+            Set(size,4);Require(model.Width==5 && model.Tile.ArtWidth==5,"Changing bank-art height selects its curated native size and updates width.");
+            Capture(window,captures,"Matrix900-pixel-art-bank.png");
+            bank.IsExpanded=false;
+            foreach(var layer in model.Layers)layer.Visible=false;model.LayerFlagsChanged();
+            Execute(matrix,"AddRocketButton");
+            var direction=(ComboBox)matrix.FindName("FlightDirectionSelector");Set(direction,MatrixFlightDirection.LeftToRight);
+            model.AnimationPlaying=false;
+            foreach(int h in new[] {4,5,10}) { Set(size,h);Require(model.Tile.ArtWidth==MatrixArtBank.Get("rocket",h).Width && model.Width==90,"Rocket sizing preserves the flight area and selects the correct native sprite."); }
+            model.Width=60;model.AnimationPlaying=true;Flush(window);
+            long phase=model.PreviewAnimationStep;var beforeFlight=model.PreviewPixels();
+            pump(()=>model.PreviewAnimationStep>=phase+3);
+            Require(!beforeFlight.SequenceEqual(model.PreviewPixels()),"The real preview timer animates flight while disconnected, without changing saved geometry.");
+            Capture(window,captures,"Matrix900-rocket-flight-right.png");
+            Set(direction,MatrixFlightDirection.RightToLeft);Capture(window,captures,"Matrix900-rocket-flight-left.png");
+            model.AnimationPlaying=false;
             vm.SelectedDisplayTarget = DisplayTarget.Turing52; Flush(window); pump(() => vm.CanChooseScreen);
             Require(!matrix.IsVisible && vm.IsEditorPage, "The LCD editor returns when a different screen is selected.");
             Require(((WorkspaceDock)window.FindName("LeftDock")).CaptureLayout().Panels.Select(p => (p.Id, p.IsOpen)).SequenceEqual(docks.Panels.Select(p => (p.Id, p.IsOpen))), "Matrix layers preserve LCD dock preferences.");

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.0-alpha.35 (draft)
+
+- Added twelve Matrix progress-bar presets based on the supplied reference, with native 4-/5-/10-dot patterns, editable colours, sensor/manual values and ranges.
+- Added a 21-entry pixel-art bank adapted from the supplied EPS sheets, with native size variants and independent editable layer copies.
+- Added rocket flight with left/right direction, speed, pause and an adjustable flight area, using the existing acknowledged pixel transport.
+- Added a preview-only divider between the 60-dot side panel and 30-dot front panel.
+
 ## 0.10.0-alpha.34 (draft)
 
 - Fit Matrix text, clock, value and emoji widths to their actual rendered pixels, including font/height changes and live readings. Keep manual widths for custom alignment, scrolling and pixel art.

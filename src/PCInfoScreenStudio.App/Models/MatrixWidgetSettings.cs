@@ -20,19 +20,38 @@ public sealed class MatrixWidgetSettings : MatrixTileSettings
     public int Height { get; set; } = 5;
     public bool AutoWidth { get; set; } = true;
     public string Prefix { get; set; } = "";
+    public MatrixBarStyle BarStyle { get; set; }
+    public bool UseSensor { get; set; } = true;
+    public double RangeMinimum { get; set; }
+    public double RangeMaximum { get; set; } = 100;
+    public double ManualValue { get; set; } = 65;
+    public string ArtKey { get; set; } = "";
+    public int ArtWidth { get; set; } = 10;
+    public MatrixFlightDirection FlightDirection { get; set; }
+    public int FlightSpeed { get; set; } = 5;
+    public bool AnimationPlaying { get; set; } = true;
     public bool Visible { get; set; } = true;
     public bool Locked { get; set; }
-    public string KindLabel => Content switch { MatrixContent.Sensor => "Value", MatrixContent.Clock => "Clock (UTC)", MatrixContent.PixelArt => "Pixel art", _ => "Text / emoji" };
+    public string KindLabel => Content switch { MatrixContent.Sensor => "Value", MatrixContent.Clock => "Clock (UTC)", MatrixContent.PixelArt => "Pixel art", MatrixContent.ProgressBar => "Progress bar", MatrixContent.FlyingArt => "Rocket flight", _ => "Text / emoji" };
     public string DisplayName => Content == MatrixContent.Sensor && !string.IsNullOrWhiteSpace(Prefix) ? Prefix.Trim() : Name;
     internal MatrixWidgetSettings CopyWidget(MatrixSettings legacy)
     {
         var c = Copy(legacy); int height = Height is 4 or 5 or 10 ? Height : 5, width = Math.Clamp(Width, 1, 90);
+        double minimum = double.IsFinite(RangeMinimum) ? Math.Clamp(RangeMinimum,-1000000,999999) : 0;
+        double maximum = double.IsFinite(RangeMaximum) ? Math.Clamp(RangeMaximum,-999999,1000000) : 100;
+        if (maximum <= minimum) maximum = minimum + 1;
         return new()
         {
             Id = Id == Guid.Empty ? Guid.NewGuid() : Id, Name = Limit(Name, 60),
             X = Math.Clamp(X, 0, 90 - width), Y = Math.Clamp(Y, 0, 10 - height), Width = width, Height = height,
             Visible = Visible, Locked = Locked, AutoWidth = AutoWidth, Prefix = Limit(Prefix, 200),
-            Content = c.Content, Text = Limit(Text, 200), Source = string.IsNullOrWhiteSpace(Source) ? c.Source : Limit(Source, 512),
+            BarStyle = Enum.IsDefined(BarStyle) ? BarStyle : MatrixBarStyle.Segments, UseSensor = UseSensor,
+            RangeMinimum = minimum, RangeMaximum = maximum,
+            ManualValue = double.IsFinite(ManualValue) ? Math.Clamp(ManualValue,-1000000,1000000) : 0,
+            ArtKey = Limit(ArtKey,60), ArtWidth = Math.Clamp(ArtWidth,1,90),
+            FlightDirection = Enum.IsDefined(FlightDirection) ? FlightDirection : MatrixFlightDirection.RightToLeft,
+            FlightSpeed = Math.Clamp(FlightSpeed,1,20), AnimationPlaying = AnimationPlaying,
+            Content = Enum.IsDefined(Content) ? Content : c.Content, Text = Limit(Text, 200), Source = string.IsNullOrWhiteSpace(Source) ? c.Source : Limit(Source, 512),
             Colour = c.Colour, Scroll = c.Scroll, Alarm = c.Alarm, AlarmThreshold = Math.Clamp(AlarmThreshold, -1000000, 1000000),
             FourDotFont = c.FourDotFont, FiveDotFont = c.FiveDotFont, TenDotFont = c.TenDotFont,
             Alignment = c.Alignment, Pixels = c.Pixels

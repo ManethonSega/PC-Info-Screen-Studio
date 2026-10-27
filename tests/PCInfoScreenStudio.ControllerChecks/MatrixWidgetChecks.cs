@@ -7,6 +7,13 @@ internal static class MatrixWidgetChecks
     public static void Check()
     {
         var utc = new DateTime(2026, 10, 27, 12, 34, 0, DateTimeKind.Utc);
+        foreach (var preset in MatrixArtBank.All) foreach (int height in new[] { 4,5,10 })
+        {
+            var art = MatrixArtBank.Get(preset.Key,height);
+            Require(art.Width is > 0 and <= 90 && art.Height == height && art.Pixels.Length == 2700 && art.Pixels.Any(b => b != 0), "Every bank entry contains a bounded native bitmap at all three heights.");
+            art.Pixels[0] ^= 255;
+            Require(art.Pixels[0] != MatrixArtBank.Get(preset.Key,height).Pixels[0], "Bank imports have independent editable source buffers.");
+        }
         var automatic = JsonSerializer.Deserialize<MatrixSettings>("{\"Widgets\":[{\"Text\":\"HH\",\"Width\":1,\"Height\":10,\"Scroll\":false,\"AutoWidth\":true}]}")!.ValidatedCopy();
         var fullContent = new MatrixSettings { Widgets = [new() { Text = "HH", Width = 90, Height = 10, Scroll = false }] }.ValidatedCopy();
         Require(MatrixLayerRenderer.Compose(automatic, _ => null, utc).SequenceEqual(MatrixLayerRenderer.Compose(fullContent, _ => null, utc)), "Automatic widget width must show all content even when its saved box is too narrow.");
