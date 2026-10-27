@@ -338,3 +338,7 @@ HidSharp by James F. Bellinger is used for Matrix USB HID access. It was already
 
 Source: https://github.com/IntergatedCircuits/HidSharp
 License: Apache-2.0. See `ThirdPartyLicenses/HidSharp-LICENSE.txt` in the application package.
+
+## Matrix bitmap fonts
+
+Tom Thumb: Brian Swetland and Robey Pointer, BSD notice included. Source: Adafruit GFX Fonts/TomThumb.h. PixelFont 5×5 Thin: mcer12/PixelFonts, MIT notice included. Glyph masks retain native pixels; lowercase descenders are fitted in the five-row band. A degree-sign glyph is supplied by this project.

@@ -2,6 +2,8 @@ namespace PCInfoScreenStudio.Models;
 
 public enum DisplayTarget { Serial35, Turing52, Matrix900 }
 public sealed record DisplayTargetOption(string Label, DisplayTarget Value);
+public enum MatrixFiveDotFont { TomThumb, Pixel5x5Thin }
+public sealed record MatrixFontOption(string Label, MatrixFiveDotFont Value);
 public enum MatrixContent { Text, Sensor, Clock, PixelArt }
 public sealed record MatrixContentOption(string Label, MatrixContent Value);
 public sealed record MatrixLayoutOption(string Label, int Value);
@@ -38,12 +40,14 @@ public sealed class MatrixSettings
     public int Layout { get; set; } = 3;
     public int Brightness { get; set; } = 30;
     public int RowHeight { get; set; } = 4;
+    public MatrixFiveDotFont FiveDotFont { get; set; } = MatrixFiveDotFont.TomThumb;
     public List<MatrixTileSettings> Tiles { get; set; } = Enumerable.Range(0, 6).Select(i => new MatrixTileSettings
         { Content = i == 1 ? MatrixContent.Sensor : i == 2 ? MatrixContent.Clock : MatrixContent.Text }).ToList();
     public MatrixSettings ValidatedCopy() => new()
     {
         Selected = Selected, Layout = Layout is 1 or 3 or 9 ? Layout : 3, Brightness = Math.Clamp(Brightness, 0, 100),
         RowHeight = RowHeight == 5 ? 5 : 4,
+        FiveDotFont = Enum.IsDefined(FiveDotFont) ? FiveDotFont : MatrixFiveDotFont.TomThumb,
         Tiles = Enumerable.Range(0, 6).Select(i => Tiles is not null && i < Tiles.Count && Tiles[i] is not null
             ? Tiles[i].Copy() : new MatrixTileSettings()).ToList()
     };

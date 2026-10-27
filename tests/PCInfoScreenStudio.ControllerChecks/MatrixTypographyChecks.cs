@@ -21,6 +21,11 @@ internal static class MatrixTypographyChecks
         frame = Frame(settings, time);
         Require(Enumerable.Range(0, 10).All(y => RowLit(frame, y) == (y is not (4 or 5))), "Default two-row content fills four rows each and leaves exactly two rows dark.");
         settings.RowHeight = 5; frame = Frame(settings, time);
+        var narrow = frame;
+        settings.FiveDotFont = MatrixFiveDotFont.Pixel5x5Thin; frame = Frame(settings, time);
+        Require(!frame.SequenceEqual(narrow), "Font choice changes actual RGB pixels.");
+        Require(settings.ValidatedCopy().FiveDotFont == MatrixFiveDotFont.Pixel5x5Thin, "Font survives validated snapshots.");
+        settings.FiveDotFont = MatrixFiveDotFont.TomThumb;
         Require(Enumerable.Range(0, 10).All(y => RowLit(frame, y)), "Five-row content fills both rows without a gap.");
         settings.RowHeight = 4;
         foreach (var tile in settings.Tiles) { tile.Content = MatrixContent.PixelArt; Array.Fill(tile.Pixels, (byte)255); }

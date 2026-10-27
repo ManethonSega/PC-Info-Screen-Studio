@@ -13,6 +13,10 @@
       <TextBlock Text="Row height" Foreground="{StaticResource MutedTextBrush}"/>
       <ComboBox x:Name="RowHeightSelector" AutomationProperties.Name="Matrix row height" ItemsSource="{Binding RowHeights}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding RowHeight}" Margin="0,5,0,0"/>
      </StackPanel>
+     <StackPanel Visibility="{Binding FiveDotFontVisibility}" Margin="0,0,0,14">
+      <TextBlock Text="5-dot font" Foreground="{StaticResource MutedTextBrush}"/>
+      <ComboBox x:Name="FiveDotFontSelector" AutomationProperties.Name="Matrix five-dot font" ItemsSource="{Binding FiveDotFonts}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding FiveDotFont}" Margin="0,5,0,0"/>
+     </StackPanel>
      <TextBlock x:Name="SelectedTileCaption" Text="{Binding SelectedTileLabel}" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" Margin="0,0,0,5"/>
      <TextBlock Text="Click a tile in the preview to edit it." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,16"/>
      <TextBlock Text="Content" Foreground="{StaticResource MutedTextBrush}"/>

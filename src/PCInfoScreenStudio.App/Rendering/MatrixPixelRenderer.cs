@@ -9,7 +9,7 @@ public static class MatrixPixelRenderer
     private sealed record Glyph(bool[] Ink, int Left, int Right, int Top, int Bottom);
     private sealed record Mask(int Width, int Height, bool[] Ink);
     private static readonly Dictionary<char, Glyph> Glyphs = [];
-    private static readonly Dictionary<(string, int), Mask> Masks = [];
+    private static readonly Dictionary<(string, int, MatrixFiveDotFont), Mask> Masks = [];
     private static readonly object CacheGate = new();
 
     public static MatrixSettings Render(MatrixSettings settings, Func<string, int?> reading, DateTime utc, long scrollStep = 0)
@@ -36,7 +36,7 @@ public static class MatrixPixelRenderer
                 };
                 var colour = original.Content == MatrixContent.Sensor && original.Alarm && value is int alarmValue && alarmValue >= original.AlarmThreshold
                     ? SKColors.Red : SKColor.Parse(original.Colour);
-                var mask = TextMask(text, content.Height);
+                var mask = TextMask(text, content.Height, settings.FiveDotFont);
                 int step = original.Content == MatrixContent.Text && original.Scroll && mask.Width > content.Width
                     ? (int)(Math.Max(0, scrollStep) % (mask.Width + 3)) : 0;
                 for (int y = 0; y < content.Height; y++) for (int x = 0; x < content.Width; x++)
@@ -62,13 +62,20 @@ public static class MatrixPixelRenderer
         }
         return frame;
     }
-    private static Mask TextMask(string input, int height)
+    private static Mask TextMask(string input, int height, MatrixFiveDotFont choice)
     {
         // Collapse repeated spaces so the actual dark gap between words never exceeds three LEDs.
         string text = string.Join(' ', input.Split(' ', StringSplitOptions.RemoveEmptyEntries));
         lock (CacheGate)
         {
-            if (Masks.TryGetValue((text, height), out var cached)) return cached;
+            if (Masks.TryGetValue((text, height, choice), out var cached)) return cached;
+            if (height == 5)
+            {
+                var native = MatrixBitmapFonts.Render(text, choice);
+                var result = new Mask(native.Width, 5, native.Ink);
+                if (Masks.Count >= 32) Masks.Clear();
+                Masks[(text, height, choice)] = result; return result;
+            }
             var glyphs = text.Where(c => c != ' ').Select(GetGlyph).ToArray();
             if (glyphs.Length == 0) return new(0, height, []);
             int top = glyphs.Min(g => g.Top), bottom = glyphs.Max(g => g.Bottom), lineHeight = bottom - top + 1;
@@ -99,7 +106,7 @@ public static class MatrixPixelRenderer
                 cursor += glyphWidth; space = false; first = false;
             }
             if (Masks.Count >= 32) Masks.Clear();
-            Masks[(text, height)] = mask;
+            Masks[(text, height, choice)] = mask;
             return mask;
         }
     }

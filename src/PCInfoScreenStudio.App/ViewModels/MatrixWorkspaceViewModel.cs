@@ -42,7 +42,10 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
     public IReadOnlyList<MatrixSourceOption> Sources => MatrixTileSettings.Sources;
     public IReadOnlyList<MatrixRowHeightOption> RowHeights { get; } =
         [new("4 dots each · 2-dot gap", 4), new("5 dots each · no gap", 5)];
-    public int RowHeight { get => _draft.RowHeight; set { if (value is not (4 or 5) || value == RowHeight) return; _draft.RowHeight = value; RaisePropertyChanged(); Changed(); } }
+    public int RowHeight { get => _draft.RowHeight; set { if (value is not (4 or 5) || value == RowHeight) return; _draft.RowHeight = value; RaisePropertyChanged(); RaisePropertyChanged(nameof(FiveDotFontVisibility)); Changed(); } }
+    public IReadOnlyList<MatrixFontOption> FiveDotFonts { get; } = [new("Tom Thumb", MatrixFiveDotFont.TomThumb), new("PixelFont 5×5 Thin", MatrixFiveDotFont.Pixel5x5Thin)];
+    public MatrixFiveDotFont FiveDotFont { get => _draft.FiveDotFont; set { if (!Enum.IsDefined(value) || value == FiveDotFont) return; _draft.FiveDotFont = value; RaisePropertyChanged(); Changed(); } }
+    public Visibility FiveDotFontVisibility => Layout == 9 && RowHeight == 5 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility RowHeightVisibility => Layout == 9 ? Visibility.Visible : Visibility.Collapsed;
     public int TileCount => _draft.Count;
     public string SelectedTileLabel => $"Tile {SelectedTile + 1} selected";
@@ -76,7 +79,7 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
     public void Initialize() => RefreshFields();
     private void RefreshFields()
     {
-        foreach (var name in new[] { nameof(Layout), nameof(RowHeightVisibility), nameof(SelectedTile), nameof(SelectedTileLabel), nameof(ContentKind), nameof(Text), nameof(Source), nameof(Colour), nameof(Scroll), nameof(Alarm), nameof(AlarmThreshold), nameof(Brightness), nameof(TextVisibility), nameof(SensorVisibility), nameof(PixelVisibility), nameof(PreviewReading), nameof(Validation) }) RaisePropertyChanged(name);
+        foreach (var name in new[] { nameof(Layout), nameof(RowHeightVisibility), nameof(FiveDotFontVisibility), nameof(SelectedTile), nameof(SelectedTileLabel), nameof(ContentKind), nameof(Text), nameof(Source), nameof(Colour), nameof(Scroll), nameof(Alarm), nameof(AlarmThreshold), nameof(Brightness), nameof(TextVisibility), nameof(SensorVisibility), nameof(PixelVisibility), nameof(PreviewReading), nameof(Validation) }) RaisePropertyChanged(name);
     }
     private void Changed()
     {

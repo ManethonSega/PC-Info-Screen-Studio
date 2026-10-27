@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.0-alpha.30 (draft)
+
+- Add a saved five-dot Matrix font choice: Tom Thumb or PixelFont 5×5 Thin. Four- and ten-dot defaults remain pending review.
+
 ## 0.10.0-alpha.29 (draft)
 
 - Select Matrix columns and tiles directly in the preview, with visible boundaries and keyboard tile navigation.

@@ -75,6 +75,9 @@ internal static class MatrixWorkspaceChecks
             var heightSelector = (ComboBox)matrix.FindName("RowHeightSelector");
             heightSelector.SetCurrentValue(Selector.SelectedValueProperty, 5); heightSelector.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource(); Flush(window);
             Require(vm.Matrix.RowHeight == 5, "The actual WPF row-height control enables five dots with no gap.");
+            var fontSelector = (ComboBox)matrix.FindName("FiveDotFontSelector");
+            fontSelector.SetCurrentValue(Selector.SelectedValueProperty, MatrixFiveDotFont.Pixel5x5Thin); fontSelector.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource(); Flush(window);
+            Require(vm.Matrix.FiveDotFont == MatrixFiveDotFont.Pixel5x5Thin && fontSelector.IsVisible, "Five-dot font selector updates actual settings.");
             Capture(window, captures, "Matrix900-five-row.png");
             vm.ShowPage(true); Flush(window); Require(!matrix.IsVisible && vm.IsHardwarePage, "Hardware navigation hides the Matrix workspace.");
             vm.ShowPage(false); Flush(window); Require(matrix.IsVisible, "Editor navigation returns to the selected Matrix workspace.");
@@ -86,7 +89,7 @@ internal static class MatrixWorkspaceChecks
         }
         finally { window.MarkSessionSavedForExit(); window.Close(); }
         var loaded = new SettingsController(new AppSettingsService(path));
-        Require(loaded.Matrix.Selected && loaded.Matrix.Layout == 9 && loaded.Matrix.RowHeight == 5 && loaded.Matrix.Tiles[4].Text == "PERSIST ME" && loaded.Matrix.Tiles[4].Pixels[93] == 33,
+        Require(loaded.Matrix.Selected && loaded.Matrix.Layout == 9 && loaded.Matrix.RowHeight == 5 && loaded.Matrix.FiveDotFont == MatrixFiveDotFont.Pixel5x5Thin && loaded.Matrix.Tiles[4].Text == "PERSIST ME" && loaded.Matrix.Tiles[4].Pixels[93] == 33,
             "Exit flushes the latest Matrix layout, selection target, text and pixels to validated settings.");
         using var secondVm = new MainViewModel(loaded, new SessionStateService(Path.Combine(root, "matrix-second")));
         Require(secondVm.IsMatrixWorkspace && secondVm.Matrix.Layout == 9 && secondVm.Matrix.SelectedTile == 0, "Restart restores Matrix without changing the LCD theme format.");
