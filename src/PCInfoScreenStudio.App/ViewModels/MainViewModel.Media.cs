@@ -103,7 +103,8 @@ public sealed partial class MainViewModel
         widgets = Document.Widgets.Count, hybridWidgets = Document.HybridWidgets.Count, assets = Document.Assets.Count,
         photos = Document.PhotoFrame.Photos.Count, activeVideos = VideoFrameProvider.ActiveCount,
         videoDecoders = VideoFrameProvider.RunningDecoders, videoFrameBytes = VideoFrameProvider.CachedFrameBytes,
-        mediaCache = MediaResourceCache.Diagnostics, fileOperationBusy = IsFileOperationBusy
+        mediaCache = MediaResourceCache.Diagnostics, fileOperationBusy = IsFileOperationBusy,
+        displayTarget = SelectedDisplayTarget.ToString(), matrix = new { connected = Matrix.IsConnected, firmware = Matrix.FirmwareVersion, layout = Matrix.Layout, brightness = Matrix.Brightness, experimental = true }
     });
     private async Task ExportDiagnosticsAsync()
     {

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.0-alpha.28 (draft)
+
+- Added a dedicated experimental Phanteks Matrix 900 workspace selected through the top-bar Screen menu, with separate saved settings and LCD session preservation.
+- Added verified native one-panel, three-column and six-tile layouts with text, sensors, UTC clock and static pixel-art controls, image import and keyboard painting.
+- Added HID firmware probing, serialized packet transfers, acknowledgement-gated RGB paging and unavailable-sensor blanking.
+- Recorded NexLinq software analysis and outstanding physical qualification. Vendor binaries, firmware and assets are not redistributed.
+
+
 ## 0.10.0-alpha.27 (draft)
 
 - Drag panel headers or rail entries to reorder, move between sides, or float, with visible docking targets and Escape cancellation.

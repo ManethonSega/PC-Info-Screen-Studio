@@ -32,6 +32,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private Task<IReadOnlyDictionary<string, MetricValue>>? _systemSampleTask;
     private Task<IReadOnlyDictionary<string, MetricValue>>? _hardwareSampleTask;
     private Task<IReadOnlyDictionary<string, MetricValue>>? _weatherSampleTask;
+    private DateTime _matrixSystemSampleAt, _matrixHardwareSampleAt;
     private readonly Dictionary<string, MetricValue> _lastSystemMetrics = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, MetricValue> _lastHardwareMetrics = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, MetricValue> _lastWeatherMetrics = new(StringComparer.OrdinalIgnoreCase);
@@ -83,6 +84,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _weatherCity = _settings.WeatherCity;
         _workspace = _packageService.CreateNewWorkspace();
         _device = new DeviceController(() => Document, _settings);
+        InitializeMatrixWorkspace();
         _editor = new EditorController(() => Document);
         _photos = new PhotoPlaybackController(() => Workspace, _settings);
         AttachControllers();
@@ -155,11 +157,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         };
         _dataTimer.Tick += async (_, _) =>
         {
-            if (!IsEditorActive && !LivePreview)
+            if (!IsEditorActive && !LivePreview && !Matrix.IsConnected)
                 return;
             // Output must not depend on one slow hardware/weather provider.
             if (LivePreview) RequestLiveFrame?.Invoke(this, EventArgs.Empty);
             await RefreshRuntimeDataAsync();
+            await Matrix.TickAsync();
         };
         _dataTimer.Start();
 
@@ -465,7 +468,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
     public string EditorModeIcon => IsLiveMode ? "\uE70F" : "\uE768";
-    public string DisplayActionToolTip => IsDeviceBusy ? DeviceStatus : _device.IsConnected
+    public string DisplayActionToolTip => IsMatrixWorkspace ? "Start or stop Matrix HID output. Apply sends your layout. Close NexLinq before starting." : IsDeviceBusy ? DeviceStatus : _device.IsConnected
         ? "Stop sending updates to the physical screen. Your theme stays open in the editor."
         : "Detect and connect your screen, send the current theme, and start live updates.";
     public string EditorModeLabel => IsLiveMode ? "Back to edit" : "Live view";
@@ -496,7 +499,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public string DeviceStatus
     {
-        get => _device.DeviceStatus;
+        get => IsMatrixWorkspace ? Matrix.Status : _device.DeviceStatus;
         private set => _device.DeviceStatus = value;
     }
 
@@ -542,18 +545,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool LivePreview
     {
-        get => _device.LivePreview;
+        get => !IsMatrixWorkspace && _device.LivePreview;
         set => _device.LivePreview = value;
     }
 
     public bool UseLiveData => true;
 
-    public bool IsDeviceBusy => _device.IsDeviceBusy;
+    public bool IsDeviceBusy => IsMatrixWorkspace ? Matrix.IsBusy : _device.IsDeviceBusy;
 
     public int DisplayBrightness
     {
-        get => _device.DisplayBrightness;
-        set => _device.DisplayBrightness = value;
+        get => IsMatrixWorkspace ? Matrix.Brightness : _device.DisplayBrightness;
+        set { if (IsMatrixWorkspace) Matrix.Brightness = value; else _device.DisplayBrightness = value; }
     }
 
     public string BrightnessLabel => $"Brightness {DisplayBrightness}%";
@@ -669,7 +672,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         set => _settings.ColoursPanelExpanded = value;
     }
 
-    public string DisplayActionLabel => _device.IsConnected ? "Stop display" : "Start display";
+    public string DisplayActionLabel => (IsMatrixWorkspace ? Matrix.IsConnected : _device.IsConnected) ? "Stop display" : "Start display";
 
     public double CanvasZoom
     {
@@ -872,6 +875,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (e.PropertyName == nameof(SelectedPort))
         {
             RaisePropertyChanged(nameof(CanvasSize));
+            RaisePropertyChanged(nameof(SelectedDisplayTarget));
             ResizeForSelectedScreen();
         }
         if (e.PropertyName == nameof(IsDeviceBusy)) RaisePropertyChanged(nameof(CanChooseScreen));
@@ -1248,6 +1252,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     private async Task ConnectOrDisconnectAsync()
     {
+        if (IsMatrixWorkspace) { await Matrix.ToggleAsync(); return; }
         var wasConnected = _device.IsConnected;
         if (!wasConnected)
             _manualDisplayStop = false;
@@ -1269,7 +1274,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public void StartAutoDisplayIfEnabled()
     {
-        if (!AutoStartDisplay || _isDisposed || (_autoDisplayTask is { IsCompleted: false }))
+        if (IsMatrixWorkspace || !AutoStartDisplay || _isDisposed || (_autoDisplayTask is { IsCompleted: false }))
             return;
 
         _manualDisplayStop = false;
@@ -1309,7 +1314,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             DeviceStatus = "Waiting for Windows to finish preparing USB devices...";
             await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
 
-            while (!_isDisposed && AutoStartDisplay && !cancellationToken.IsCancellationRequested)
+            while (!_isDisposed && !IsMatrixWorkspace && AutoStartDisplay && !cancellationToken.IsCancellationRequested)
             {
                 if (_manualDisplayStop || _device.IsConnected)
                 {
@@ -1676,6 +1681,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (e.PropertyName is nameof(ThemeDocument.CanvasWidth) or nameof(ThemeDocument.CanvasHeight))
         {
             RaisePropertyChanged(nameof(CanvasSize));
+            RaisePropertyChanged(nameof(SelectedDisplayTarget));
             NotifyCanvasScale();
         }
         if (e.PropertyName == nameof(ThemeDocument.EditorWidgets)) return;
@@ -1830,6 +1836,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             }
             if (_isDisposed) return;
 
+            if (_systemSampleTask?.IsCompletedSuccessfully == true) _matrixSystemSampleAt = DateTime.UtcNow;
+            if (_hardwareSampleTask?.IsCompletedSuccessfully == true) _matrixHardwareSampleAt = DateTime.UtcNow;
             HarvestSample(ref _systemSampleTask, _lastSystemMetrics);
             HarvestSample(ref _hardwareSampleTask, _lastHardwareMetrics);
             HarvestSample(ref _weatherSampleTask, _lastWeatherMetrics);
@@ -1847,6 +1855,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             if (_hardwareInventoryTask.IsCompletedSuccessfully)
                 foreach (var pair in _hardwareInventoryTask.Result) sample[pair.Key] = pair.Value;
 
+            var matrixSample = new Dictionary<string, MetricValue>(sample, StringComparer.OrdinalIgnoreCase);
+            foreach (var source in MatrixTileSettings.Sources)
+                if (DateTime.UtcNow - (source.Key == "CPU.Usage" ? _matrixSystemSampleAt : _matrixHardwareSampleAt) > TimeSpan.FromSeconds(5))
+                    matrixSample.Remove(source.Key);
+            Matrix.UpdateMetrics(matrixSample);
             HardwareStatus = _hardwareMetrics.Status;
             RaisePropertyChanged(nameof(IsHardwareElevated));
             RaisePropertyChanged(nameof(IsLowLevelSensorDriverInstalled));
@@ -2368,6 +2381,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         _historyTimer.Stop();
         _recoveryTimer.Stop();
         DeleteRecoveryFile();
+        Matrix.Dispose();
         _weatherMetrics.Dispose();
         _hardwareMetrics.Dispose();
         DetachControllers();

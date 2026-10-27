@@ -64,11 +64,11 @@
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="8,3,0,3">
           <TextBlock Text="Screen" Foreground="{StaticResource MutedTextBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
-          <ComboBox AutomationProperties.Name="Physical screen model" x:Name="ScreenSelector" Width="196" Height="32" Margin="0,0,8,0"
-                    ItemsSource="{Binding CanvasSizes}" DisplayMemberPath="Label" SelectedValuePath="Value"
-                    SelectedValue="{Binding CanvasSize, Mode=TwoWay}" IsEnabled="{Binding CanChooseScreen}"
-                    ToolTip="Choose the physical screen. The canvas and loaded themes resize automatically; reconnect stays on this screen." />
-          <Border Padding="0" Margin="0,0,12,0">
+          <ComboBox AutomationProperties.Name="Physical screen model" x:Name="ScreenSelector" Width="238" Height="32" Margin="0,0,8,0"
+                    ItemsSource="{Binding DisplayTargets}" DisplayMemberPath="Label" SelectedValuePath="Value"
+                    SelectedValue="{Binding SelectedDisplayTarget, Mode=TwoWay}" IsEnabled="{Binding CanChooseScreen}"
+                    ToolTip="Choose your display. Matrix opens its own controls; LCD themes stay in their existing workspace." />
+          <Border Padding="0" Margin="0,0,12,0" Visibility="{Binding LcdControlsVisibility}">
             <StackPanel Orientation="Horizontal">
               <TextBlock Text="Mode" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource PageTextBrush}" />
               <ComboBox AutomationProperties.Name="Screen mode" Width="170" Height="32"
@@ -114,6 +114,8 @@
         </StackPanel>
       </WrapPanel>
     </Border>
+
+    <controls:MatrixWorkspaceView x:Name="MatrixWorkspace" Grid.Row="1" Visibility="{Binding DataContext.MatrixPageVisibility, RelativeSource={RelativeSource AncestorType=Window}}" DataContext="{Binding Matrix}" />
 
     <!-- Docked workspace; only the centre takes remaining width. -->
     <Grid x:Name="EditorWorkspace" Grid.Row="1" Visibility="{Binding EditorPageVisibility}" IsEnabled="{Binding CanEditContent}" SizeChanged="OnWorkspaceSizeChanged">

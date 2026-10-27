@@ -25,7 +25,7 @@ internal static class SourceSearchChecks
             pump(() => window.IsEnabled);
             vm.SetEditorActive(false);
             var screenSelector = (ComboBox)window.FindName("ScreenSelector");
-            screenSelector.SetCurrentValue(ComboBox.SelectedValueProperty, DisplayCanvasSize.Turing52);
+            screenSelector.SetCurrentValue(ComboBox.SelectedValueProperty, DisplayTarget.Turing52);
             screenSelector.GetBindingExpression(ComboBox.SelectedValueProperty)!.UpdateSource();
             pump(() => !vm.IsDeviceBusy);
             Assert(vm.Document.CanvasWidth == 1280 && vm.Document.CanvasHeight == 720,

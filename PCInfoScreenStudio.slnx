@@ -2,4 +2,5 @@
   <Project Path="src/Tedd.TuringScreen/Tedd.TuringScreen.csproj" />
   <Project Path="src/PCInfoScreenStudio.App/PCInfoScreenStudio.App.csproj" />
   <Project Path="tests/PCInfoScreenStudio.ControllerChecks/PCInfoScreenStudio.ControllerChecks.csproj" />
+  <Project Path="tests/PCInfoScreenStudio.MatrixProtocolChecks/PCInfoScreenStudio.MatrixProtocolChecks.csproj" />
 </Solution>

@@ -331,3 +331,10 @@ Transitive mathematics dependency from https://github.com/amerkoleci/Vortice.Mat
 ## SharpGen.Runtime and SharpGen.Runtime.COM
 
 Transitive runtime dependency of Vortice. Source: https://github.com/SharpGenTools/SharpGenTools. MIT License, copyright (c) 2010-2017 Alexandre Mutel, 2017 Jeremy Koritzinsky. The full licence is included at `ThirdPartyLicenses/SharpGenTools-LICENSE.txt` in the portable package.
+
+## HidSharp 2.6.4
+
+HidSharp by James F. Bellinger is used for Matrix USB HID access. It was already a transitive dependency of LibreHardwareMonitor and is referenced explicitly for the Matrix transport.
+
+Source: https://github.com/IntergatedCircuits/HidSharp
+License: Apache-2.0. See `ThirdPartyLicenses/HidSharp-LICENSE.txt` in the application package.

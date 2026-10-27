@@ -1,0 +1,53 @@
+<UserControl x:Class="PCInfoScreenStudio.Controls.MatrixWorkspaceView"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:local="clr-namespace:PCInfoScreenStudio.Controls" Background="{StaticResource WorkspaceBrush}">
+ <Grid Margin="18">
+  <Grid.ColumnDefinitions><ColumnDefinition Width="310"/><ColumnDefinition Width="18"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+   <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Padding="16" VerticalAlignment="Top">
+    <StackPanel>
+     <TextBlock Text="Matrix controls" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,16"/>
+     <TextBlock Text="Layout" Foreground="{StaticResource MutedTextBrush}"/>
+     <ComboBox AutomationProperties.Name="Matrix layout" ItemsSource="{Binding Layouts}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Layout}" Margin="0,5,0,14"/>
+     <TextBlock Text="Selected tile" Foreground="{StaticResource MutedTextBrush}"/>
+     <ComboBox AutomationProperties.Name="Matrix selected tile" ItemsSource="{Binding TileNames}" SelectedIndex="{Binding SelectedTile}" Margin="0,5,0,14"/>
+     <TextBlock Text="Content" Foreground="{StaticResource MutedTextBrush}"/>
+     <ComboBox AutomationProperties.Name="Matrix content" ItemsSource="{Binding ContentKinds}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding ContentKind}" Margin="0,5,0,14"/>
+     <StackPanel Visibility="{Binding TextVisibility}">
+      <TextBlock Text="Message" Foreground="{StaticResource MutedTextBrush}"/>
+      <TextBox AutomationProperties.Name="Matrix message" Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" MaxLength="200" Margin="0,5,0,7"/>
+      <CheckBox Content="Scroll message" IsChecked="{Binding Scroll}" Margin="0,0,0,12"/>
+     </StackPanel>
+     <StackPanel Visibility="{Binding SensorVisibility}">
+      <TextBlock Text="Sensor source" Foreground="{StaticResource MutedTextBrush}"/>
+      <ComboBox AutomationProperties.Name="Matrix sensor source" ItemsSource="{Binding Sources}" DisplayMemberPath="Label" SelectedValuePath="Key" SelectedValue="{Binding Source}" Margin="0,5,0,9"/>
+      <TextBlock Text="{Binding PreviewReading}" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,9"/>
+      <CheckBox Content="High-value colour alarm" IsChecked="{Binding Alarm}"/>
+      <TextBlock Text="Alarm threshold (°C or %)" Foreground="{StaticResource MutedTextBrush}" Margin="0,8,0,4"/>
+      <TextBox AutomationProperties.Name="Matrix alarm threshold" Text="{Binding AlarmThreshold, UpdateSourceTrigger=LostFocus}" Margin="0,0,0,12"/>
+     </StackPanel>
+     <TextBlock Text="Colour / brush" Foreground="{StaticResource MutedTextBrush}"/>
+     <local:ColorPickerButton HexColor="{Binding Colour}" AutomationProperties.Name="Matrix colour" Margin="0,5,0,12"/>
+     <StackPanel Visibility="{Binding PixelVisibility}">
+      <Button Content="Import image" Command="{Binding ImportImageCommand}" ToolTip="Resize an image into the selected tile. Animated files use their first frame."/>
+      <Button Content="Clear tile" Command="{Binding ClearPixelsCommand}"/>
+      <TextBlock Text="Click or drag to paint. Right-click erases. Arrow keys move the pixel cursor; Space paints and Delete erases." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" Margin="0,8,0,12"/>
+     </StackPanel>
+     <TextBlock Text="{Binding Validation}" Foreground="{StaticResource AccentBrush}" TextWrapping="Wrap" Margin="0,6,0,8"/>
+     <Button Content="Apply to Matrix" Command="{Binding ApplyCommand}" Style="{StaticResource PrimaryButtonStyle}" Padding="16,9"/>
+     <TextBlock Text="Edits save on this PC. Apply sends the layout to the display. Brightness updates live after Apply." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" Margin="0,10,0,0"/>
+    </StackPanel>
+   </Border>
+  </ScrollViewer>
+  <StackPanel Grid.Column="2">
+   <TextBlock Text="Phanteks Matrix 900" FontSize="23" FontWeight="SemiBold" Margin="0,0,0,6"/>
+   <TextBlock Text="90 × 10 colour LEDs · dedicated Matrix workspace" Foreground="{StaticResource MutedTextBrush}"/>
+   <Border Background="{StaticResource InputBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Padding="12" Margin="0,22,0,12">
+    <local:MatrixSurface x:Name="MatrixPreview" Height="190" Focusable="True" AutomationProperties.Name="Matrix pixel editor" AutomationProperties.HelpText="In PixelArt mode, use arrow keys to move; Space paints and Delete erases."/>
+   </Border>
+   <TextBlock Text="Cyan outline: selected tile. Text and sensor previews approximate the firmware fonts. Clock content uses UTC." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap"/>
+   <TextBlock Text="{Binding Status}" FontSize="14" TextWrapping="Wrap" Margin="0,24,0,14"/>
+   <TextBlock Text="Experimental hardware support. Close NexLinq before starting the Matrix here. Check the physical output after applying a layout." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap"/>
+  </StackPanel>
+ </Grid>
+</UserControl>
