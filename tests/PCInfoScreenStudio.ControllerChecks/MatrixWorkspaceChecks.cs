@@ -39,7 +39,8 @@ internal static class MatrixWorkspaceChecks
             Capture(window, captures, "Matrix900-layers-migrated.png");
             foreach (var layer in model.Layers) layer.Visible = false; model.LayerFlagsChanged();
             Execute(matrix, "AddTextButton"); textId = model.SelectedWidgetId!.Value;
-            model.Name = "CPU label"; model.Text = "CPU"; model.Width = 16; model.X = 1; model.Y = 1;
+            Require(!Descendants<TextBox>(matrix).Any(t => System.Windows.Automation.AutomationProperties.GetName(t) == "Matrix widget name"), "Widget type is a read-only heading, without a redundant editable Name field.");
+            model.Text = "CPU"; model.Width = 16; model.X = 1; model.Y = 1;
             var size = (ComboBox)matrix.FindName("WidgetSizeSelector"); Require(size.Items.Count == 3, "Every widget offers exactly 10-, 5- and 4-dot heights.");
             foreach (int h in new[] { 4, 10, 5 })
             { Set(size, h); Flush(window); Require(model.WidgetHeight == h && model.Y + h <= 10, "The actual size control changes height and clamps the widget inside the LED grid."); }
@@ -47,6 +48,24 @@ internal static class MatrixWorkspaceChecks
             var alignment = (ComboBox)matrix.FindName("AlignmentSelector"); Set(alignment, MatrixAlignment.Centre); Flush(window);
             model.Y = 1;
             Execute(matrix, "AddValueButton"); var valueId = model.SelectedWidgetId; model.X = 22; model.Source = "GPU.Usage"; model.WidgetHeight = 4;
+            Require(ReferenceEquals(model.DataSources, vm.DataSources), "Matrix uses the same live full source catalog as Info Screen.");
+            var sourceSearch = (TextBox)matrix.FindName("SourceSearchBox"); var sourcePicker = (SourcePicker)matrix.FindName("SensorSourcePicker");
+            sourceSearch.SetCurrentValue(TextBox.TextProperty, "GPU"); sourceSearch.GetBindingExpression(TextBox.TextProperty)!.UpdateSource(); Flush(window);
+            Require(sourcePicker.IsDropDownOpen && sourcePicker.Items.Count == 9 && sourcePicker.Items.Contains("GPU.Power"), "The actual Matrix search opens the shared sensor picker with all GPU choices.");
+            sourcePicker.SelectedItem = "GPU.Power"; sourcePicker.IsDropDownOpen = false; Flush(window);
+            var prefixBox = (TextBox)matrix.FindName("ValueLabelBox"); prefixBox.SetCurrentValue(TextBox.TextProperty, "GPU:"); prefixBox.GetBindingExpression(TextBox.TextProperty)!.UpdateSource(); Flush(window);
+            model.UpdateMetrics(new Dictionary<string, MetricValue> { ["GPU.Power"] = new(85.5, Unit: " W") });
+            Require(model.Source == "GPU.Power" && model.Prefix == "GPU:" && model.PreviewReading.EndsWith(" W") && !model.PreviewReading.Contains("°C"), "Value label editing and the selected source's actual units reach the preview.");
+            int valueWidth = model.Width; model.Prefix = "GPU board power:"; Require(model.Width > valueWidth, "Value boxes expand with their label instead of clipping it."); model.Prefix = "GPU:";
+            model.SourceSearchText = "no-such-source"; Flush(window); Require(sourcePicker.Items.Count == 0 && sourcePicker.Text == "GPU.Power" && model.Source == "GPU.Power", "An empty search preserves the selected source.");
+            model.ClearSourceSearchCommand.Execute(null); Flush(window); Require(sourcePicker.Items.Count == vm.DataSources.Count, "Clear restores every shared source.");
+            var advanced = (CheckBox)matrix.FindName("AdvancedSensorsCheckBox"); advanced.SetCurrentValue(ToggleButton.IsCheckedProperty, true); advanced.GetBindingExpression(ToggleButton.IsCheckedProperty)!.UpdateSource();
+            const string rawSource = "Sensor: GPU > Test board power"; vm.DataSources.Add(rawSource); model.SourceSearchText = "GPU board"; Flush(window);
+            Require(vm.ShowAdvancedSensors && sourcePicker.Items.Contains(rawSource), "Advanced sensor discovery updates the same live source list in Matrix.");
+            sourcePicker.SelectedItem = rawSource; sourcePicker.IsDropDownOpen = false; Flush(window); Require(model.Snapshot.Widgets!.Single(w => w.Id == valueId).Source == rawSource, "Advanced sensor selection survives validated snapshots.");
+            model.UpdateMetrics(new Dictionary<string, MetricValue> { [rawSource] = new(90, Unit: " W") }); model.SourceSearchText = ""; Flush(window);
+            Capture(window, captures, "Matrix900-sensor-label-and-full-picker.png");
+            model.X = 22;
             Execute(matrix, "AddClockButton"); var clockId = model.SelectedWidgetId; model.X = 45; model.Y = 5; model.Width = 22;
             Require(model.SelectedWidget!.Content == MatrixContent.Clock && model.WidgetHeight == 5, "Clock button adds an independent clock layer.");
             model.SelectedWidgetId = textId; Flush(window);
@@ -72,7 +91,11 @@ internal static class MatrixWorkspaceChecks
             model.DuplicateCommand.Execute(null); Require(model.SelectedWidgetId != artId && model.Tile.Pixels[1] == 230, "Duplicate creates an independent widget with copied artwork.");
             model.PaintPixel(model.X, model.Y, true); Require(model.Snapshot.Widgets!.Single(w => w.Id == artId).Pixels[1] == 230, "Editing duplicate artwork leaves the source layer unchanged.");
             model.DeleteCommand.Execute(null); Require(!model.Layers.Any(w => w.Name.EndsWith(" copy")), "Delete removes only the selected duplicate.");
-            Execute(matrix, "AddEmojiButton"); model.WidgetHeight = 10; model.Width = 20; model.X = 68; model.Text = "💕👌"; model.Scroll = false;
+            Execute(matrix, "AddEmojiButton"); model.WidgetHeight = 10; model.X = 89; model.Text = "💕👌"; model.Scroll = false;
+            Require(model.AutoWidth && model.X + model.Width <= 90 && !((TextBox)matrix.FindName("WidgetWidthBox")).IsEnabled, "Emoji width follows rendered content and stays inside the screen; automatic width is read-only.");
+            var fittedEmoji = model.Snapshot.Widgets!.Single(w => w.Id == model.SelectedWidgetId); var wideEmoji = model.Snapshot.Widgets!.Single(w => w.Id == model.SelectedWidgetId);
+            fittedEmoji.X = 0; wideEmoji.X = 0; wideEmoji.AutoWidth = false; wideEmoji.Width = 90;
+            Require(MatrixLayerRenderer.Compose(new() { Widgets = [fittedEmoji] }, _ => null, DateTime.UnixEpoch).SequenceEqual(TrimLeft(MatrixLayerRenderer.Compose(new() { Widgets = [wideEmoji] }, _ => null, DateTime.UnixEpoch))), "The fitted emoji frame preserves every coloured pixel from a full-width box after trimming outer blank columns.");
             Require(model.Validation.Length == 0, "Emoji text is supported instead of being rejected by the old ASCII-only validation.");
             var emojiPixels = model.PreviewPixels();
             Require(Enumerable.Range(0, emojiPixels.Length / 3).Any(i => emojiPixels[i * 3] > 30 && emojiPixels[i * 3 + 1] > 10 && emojiPixels[i * 3] != emojiPixels[i * 3 + 1] && emojiPixels[i * 3] != 33), "Emojis preserve their own coloured palette in the actual LED RGB frame.");
@@ -99,6 +122,8 @@ internal static class MatrixWorkspaceChecks
         var loaded = new SettingsController(new AppSettingsService(path));
         var text = loaded.Matrix.Widgets!.Single(w => w.Id == textId);
         Require(text.Text == "PERSIST ME" && text.X == 2 && text.Y == 2 && text.FiveDotFont == MatrixFiveDotFont.Petty5x5 && text.Alignment == MatrixAlignment.Centre, "Restart preserves layer identity, geometry, content, fonts and alignment.");
+        var savedValue = loaded.Matrix.Widgets!.Single(w => w.Prefix == "GPU:");
+        Require(savedValue.Source == "Sensor: GPU > Test board power" && savedValue.AutoWidth, "Restart preserves the chosen advanced source, value label and automatic sizing.");
         using var second = new MainViewModel(loaded, new SessionStateService(Path.Combine(root, "matrix-second")));
         Require(second.IsMatrixWorkspace && second.Matrix.Snapshot.Widgets!.Count == loaded.Matrix.Widgets!.Count, "Restart restores the layer workspace without migrating or duplicating it again.");
         Console.WriteLine("PASS: WPF Matrix widget buttons, layer selection/lock/duplicate/delete, pixel-snapped drag/cancel/nudge, all heights, coloured/joined emojis, compact layout and restart.");
@@ -107,6 +132,13 @@ internal static class MatrixWorkspaceChecks
     { var button = (Button)view.FindName(name); Require(button.Command.CanExecute(null), name + " is available."); button.Command.Execute(null); }
     private static void Set(ComboBox control, object value) { control.SetCurrentValue(Selector.SelectedValueProperty, value); control.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource(); }
     private static void Flush(Window window) { Dispatcher.CurrentDispatcher.Invoke(new Action(() => { }), DispatcherPriority.ContextIdle); window.UpdateLayout(); }
+    private static byte[] TrimLeft(byte[] frame)
+    {
+        int left = Enumerable.Range(0, 90).First(x => Enumerable.Range(0, 10).Any(y => frame.Skip((y * 90 + x) * 3).Take(3).Any(b => b != 0)));
+        var trimmed = new byte[2700];
+        for (int y = 0; y < 10; y++) Array.Copy(frame, (y * 90 + left) * 3, trimmed, y * 270, (90 - left) * 3);
+        return trimmed;
+    }
     private static Point PixelPoint(MatrixSurface surface, double x, double y)
     { double s = Math.Min(surface.ActualWidth / 90, surface.ActualHeight / 10); return new((surface.ActualWidth - s * 90) / 2 + (x + .5) * s, (surface.ActualHeight - s * 10) / 2 + (y + .5) * s); }
     private static IEnumerable<T> Descendants<T>(DependencyObject item) where T : DependencyObject

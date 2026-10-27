@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.0-alpha.34 (draft)
+
+- Fit Matrix text, clock, value and emoji widths to their actual rendered pixels, including font/height changes and live readings. Keep manual widths for custom alignment, scrolling and pixel art.
+- Show the widget type as a read-only Properties heading, removing the editable Name field.
+- Add per-value labels, including emoji, before the reading.
+- Reuse Info Screen's full live source catalog, search, clear, selection-safe picker and advanced-sensor preference in Matrix mode.
+- Preserve real source units, decimal/text readings, extended source selections and source-unit alarm thresholds through Apply and restart.
+
 ## 0.10.0-alpha.33 (draft)
 
 - Added a Matrix widget canvas with Text, Value, Clock, Pixel art and Emoji buttons, plus an ordered Layers list.

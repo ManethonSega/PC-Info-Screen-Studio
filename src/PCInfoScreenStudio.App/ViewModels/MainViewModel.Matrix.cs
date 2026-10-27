@@ -33,7 +33,7 @@ public sealed partial class MainViewModel
     private void InitializeMatrixWorkspace()
     {
         _matrixSelected = _settings.Matrix.Selected;
-        Matrix = new MatrixWorkspaceViewModel(_settings.Matrix, snapshot => { snapshot.Selected = _matrixSelected; _settings.Matrix = snapshot; });
+        Matrix = new MatrixWorkspaceViewModel(_settings.Matrix, snapshot => { snapshot.Selected = _matrixSelected; _settings.Matrix = snapshot; }, sources: DataSources);
         Matrix.Initialize();
         Matrix.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(Matrix.Status) && !_isDisposed) RaisePropertyChanged(nameof(DeviceStatus)); };
         Matrix.ConnectionChanged += (_, _) =>

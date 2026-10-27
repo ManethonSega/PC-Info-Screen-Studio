@@ -54,3 +54,20 @@ Rows above are zero-based. The controller always receives six native 30×5 tile 
 `Widgets` distinguishes the new ordered software-layer document from an older fixed tile layout. A null list migrates once, copying prior content rectangles and fonts; an empty list stays intentionally empty. Original tile settings remain available in the saved document. Every widget has a stable ID, an integer X/Y position, a 1–90-dot width and a 4-, 5- or 10-dot height. Validation caps the document at 64 layers and bounds the complete widget inside 90×10. Pixel-art source buffers use a fixed 90×10 stride, so reducing width/height does not delete hidden artwork. Existing bottom-row hidden art is rotated behind visible rows during migration.
 
 The last visible layer draws in front. Empty pixel-art cells are transparent, while text uses its actual glyph coverage. Each frame is composited into one 90×10 pixel widget for the existing HID driver. Locks protect interaction without changing the rendered image. Native and emoji text caches are bounded; complete graphemes are shaped in Segoe UI Emoji and reduced to the chosen LED height. Emoji retain their palette rather than inheriting the text colour.
+
+## Content-fitted widths and full readings (alpha.34)
+
+Free text, sensor and clock widgets default to `AutoWidth`. The renderer measures
+the cached raster’s occupied columns, trims outer blank columns, caps the width
+at 90 and bounds X so growing content stays on-screen. The view model applies
+the same measurement to selection/hit rectangles after edits and live samples.
+`AutoWidth=false` retains a custom alignment/scroll viewport. Pixel art keeps its
+explicit drawing width and source stride. Fixed-tile migration uses manual width
+to preserve prior pixels; alpha.33 widget files default to automatic fitting.
+
+`Prefix` belongs to each sensor layer, and the software compositor receives both
+a numeric alarm value and the formatted source text, with its actual unit. The
+full Info Screen catalog is shared rather than translated to the four firmware
+sensor IDs. Extended source keys are preserved during validation and restart,
+including while advanced sources have not yet been rediscovered. All transport
+content remains a single ordinary pixel-art frame.

@@ -32,7 +32,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private Task<IReadOnlyDictionary<string, MetricValue>>? _systemSampleTask;
     private Task<IReadOnlyDictionary<string, MetricValue>>? _hardwareSampleTask;
     private Task<IReadOnlyDictionary<string, MetricValue>>? _weatherSampleTask;
-    private DateTime _matrixSystemSampleAt, _matrixHardwareSampleAt;
+    private DateTime _matrixSystemSampleAt, _matrixHardwareSampleAt, _matrixWeatherSampleAt;
     private readonly Dictionary<string, MetricValue> _lastSystemMetrics = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, MetricValue> _lastHardwareMetrics = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, MetricValue> _lastWeatherMetrics = new(StringComparer.OrdinalIgnoreCase);
@@ -1838,6 +1838,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
             if (_systemSampleTask?.IsCompletedSuccessfully == true) _matrixSystemSampleAt = DateTime.UtcNow;
             if (_hardwareSampleTask?.IsCompletedSuccessfully == true) _matrixHardwareSampleAt = DateTime.UtcNow;
+            if (_weatherSampleTask?.IsCompletedSuccessfully == true) _matrixWeatherSampleAt = DateTime.UtcNow;
             HarvestSample(ref _systemSampleTask, _lastSystemMetrics);
             HarvestSample(ref _hardwareSampleTask, _lastHardwareMetrics);
             HarvestSample(ref _weatherSampleTask, _lastWeatherMetrics);
@@ -1856,9 +1857,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 foreach (var pair in _hardwareInventoryTask.Result) sample[pair.Key] = pair.Value;
 
             var matrixSample = new Dictionary<string, MetricValue>(sample, StringComparer.OrdinalIgnoreCase);
-            foreach (var source in MatrixTileSettings.Sources)
-                if (DateTime.UtcNow - (source.Key == "CPU.Usage" ? _matrixSystemSampleAt : _matrixHardwareSampleAt) > TimeSpan.FromSeconds(5))
-                    matrixSample.Remove(source.Key);
+            foreach (var source in matrixSample.Keys.ToArray())
+            {
+                var sampledAt = _lastHardwareMetrics.ContainsKey(source) ? _matrixHardwareSampleAt
+                    : _lastWeatherMetrics.ContainsKey(source) ? _matrixWeatherSampleAt
+                    : _lastSystemMetrics.ContainsKey(source) ? _matrixSystemSampleAt : DateTime.UtcNow;
+                if (DateTime.UtcNow - sampledAt > TimeSpan.FromSeconds(5)) matrixSample.Remove(source);
+            }
             Matrix.UpdateMetrics(matrixSample);
             HardwareStatus = _hardwareMetrics.Status;
             RaisePropertyChanged(nameof(IsHardwareElevated));

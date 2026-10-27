@@ -2,6 +2,12 @@ using System.Globalization;
 namespace PCInfoScreenStudio.Models;
 
 public sealed record MatrixWidgetSizeOption(string Label, int Value);
+public readonly record struct MatrixWidgetReading(double? Numeric, string Text)
+{
+    public static MatrixWidgetReading Unavailable => new(null, "N/A");
+    public static MatrixWidgetReading Legacy(string source, int? value) => value is int n
+        ? new(n, n + (source.EndsWith("Usage") ? "%" : "°C")) : Unavailable;
+}
 
 /// <summary>A software layer on the 90 by 10 LED canvas. Pixels use a fixed 90-pixel source stride.</summary>
 public sealed class MatrixWidgetSettings : MatrixTileSettings
@@ -12,9 +18,12 @@ public sealed class MatrixWidgetSettings : MatrixTileSettings
     public int Y { get; set; }
     public int Width { get; set; } = 30;
     public int Height { get; set; } = 5;
+    public bool AutoWidth { get; set; } = true;
+    public string Prefix { get; set; } = "";
     public bool Visible { get; set; } = true;
     public bool Locked { get; set; }
     public string KindLabel => Content switch { MatrixContent.Sensor => "Value", MatrixContent.Clock => "Clock (UTC)", MatrixContent.PixelArt => "Pixel art", _ => "Text / emoji" };
+    public string DisplayName => Content == MatrixContent.Sensor && !string.IsNullOrWhiteSpace(Prefix) ? Prefix.Trim() : Name;
     internal MatrixWidgetSettings CopyWidget(MatrixSettings legacy)
     {
         var c = Copy(legacy); int height = Height is 4 or 5 or 10 ? Height : 5, width = Math.Clamp(Width, 1, 90);
@@ -22,8 +31,9 @@ public sealed class MatrixWidgetSettings : MatrixTileSettings
         {
             Id = Id == Guid.Empty ? Guid.NewGuid() : Id, Name = Limit(Name, 60),
             X = Math.Clamp(X, 0, 90 - width), Y = Math.Clamp(Y, 0, 10 - height), Width = width, Height = height,
-            Visible = Visible, Locked = Locked, Content = c.Content, Text = Limit(Text, 200), Source = c.Source,
-            Colour = c.Colour, Scroll = c.Scroll, Alarm = c.Alarm, AlarmThreshold = c.AlarmThreshold,
+            Visible = Visible, Locked = Locked, AutoWidth = AutoWidth, Prefix = Limit(Prefix, 200),
+            Content = c.Content, Text = Limit(Text, 200), Source = string.IsNullOrWhiteSpace(Source) ? c.Source : Limit(Source, 512),
+            Colour = c.Colour, Scroll = c.Scroll, Alarm = c.Alarm, AlarmThreshold = Math.Clamp(AlarmThreshold, -1000000, 1000000),
             FourDotFont = c.FourDotFont, FiveDotFont = c.FiveDotFont, TenDotFont = c.TenDotFont,
             Alignment = c.Alignment, Pixels = c.Pixels
         };
@@ -44,10 +54,10 @@ public sealed class MatrixWidgetSettings : MatrixTileSettings
             var w = new MatrixWidgetSettings
             {
                 Name = tile.Content switch { MatrixContent.Sensor => "Value", MatrixContent.Clock => "Clock", MatrixContent.PixelArt => "Pixel art", _ => "Text" } + " " + (i + 1),
-                Content = tile.Content, Text = tile.Text, Source = tile.Source, Colour = tile.Colour, Scroll = tile.Scroll,
+                Content = tile.Content, Text = tile.Text, Source = tile.Source, Colour = tile.Colour, Scroll = tile.Content == MatrixContent.Text && tile.Scroll,
                 Alarm = tile.Alarm, AlarmThreshold = tile.AlarmThreshold, FourDotFont = tile.FourDotFont,
                 FiveDotFont = tile.FiveDotFont, TenDotFont = tile.TenDotFont, Alignment = tile.Alignment,
-                X = r.X, Y = r.Y, Width = r.Width, Height = r.Height
+                X = r.X, Y = r.Y, Width = r.Width, Height = r.Height, AutoWidth = false
             };
             // Keep visible artwork first, followed by the previously hidden source row.
             int offset = r.Y - native.Y;

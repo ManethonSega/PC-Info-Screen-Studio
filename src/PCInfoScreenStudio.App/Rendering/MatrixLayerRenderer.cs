@@ -15,6 +15,9 @@ public static class MatrixLayerRenderer
     private static readonly Dictionary<(string, int), Raster> EmojiCache = [];
     public static bool IsEmoji(string text) => text.EnumerateRunes().Any(r => r.Value is >= 0x1F000 and <= 0x1FAFF or >= 0x2600 and <= 0x27BF or 0xFE0F or 0x20E3 or 0x2764 or 0x2B50);
     public static byte[] Compose(MatrixSettings settings, Func<string, int?> reading, DateTime utc, long step = 0)
+        => ComposeReadings(settings, source => MatrixWidgetReading.Legacy(source, reading(source)), utc, step);
+
+    public static byte[] ComposeReadings(MatrixSettings settings, Func<string, MatrixWidgetReading> reading, DateTime utc, long step = 0)
     {
         var frame = new byte[2700];
         foreach (var w in settings.Widgets ?? [])
@@ -30,39 +33,58 @@ public static class MatrixLayerRenderer
                 }
                 continue;
             }
-            int? value = w.Content == MatrixContent.Sensor ? reading(w.Source) : null;
-            string text = w.Content switch
-            {
-                MatrixContent.Clock => utc.ToString("HH:mm"),
-                MatrixContent.Sensor => value is int n ? n + (w.Source.EndsWith("Usage") ? "%" : "°C") : "N/A",
-                _ => w.Text
-            };
-            var colour = w.Content == MatrixContent.Sensor && w.Alarm && value is int v && v >= w.AlarmThreshold ? SKColors.Red : SKColor.Parse(w.Colour);
-            Raster raster;
-            lock (Gate)
-            {
-                var key = (text, w.Height, w.FontKey, (uint)colour);
-                if (!TextCache.TryGetValue(key, out raster!))
-                {
-                    raster = BuildText(text, w.Height, w.FontKey, colour);
-                    if (TextCache.Count >= 32) TextCache.Clear();
-                    TextCache[key] = raster;
-                }
-            }
-            bool scroll = w.Content == MatrixContent.Text && w.Scroll && raster.Width > w.Width;
+            var raster = WidgetRaster(w, w.Content == MatrixContent.Sensor ? reading(w.Source) : MatrixWidgetReading.Unavailable, utc);
+            var (left, right) = InkBounds(raster);
+            int width = w.AutoWidth ? Math.Clamp(right - left + 1, 1, 90) : w.Width;
+            int originX = Math.Min(w.X, 90 - width);
+            bool scroll = w.Scroll && (w.AutoWidth ? right - left + 1 : raster.Width) > width;
             int phase = scroll ? (int)(Math.Max(0, step) % (raster.Width + 3)) : 0;
-            var occupied = Enumerable.Range(0, raster.Width).Where(x => Enumerable.Range(0, w.Height).Any(y => raster.Rgba[(y * raster.Width + x) * 4 + 3] != 0)).ToArray();
-            int left = occupied.Length == 0 ? 0 : occupied[0], right = occupied.Length == 0 ? -1 : occupied[^1];
-            int offset = scroll ? 0 : w.Alignment == MatrixAlignment.Centre ? (w.Width - (right - left + 1)) / 2 - left : w.Alignment == MatrixAlignment.Right ? w.Width - 1 - right : 0;
-            for (int y = 0; y < w.Height; y++) for (int x = 0; x < w.Width; x++)
+            int offset = scroll ? 0 : w.Alignment == MatrixAlignment.Centre ? (width - (right - left + 1)) / 2 - left : w.Alignment == MatrixAlignment.Right ? width - 1 - right : w.AutoWidth ? -left : 0;
+            for (int y = 0; y < w.Height; y++) for (int x = 0; x < width; x++)
             {
                 int sx = scroll ? (x + phase) % (raster.Width + 3) : x - offset;
                 if (sx < 0 || sx >= raster.Width) continue;
-                int p = (y * raster.Width + sx) * 4, d = ((w.Y + y) * 90 + w.X + x) * 3, alpha = raster.Rgba[p + 3];
+                int p = (y * raster.Width + sx) * 4, d = ((w.Y + y) * 90 + originX + x) * 3, alpha = raster.Rgba[p + 3];
                 for (int channel = 0; channel < 3; channel++) frame[d + channel] = (byte)((raster.Rgba[p + channel] * alpha + frame[d + channel] * (255 - alpha) + 127) / 255);
             }
         }
         return frame;
+    }
+    public static void FitWidths(MatrixSettings settings, Func<string, MatrixWidgetReading> reading, DateTime utc)
+    {
+        foreach (var w in settings.Widgets ?? [])
+        {
+            if (!w.AutoWidth || w.Content == MatrixContent.PixelArt) continue;
+            var bounds = InkBounds(WidgetRaster(w, w.Content == MatrixContent.Sensor ? reading(w.Source) : MatrixWidgetReading.Unavailable, utc));
+            w.Width = Math.Clamp(bounds.Right - bounds.Left + 1, 1, 90);
+            w.X = Math.Min(w.X, 90 - w.Width);
+        }
+    }
+    public static string ContentText(MatrixWidgetSettings widget, MatrixWidgetReading reading, DateTime utc) => widget.Content switch
+    {
+        MatrixContent.Clock => utc.ToString("HH:mm"),
+        MatrixContent.Sensor => widget.Prefix + (widget.Prefix.Length > 0 && !char.IsWhiteSpace(widget.Prefix[^1]) ? " " : "") + reading.Text,
+        _ => widget.Text
+    };
+    private static Raster WidgetRaster(MatrixWidgetSettings w, MatrixWidgetReading reading, DateTime utc)
+    {
+        string text = ContentText(w, reading, utc);
+        var colour = w.Content == MatrixContent.Sensor && w.Alarm && reading.Numeric is double v && v >= w.AlarmThreshold ? SKColors.Red : SKColor.Parse(w.Colour);
+        lock (Gate)
+        {
+            var key = (text, w.Height, w.FontKey, (uint)colour);
+            if (TextCache.TryGetValue(key, out var raster)) return raster;
+            raster = BuildText(text, w.Height, w.FontKey, colour);
+            if (TextCache.Count >= 32) TextCache.Clear();
+            TextCache[key] = raster; return raster;
+        }
+    }
+    private static (int Left, int Right) InkBounds(Raster raster)
+    {
+        int left = raster.Width, right = -1;
+        for (int x = 0; x < raster.Width; x++) for (int y = 0; y < raster.Height; y++)
+            if (raster.Rgba[(y * raster.Width + x) * 4 + 3] != 0) { left = Math.Min(left, x); right = x; break; }
+        return right < 0 ? (0, -1) : (left, right);
     }
     private static Raster BuildText(string text, int height, string key, SKColor colour)
     {

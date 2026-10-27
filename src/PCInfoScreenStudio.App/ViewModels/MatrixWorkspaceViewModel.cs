@@ -1,6 +1,8 @@
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using PCInfoScreenStudio.Models;
 using PCInfoScreenStudio.Services;
 using PCInfoScreenStudio.Services.Matrix;
@@ -27,11 +29,15 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
     private bool _busy, _heartbeatRunning, _disposed;
     private DateTime _sampleAt;
     private string _status = "Preview ready. Start display to connect the Matrix 900.";
+    private string _sourceSearchText = "";
     public event EventHandler? PreviewChanged;
     public event EventHandler? ConnectionChanged;
-    public MatrixWorkspaceViewModel(MatrixSettings settings, Action<MatrixSettings> save, Matrix900Device? device = null)
+    public MatrixWorkspaceViewModel(MatrixSettings settings, Action<MatrixSettings> save, Matrix900Device? device = null, ObservableCollection<string>? sources = null)
     {
         _draft = settings.ToWidgetWorkspace(); _selectedWidget = _draft.Widgets!.FirstOrDefault()?.Id; _save = save; _device = device ?? new Matrix900Device();
+        DataSources = sources ?? new(MatrixTileSettings.Sources.Select(s => s.Key));
+        DataSources.CollectionChanged += SourcesChanged;
+        ClearSourceSearchCommand = new RelayCommand(() => SourceSearchText = "");
         _saveTimer.Tick += (_, _) => { _saveTimer.Stop(); _save(Snapshot); };
         _outputTimer.Tick += async (_, _) => await TickAsync();
         ApplyCommand = new RelayCommand(() => _ = ApplyAsync(), () => IsConnected && !IsBusy && Validation.Length == 0);
@@ -48,7 +54,25 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
         ClearPixelsCommand = new RelayCommand(() => { if (!IsEditable) return; Tile.Pixels = new byte[2700]; Changed(); }, () => IsEditable);
     }
     public int Layout => 1;
-    public IReadOnlyList<MatrixSourceOption> Sources => MatrixTileSettings.Sources;
+    public ObservableCollection<string> DataSources { get; }
+    public IEnumerable<string> FilteredDataSources
+    {
+        get
+        {
+            var terms = SourceSearchText.Split([' ', '\t', '\r', '\n', '.'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return terms.Length == 0 ? DataSources : DataSources.Where(s => terms.All(t => s.Contains(t, StringComparison.OrdinalIgnoreCase))).ToArray();
+        }
+    }
+    public string SourceSearchText
+    {
+        get => _sourceSearchText;
+        set { if (!SetProperty(ref _sourceSearchText, value ?? "")) return; NotifySourceSearch(); RaisePropertyChanged(nameof(ClearSourceSearchVisibility)); }
+    }
+    public Visibility ClearSourceSearchVisibility => SourceSearchText.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+    public string SourceSearchHint => string.IsNullOrWhiteSpace(SourceSearchText) ? "Search CPU, GPU or temperature to filter the Source list below."
+        : !FilteredDataSources.Any() ? "No matching sources. Clear search to see all sources." : "Choose a matching source from the Source list below.";
+    private void SourcesChanged(object? sender, NotifyCollectionChangedEventArgs e) => NotifySourceSearch();
+    private void NotifySourceSearch() { RaisePropertyChanged(nameof(FilteredDataSources)); RaisePropertyChanged(nameof(SourceSearchHint)); }
     public IReadOnlyList<MatrixWidgetSizeOption> Sizes { get; } = [new("10 dots", 10), new("5 dots", 5), new("4 dots", 4)];
     public IReadOnlyList<MatrixWidgetSettings> Layers => _draft.Widgets!.AsEnumerable().Reverse().ToArray();
     public Guid? SelectedWidgetId
@@ -67,12 +91,15 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
     public bool IsEditable => HasSelection && !Tile.Locked;
     public Visibility SelectionVisibility => HasSelection ? Visibility.Visible : Visibility.Collapsed;
     public Visibility EmptyVisibility => HasSelection ? Visibility.Collapsed : Visibility.Visible;
-    public string SelectedTileLabel => HasSelection ? Tile.Name : "Select or add a widget";
+    public string SelectedTileLabel => HasSelection ? Tile.KindLabel : "Select or add a widget";
     public (int X, int Y, int Width, int Height) SelectedContentRegion => (Tile.X, Tile.Y, Tile.Width, Tile.Height);
-    public string Name { get => Tile.Name; set { if (!IsEditable) return; Tile.Name = value ?? ""; RaisePropertyChanged(); RaisePropertyChanged(nameof(Layers)); RaisePropertyChanged(nameof(SelectedWidgetId)); RaisePropertyChanged(nameof(SelectedTileLabel)); Changed(); } }
+    public string Name => Tile.KindLabel;
     public int X { get => Tile.X; set => MoveSelectedTo(value, Y); }
     public int Y { get => Tile.Y; set => MoveSelectedTo(X, value); }
-    public int Width { get => Tile.Width; set { if (!IsEditable) return; Tile.Width = Math.Clamp(value, 1, 90); Tile.X = Math.Min(Tile.X, 90 - Tile.Width); RefreshFields(); Changed(); } }
+    public int Width { get => Tile.Width; set { if (!IsEditable) return; Tile.AutoWidth = false; Tile.Width = Math.Clamp(value, 1, 90); Tile.X = Math.Min(Tile.X, 90 - Tile.Width); RefreshFields(); Changed(); } }
+    public bool AutoWidth { get => Tile.AutoWidth; set { if (!IsEditable) return; Tile.AutoWidth = value; RaisePropertyChanged(); RaisePropertyChanged(nameof(CanEditWidth)); Changed(); } }
+    public bool CanEditWidth => IsEditable && (ContentKind == MatrixContent.PixelArt || !AutoWidth);
+    public Visibility WidthModeVisibility => ContentKind == MatrixContent.PixelArt ? Visibility.Collapsed : Visibility.Visible;
     public int WidgetHeight { get => Tile.Height; set { if (!IsEditable || value is not (4 or 5 or 10) || value == Tile.Height) return; Tile.Height = value; Tile.Y = Math.Min(Tile.Y, 10 - value); RefreshFields(); Changed(); } }
     public bool IsPainting { get => _painting; set { _painting = value && IsEditable && ContentKind == MatrixContent.PixelArt; RaisePropertyChanged(); PreviewChanged?.Invoke(this, EventArgs.Empty); } }
     public IReadOnlyList<MatrixFourDotFontOption> FourDotFonts { get; } =
@@ -102,11 +129,12 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
     public MatrixSettings Snapshot => _draft.ValidatedCopy();
     public MatrixContent ContentKind { get => Tile.Content; set { if (!IsEditable) return; if (!Enum.IsDefined(value) || value == Tile.Content) return; Tile.Content = value; Changed(); RefreshFields(); } }
     public string Text { get => Tile.Text; set { if (!IsEditable) return; Tile.Text = value ?? ""; RaisePropertyChanged(); Changed(); } }
-    public string Source { get => Tile.Source; set { if (!IsEditable) return; if (!Sources.Any(s => s.Key == value)) return; Tile.Source = value; RaisePropertyChanged(); Changed(); } }
+    public string Source { get => Tile.Source; set { if (!IsEditable || !DataSources.Contains(value)) return; Tile.Source = value; RaisePropertyChanged(); Changed(); } }
+    public string Prefix { get => Tile.Prefix; set { if (!IsEditable) return; Tile.Prefix = value ?? ""; RaisePropertyChanged(); RaisePropertyChanged(nameof(Layers)); RaisePropertyChanged(nameof(SelectedWidgetId)); Changed(); } }
     public string Colour { get => Tile.Colour; set { if (!IsEditable) return; if (value?.Length == 9) value = "#" + value[3..]; if (!System.Text.RegularExpressions.Regex.IsMatch(value ?? "", "^#[0-9a-fA-F]{6}$")) return; Tile.Colour = value!; RaisePropertyChanged(); Changed(); } }
     public bool Scroll { get => Tile.Scroll; set { if (!IsEditable) return; Tile.Scroll = value; RaisePropertyChanged(); Changed(); } }
     public bool Alarm { get => Tile.Alarm; set { if (!IsEditable) return; Tile.Alarm = value; RaisePropertyChanged(); Changed(); } }
-    public int AlarmThreshold { get => Tile.AlarmThreshold; set { if (!IsEditable) return; Tile.AlarmThreshold = Math.Clamp(value, 0, 100); RaisePropertyChanged(); Changed(); } }
+    public int AlarmThreshold { get => Tile.AlarmThreshold; set { if (!IsEditable) return; Tile.AlarmThreshold = Math.Clamp(value, -1000000, 1000000); RaisePropertyChanged(); Changed(); } }
     public int Brightness { get => _draft.Brightness; set { _draft.Brightness = Math.Clamp(value, 0, 100); if (_applied is not null) _applied.Brightness = _draft.Brightness; RaisePropertyChanged(); Changed(); ConnectionChanged?.Invoke(this, EventArgs.Empty); } }
     public bool IsConnected => _device.IsConnected;
     public string? FirmwareVersion => _device.FirmwareVersion;
@@ -122,6 +150,8 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
                 if (!tile.Visible) continue;
                 if (tile.Content == MatrixContent.Text && (System.Globalization.StringInfo.ParseCombiningCharacters(tile.Text).Length > 50 || tile.Text.Any(char.IsControl)))
                     return "Use one line of up to 50 characters or emoji per widget.";
+                if (tile.Content == MatrixContent.Sensor && (System.Globalization.StringInfo.ParseCombiningCharacters(tile.Prefix).Length > 50 || tile.Prefix.Any(char.IsControl)))
+                    return "Use one line of up to 50 characters or emoji for the value label.";
 
             }
             return "";
@@ -130,7 +160,8 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
     public Visibility TextVisibility => ContentKind == MatrixContent.Text ? Visibility.Visible : Visibility.Collapsed;
     public Visibility SensorVisibility => ContentKind == MatrixContent.Sensor ? Visibility.Visible : Visibility.Collapsed;
     public Visibility PixelVisibility => ContentKind == MatrixContent.PixelArt ? Visibility.Visible : Visibility.Collapsed;
-    public string PreviewReading => Tile.Content == MatrixContent.Sensor ? Reading(Tile.Source) : Tile.Content == MatrixContent.Clock ? DateTime.UtcNow.ToString("HH:mm") : Tile.Text;
+    public string PreviewReading => MatrixLayerRenderer.ContentText(Tile, ReadWidget(Tile.Source), DateTime.UtcNow);
+    public RelayCommand ClearSourceSearchCommand { get; }
     public RelayCommand AddTextCommand { get; }
     public RelayCommand AddValueCommand { get; }
     public RelayCommand AddClockCommand { get; }
@@ -143,11 +174,11 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
     public RelayCommand ApplyCommand { get; }
     public RelayCommand ImportImageCommand { get; }
     public RelayCommand ClearPixelsCommand { get; }
-    public void Initialize() => RefreshFields();
+    public void Initialize() { FitDraftWidths(); RefreshFields(); }
     public void AddWidget(MatrixContent content, bool emoji = false)
     {
         if (_draft.Widgets!.Count >= 64) return;
-        var widget = new MatrixWidgetSettings { Content = content, Name = emoji ? "Emoji" : content == MatrixContent.Sensor ? "Value" : content == MatrixContent.Clock ? "Clock" : content == MatrixContent.PixelArt ? "Pixel art" : "Text", Text = emoji ? "👌" : "Text", Height = 5, Width = emoji ? 5 : content == MatrixContent.PixelArt ? 10 : 30, Scroll = false };
+        var widget = new MatrixWidgetSettings { Content = content, Name = emoji ? "Emoji" : content == MatrixContent.Sensor ? "Value" : content == MatrixContent.Clock ? "Clock" : content == MatrixContent.PixelArt ? "Pixel art" : "Text", Text = emoji ? "👌" : "Text", Height = 5, Width = emoji ? 5 : content == MatrixContent.PixelArt ? 10 : 30, AutoWidth = content != MatrixContent.PixelArt, Scroll = false };
         _draft.Widgets.Add(widget.CopyWidget(_draft)); SelectedWidgetId = _draft.Widgets[^1].Id; Changed();
     }
     public void MoveSelectedTo(int x, int y)
@@ -157,7 +188,7 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
         if (x == Tile.X && y == Tile.Y) return;
         Tile.X = x; Tile.Y = y; RaisePropertyChanged(nameof(X)); RaisePropertyChanged(nameof(Y)); Changed();
     }
-    public void LayerFlagsChanged() { if (!IsEditable) IsPainting = false; RaisePropertyChanged(nameof(IsEditable)); RefreshCommands(); Changed(); }
+    public void LayerFlagsChanged() { if (!IsEditable) IsPainting = false; RaisePropertyChanged(nameof(IsEditable)); RaisePropertyChanged(nameof(CanEditWidth)); RefreshCommands(); Changed(); }
     private void DeleteWidget()
     {
         if (!IsEditable) return;
@@ -183,7 +214,7 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
 
     private void RefreshFields()
     {
-        foreach (var name in new[] { nameof(Layers), nameof(SelectedWidgetId), nameof(HasSelection), nameof(IsEditable), nameof(SelectionVisibility), nameof(EmptyVisibility), nameof(Name), nameof(X), nameof(Y), nameof(Width), nameof(WidgetHeight), nameof(IsPainting), nameof(FourDotFont), nameof(FiveDotFont), nameof(TenDotFont), nameof(FourDotFontVisibility), nameof(FiveDotFontVisibility), nameof(TenDotFontVisibility), nameof(FontNote), nameof(Alignment), nameof(AlignmentVisibility), nameof(SelectedTileLabel), nameof(ContentKind), nameof(Text), nameof(Source), nameof(Colour), nameof(Scroll), nameof(Alarm), nameof(AlarmThreshold), nameof(Brightness), nameof(TextVisibility), nameof(SensorVisibility), nameof(PixelVisibility), nameof(PreviewReading), nameof(Validation) }) RaisePropertyChanged(name);
+        foreach (var name in new[] { nameof(Layers), nameof(SelectedWidgetId), nameof(HasSelection), nameof(IsEditable), nameof(SelectionVisibility), nameof(EmptyVisibility), nameof(Name), nameof(X), nameof(Y), nameof(Width), nameof(AutoWidth), nameof(CanEditWidth), nameof(WidthModeVisibility), nameof(Prefix), nameof(WidgetHeight), nameof(IsPainting), nameof(FourDotFont), nameof(FiveDotFont), nameof(TenDotFont), nameof(FourDotFontVisibility), nameof(FiveDotFontVisibility), nameof(TenDotFontVisibility), nameof(FontNote), nameof(Alignment), nameof(AlignmentVisibility), nameof(SelectedTileLabel), nameof(ContentKind), nameof(Text), nameof(Source), nameof(Colour), nameof(Scroll), nameof(Alarm), nameof(AlarmThreshold), nameof(Brightness), nameof(TextVisibility), nameof(SensorVisibility), nameof(PixelVisibility), nameof(PreviewReading), nameof(Validation) }) RaisePropertyChanged(name);
         RefreshCommands();
     }
     private void RefreshCommands()
@@ -193,6 +224,7 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
     private void Changed()
     {
         if (_disposed) return;
+        FitDraftWidths();
         _saveTimer.Stop(); _saveTimer.Start(); RaisePropertyChanged(nameof(Validation)); RaisePropertyChanged(nameof(PreviewReading));
         ApplyCommand.RaiseCanExecuteChanged(); PreviewChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -214,12 +246,13 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
         if (!IsConnected || IsBusy || _disposed || Validation.Length != 0) return;
         var snapshot = Snapshot;
         for (int i = 0; i < snapshot.Widgets!.Count; i++)
-            if (snapshot.Widgets[i].Visible && snapshot.Widgets[i].Content == MatrixContent.Sensor && !TryValue(snapshot.Widgets[i].Source, out _))
+            if (snapshot.Widgets[i].Visible && snapshot.Widgets[i].Content == MatrixContent.Sensor && !TryReading(snapshot.Widgets[i].Source, out _))
             { Status = "A selected sensor has no current reading. Choose an available source or enable full sensors before applying."; return; }
         _outputTimer.Stop(); _applied = null;
         IsBusy = true; Status = "Sending layout to the Matrix...";
         try
         {
+            MatrixLayerRenderer.FitWidths(snapshot, ReadWidget, DateTime.UtcNow);
             await _device.ConfigureAsync(RenderOutput(snapshot, DateTime.UtcNow, 0), _lifetime.Token); _applied = snapshot;
             _scrollStarted = Environment.TickCount64; _lastHeartbeat = 0; _wasVisible = true;
             if (snapshot.Widgets!.Any(w => w.Visible && (w.Content == MatrixContent.Clock || w.Content == MatrixContent.Sensor || w.Content == MatrixContent.Text && w.Scroll))) _outputTimer.Start();
@@ -238,15 +271,29 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
     public void UpdateMetrics(IReadOnlyDictionary<string, MetricValue> values)
     {
         _sample = new Dictionary<string, MetricValue>(values, StringComparer.OrdinalIgnoreCase); _sampleAt = DateTime.UtcNow;
+        FitDraftWidths();
         RaisePropertyChanged(nameof(PreviewReading)); PreviewChanged?.Invoke(this, EventArgs.Empty);
     }
-    private bool TryValue(string source, out int value)
+    private void FitDraftWidths()
     {
-        value = 0;
-        if (DateTime.UtcNow - _sampleAt > TimeSpan.FromSeconds(5) || !_sample.TryGetValue(source, out var raw) || raw.Numeric is not double number || !double.IsFinite(number)) return false;
-        value = (int)Math.Clamp(Math.Round(number), -1000, 1000000); return true;
+        var before = SelectedContentRegion;
+        MatrixLayerRenderer.FitWidths(_draft, ReadWidget, DateTime.UtcNow);
+        if (before.Width != Tile.Width) RaisePropertyChanged(nameof(Width));
+        if (before.X != Tile.X) RaisePropertyChanged(nameof(X));
     }
-    private string Reading(string source) => TryValue(source, out var value) ? value + (source.EndsWith("Usage") ? "%" : "°C") : "N/A";
+    private bool TryReading(string source, out MatrixWidgetReading reading)
+    {
+        reading = MatrixWidgetReading.Unavailable;
+        if (DateTime.UtcNow - _sampleAt > TimeSpan.FromSeconds(5) || !_sample.TryGetValue(source, out var raw)) return false;
+        if (raw.Numeric is double value && double.IsFinite(value))
+        {
+            string unit = raw.Unit ?? (MatrixTileSettings.Sources.Any(s => s.Key == source) ? source.EndsWith("Usage") ? "%" : "°C" : "");
+            reading = new(value, !string.IsNullOrWhiteSpace(raw.Text) ? raw.Text : value.ToString("0.##", RegionalFormatService.Culture) + unit); return true;
+        }
+        if (raw.Numeric is not null || string.IsNullOrWhiteSpace(raw.Text)) return false;
+        reading = new(null, MatrixWidgetSettings.Limit(raw.Text, 200)); return true;
+    }
+    private MatrixWidgetReading ReadWidget(string source) => TryReading(source, out var reading) ? reading : MatrixWidgetReading.Unavailable;
     public async Task TickAsync()
     {
         if (_disposed || !IsConnected || IsBusy || _heartbeatRunning || _applied is null) return;
@@ -255,7 +302,10 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
         {
             var applied = _applied; bool visible = true; var utc = DateTime.UtcNow;
             for (int i = 0; i < applied.Widgets!.Count; i++)
-                if (applied.Widgets[i].Visible && applied.Widgets[i].Content == MatrixContent.Sensor && !TryValue(applied.Widgets[i].Source, out _)) visible = false;
+                if (applied.Widgets[i].Visible && applied.Widgets[i].Content == MatrixContent.Sensor && !TryReading(applied.Widgets[i].Source, out _)) visible = false;
+            // Keep the applied anchor after edge-clamping, just as the draft does.
+            // Otherwise a shorter later reading could jump back to the pre-growth X.
+            MatrixLayerRenderer.FitWidths(applied, ReadWidget, utc);
             if (visible) await _device.UpdatePixelsAsync(RenderOutput(applied, utc, (Environment.TickCount64 - _scrollStarted) / 200), _lifetime.Token);
             if (!ReferenceEquals(applied, _applied) || _disposed) return;
             if (Environment.TickCount64 - _lastHeartbeat >= 1000 || visible != _wasVisible)
@@ -270,7 +320,7 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
         finally { _heartbeatRunning = false; }
     }
     private MatrixSettings RenderOutput(MatrixSettings settings, DateTime utc, long step)
-        => MatrixPixelRenderer.Render(settings, source => TryValue(source, out var value) ? value : null, utc, step);
+        => MatrixPixelRenderer.Render(settings, _ => null, utc, step, ReadWidget);
     public byte[] PreviewPixels() => MatrixPixelRenderer.Compose(RenderOutput(_draft, DateTime.UtcNow, 0));
     public void PaintPixel(int x, int y, bool erase)
     {
@@ -300,5 +350,5 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex) { Status = "Could not import image: " + ex.Message; }
     }
-    public void Dispose() { if (_disposed) return; _saveTimer.Stop(); _outputTimer.Stop(); _save(Snapshot); _disposed = true; _lifetime.Cancel(); _device.Dispose(); _lifetime.Dispose(); }
+    public void Dispose() { if (_disposed) return; _saveTimer.Stop(); _outputTimer.Stop(); DataSources.CollectionChanged -= SourcesChanged; _save(Snapshot); _disposed = true; _lifetime.Cancel(); _device.Dispose(); _lifetime.Dispose(); }
 }

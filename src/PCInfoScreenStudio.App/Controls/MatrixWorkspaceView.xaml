@@ -25,7 +25,7 @@
       <ListBox.ItemTemplate><DataTemplate>
        <Grid Margin="1,5"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <CheckBox IsChecked="{Binding Visible}" Checked="LayerFlagChanged" Unchecked="LayerFlagChanged" VerticalAlignment="Center" ToolTip="Show widget" AutomationProperties.Name="Layer visibility" Margin="0,0,6,0"/>
-        <StackPanel Grid.Column="1"><TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/><TextBlock Text="{Binding KindLabel}" FontSize="11" Foreground="{StaticResource MutedTextBrush}"/></StackPanel>
+        <StackPanel Grid.Column="1"><TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis"/><TextBlock Text="{Binding KindLabel}" FontSize="11" Foreground="{StaticResource MutedTextBrush}"/></StackPanel>
         <CheckBox Grid.Column="2" IsChecked="{Binding Locked}" Content="Lock" Checked="LayerFlagChanged" Unchecked="LayerFlagChanged" ToolTip="Lock editing and position" AutomationProperties.Name="Lock widget" VerticalAlignment="Center" Margin="5,0,0,0"/>
        </Grid>
       </DataTemplate></ListBox.ItemTemplate>
@@ -60,15 +60,14 @@
      <TextBlock Text="Add a widget or select one from Layers." Visibility="{Binding EmptyVisibility}" TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}"/>
      <StackPanel Visibility="{Binding SelectionVisibility}" IsEnabled="{Binding IsEditable}">
       <TextBlock x:Name="SelectedTileCaption" Text="{Binding SelectedTileLabel}" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,8"/>
-      <TextBlock Text="Name" Foreground="{StaticResource MutedTextBrush}"/>
-      <TextBox MaxLength="80" Text="{Binding Name, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Matrix widget name" Margin="0,5,0,12"/>
       <TextBlock Text="Size" Foreground="{StaticResource MutedTextBrush}"/>
       <ComboBox x:Name="WidgetSizeSelector" ItemsSource="{Binding Sizes}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding WidgetHeight}" AutomationProperties.Name="Matrix widget height" Margin="0,5,0,12"/>
       <Grid Margin="0,0,0,12"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
        <StackPanel Margin="0,0,6,0"><TextBlock Text="X"/><TextBox Text="{Binding X, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Matrix widget X"/></StackPanel>
        <StackPanel Grid.Column="1" Margin="0,0,6,0"><TextBlock Text="Y"/><TextBox Text="{Binding Y, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Matrix widget Y"/></StackPanel>
-       <StackPanel Grid.Column="2"><TextBlock Text="Width"/><TextBox Text="{Binding Width, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Matrix widget width"/></StackPanel>
+       <StackPanel Grid.Column="2"><TextBlock Text="Width"/><TextBox x:Name="WidgetWidthBox" Text="{Binding Width, UpdateSourceTrigger=LostFocus}" IsEnabled="{Binding CanEditWidth}" AutomationProperties.Name="Matrix widget width"/></StackPanel>
       </Grid>
+      <CheckBox x:Name="AutoWidthCheckBox" Content="Fit width to content" IsChecked="{Binding AutoWidth}" Visibility="{Binding WidthModeVisibility}" Margin="0,0,0,12" ToolTip="Measure the rendered content after edits, font and size changes, and sensor updates. Turn off for a custom scrolling or alignment area."/>
            <StackPanel Visibility="{Binding FourDotFontVisibility}" Margin="0,0,0,14">
       <TextBlock Text="4-dot font · this widget" Foreground="{StaticResource MutedTextBrush}"/>
       <ComboBox x:Name="FourDotFontSelector" AutomationProperties.Name="Selected widget 4-dot font" ItemsSource="{Binding FourDotFonts}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding FourDotFont}" Margin="0,5,0,0"/>
@@ -92,11 +91,20 @@
       <CheckBox Content="Scroll message" IsChecked="{Binding Scroll}" Margin="0,0,0,12"/>
      </StackPanel>
      <StackPanel Visibility="{Binding SensorVisibility}">
-      <TextBlock Text="Sensor source" Foreground="{StaticResource MutedTextBrush}"/>
-      <ComboBox AutomationProperties.Name="Matrix sensor source" ItemsSource="{Binding Sources}" DisplayMemberPath="Label" SelectedValuePath="Key" SelectedValue="{Binding Source}" Margin="0,5,0,9"/>
+      <TextBlock Text="Label before value" Foreground="{StaticResource MutedTextBrush}"/>
+      <TextBox x:Name="ValueLabelBox" AutomationProperties.Name="Matrix value label" Text="{Binding Prefix, UpdateSourceTrigger=PropertyChanged}" MaxLength="512" ToolTip="For example CPU: shows CPU: 42°C. Emoji are supported too." Margin="0,5,0,9"/>
+      <Grid Margin="0,0,0,4"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+       <TextBox x:Name="SourceSearchBox" AutomationProperties.Name="Find a Matrix sensor" Text="{Binding SourceSearchText, UpdateSourceTrigger=PropertyChanged}" TextChanged="SourceSearchChanged" ToolTip="Search the same data sources as Info Screen, for example GPU power or CPU temperature."/>
+       <Button Grid.Column="1" Content="Clear" Command="{Binding ClearSourceSearchCommand}" Visibility="{Binding ClearSourceSearchVisibility}" Margin="6,0,0,0" Padding="7,4"/>
+      </Grid>
+      <TextBlock Text="{Binding SourceSearchHint}" FontSize="11" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+      <TextBlock Text="Source" Foreground="{StaticResource MutedTextBrush}"/>
+      <local:SourcePicker x:Name="SensorSourcePicker" AutomationProperties.Name="Matrix sensor source" Style="{StaticResource {x:Type ComboBox}}" ItemsSource="{Binding FilteredDataSources}" SelectedSource="{Binding Source, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,5,0,9"/>
+      <CheckBox x:Name="AdvancedSensorsCheckBox" Content="Show advanced sensors" IsChecked="{Binding DataContext.ShowAdvancedSensors, RelativeSource={RelativeSource AncestorType={x:Type Window}}}" ToolTip="Include individually discovered sensors, using the same preference as Info Screen." Margin="0,0,0,9"/>
       <TextBlock Text="{Binding PreviewReading}" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,9"/>
+      <CheckBox Content="Scroll long value" IsChecked="{Binding Scroll}" Margin="0,0,0,9"/>
       <CheckBox Content="High-value colour alarm" IsChecked="{Binding Alarm}"/>
-      <TextBlock Text="Alarm threshold (°C or %)" Foreground="{StaticResource MutedTextBrush}" Margin="0,8,0,4"/>
+      <TextBlock Text="Alarm threshold (source units)" Foreground="{StaticResource MutedTextBrush}" Margin="0,8,0,4"/>
       <TextBox AutomationProperties.Name="Matrix alarm threshold" Text="{Binding AlarmThreshold, UpdateSourceTrigger=LostFocus}" Margin="0,0,0,12"/>
      </StackPanel>
      <TextBlock Text="Colour / brush" Foreground="{StaticResource MutedTextBrush}"/>

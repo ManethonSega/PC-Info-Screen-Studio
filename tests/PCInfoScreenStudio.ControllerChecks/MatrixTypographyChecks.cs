@@ -85,7 +85,26 @@ internal static class MatrixTypographyChecks
             vm.UpdateMetrics(new Dictionary<string, MetricValue> { ["GPU.Usage"] = new(30) }); Run(vm.TickAsync(), pump);
             Require(!vm.IsConnected && fake.Disposed && vm.Status.StartsWith("Matrix disconnected"), "A failed live pixel acknowledgement stops output and releases HID.");
         }
-        Console.WriteLine("PASS: exact Matrix text height/word gap, all four two-row arrangements, artwork preservation, clock/scroll masks, preview-to-HID identity, changed-only sensors, blank/resume and failed-update cleanup.");
+        var fullSensor = new MatrixSettings { Widgets = [new() { Content = MatrixContent.Sensor, Source = "Cooling.FanRPM", Prefix = "Fan:", Height = 5, Scroll = false }] };
+        var sensorFake = new Matrix900ProtocolChecks.Connection();
+        using (var vm = new MatrixWorkspaceViewModel(fullSensor, _ => { }, new Matrix900Device(() => sensorFake)))
+        {
+            vm.Initialize(); vm.UpdateMetrics(new Dictionary<string, MetricValue> { ["Cooling.FanRPM"] = new(1500, Unit: " RPM") });
+            Require(vm.PreviewReading == "Fan: 1500 RPM", "Full-source readings retain their actual unit and prefix instead of using temperature formatting.");
+            Run(vm.ToggleAsync(), pump); Run(vm.ApplyAsync(), pump);
+            var expected = new MatrixSettings { Widgets = [new() { Text = "Fan: 1500 RPM", Height = 5, Scroll = false }] };
+            Require(LastFrame(sensorFake).SequenceEqual(MatrixLayerRenderer.Compose(expected, _ => null, time)), "A labelled source outside the four firmware sensor IDs reaches the acknowledged HID frame exactly.");
+            vm.Prefix = ""; vm.UpdateMetrics(new Dictionary<string, MetricValue> { ["Cooling.FanRPM"] = new(1, Unit: " RPM") }); vm.X = 89; Run(vm.ApplyAsync(), pump);
+            foreach (int rpm in new[] { 15000, 1 })
+            {
+                vm.UpdateMetrics(new Dictionary<string, MetricValue> { ["Cooling.FanRPM"] = new(rpm, Unit: " RPM") }); Run(vm.TickAsync(), pump);
+                Require(LastFrame(sensorFake).SequenceEqual(vm.PreviewPixels()), "Live growing and shrinking readings at the right edge keep preview, selection geometry and output aligned.");
+            }
+            vm.DataSources.Add("Hardware.GPUName"); vm.Source = "Hardware.GPUName"; vm.Prefix = "GPU:";
+            vm.UpdateMetrics(new Dictionary<string, MetricValue> { ["Hardware.GPUName"] = new(Text: "RX 7800 XT") });
+            Run(vm.ApplyAsync(), pump); Require(vm.PreviewReading == "GPU: RX 7800 XT" && LastFrame(sensorFake).SequenceEqual(vm.PreviewPixels()), "Text-valued catalog sources also support Apply and exact preview-to-output pixels.");
+        }
+        Console.WriteLine("PASS: exact Matrix text height/word gap, row/artwork geometry, clocks/scroll, actual sensor units and prefixes, full-source Apply, output identity, changed-only updates and failed-update cleanup.");
     }
     private static byte[] Frame(MatrixSettings settings, DateTime time) => MatrixPixelRenderer.Compose(MatrixPixelRenderer.Render(settings, _ => 42, time));
     private static bool RowLit(byte[] rgb, int row) => rgb.Skip(row * 270).Take(270).Any(b => b != 0);

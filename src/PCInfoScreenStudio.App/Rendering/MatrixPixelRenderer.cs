@@ -10,12 +10,13 @@ public static class MatrixPixelRenderer
     private static readonly Dictionary<(string, int, string), Mask> Masks = [];
     private static readonly object CacheGate = new();
 
-    public static MatrixSettings Render(MatrixSettings settings, Func<string, int?> reading, DateTime utc, long scrollStep = 0)
+    public static MatrixSettings Render(MatrixSettings settings, Func<string, int?> reading, DateTime utc, long scrollStep = 0, Func<string, MatrixWidgetReading>? widgetReading = null)
     {
         var output = settings.ValidatedCopy();
         if (output.Widgets is not null)
         {
-            var frame = MatrixLayerRenderer.Compose(output, reading, utc, scrollStep);
+            var frame = widgetReading is null ? MatrixLayerRenderer.Compose(output, reading, utc, scrollStep)
+                : MatrixLayerRenderer.ComposeReadings(output, widgetReading, utc, scrollStep);
             return new MatrixSettings { Layout = 1, Brightness = output.Brightness, Tiles = [new() { Content = MatrixContent.PixelArt, Pixels = frame }] }.ValidatedCopy();
         }
         for (int i = 0; i < output.Count; i++)

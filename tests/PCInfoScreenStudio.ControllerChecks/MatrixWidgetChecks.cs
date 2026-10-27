@@ -7,6 +7,26 @@ internal static class MatrixWidgetChecks
     public static void Check()
     {
         var utc = new DateTime(2026, 10, 27, 12, 34, 0, DateTimeKind.Utc);
+        var automatic = JsonSerializer.Deserialize<MatrixSettings>("{\"Widgets\":[{\"Text\":\"HH\",\"Width\":1,\"Height\":10,\"Scroll\":false,\"AutoWidth\":true}]}")!.ValidatedCopy();
+        var fullContent = new MatrixSettings { Widgets = [new() { Text = "HH", Width = 90, Height = 10, Scroll = false }] }.ValidatedCopy();
+        Require(MatrixLayerRenderer.Compose(automatic, _ => null, utc).SequenceEqual(MatrixLayerRenderer.Compose(fullContent, _ => null, utc)), "Automatic widget width must show all content even when its saved box is too narrow.");
+        MatrixLayerRenderer.FitWidths(automatic, _ => MatrixWidgetReading.Unavailable, utc);
+        int wideWidth = automatic.Widgets![0].Width;
+        automatic.Widgets[0].Text = "H";
+        MatrixLayerRenderer.FitWidths(automatic, _ => MatrixWidgetReading.Unavailable, utc);
+        Require(automatic.Widgets[0].Width < wideWidth, "The selection box shrinks when content becomes shorter.");
+        automatic.Widgets[0].X = 89; automatic.Widgets[0].Text = "HH";
+        MatrixLayerRenderer.FitWidths(automatic, _ => MatrixWidgetReading.Unavailable, utc);
+        Require(automatic.Widgets[0].X + automatic.Widgets[0].Width == 90, "Growing content moves its box inside the right edge instead of clipping.");
+        automatic.Widgets[0].AutoWidth = false; automatic.Widgets[0].Width = 45;
+        MatrixLayerRenderer.FitWidths(automatic, _ => MatrixWidgetReading.Unavailable, utc);
+        Require(automatic.Widgets[0].Width == 45, "Manual width retains its explicit scrolling/alignment area.");
+        var sensor = new MatrixSettings { Widgets = [new() { Content = MatrixContent.Sensor, Source = "Sensor: GPU > Board power", Prefix = "GPU:", Height = 5, AlarmThreshold = 2000 }] }.ValidatedCopy();
+        var expectedText = new MatrixSettings { Widgets = [new() { Text = "GPU: 85.5 W", Height = 5, Scroll = false }] }.ValidatedCopy();
+        sensor.Widgets![0].Scroll = false;
+        Require(MatrixLayerRenderer.ComposeReadings(sensor, _ => new(85.5, "85.5 W"), utc).SequenceEqual(MatrixLayerRenderer.Compose(expectedText, _ => null, utc)), "Sensor labels, decimals and actual source units reach the LED RGB frame.");
+        var restored = JsonSerializer.Deserialize<MatrixSettings>(JsonSerializer.Serialize(sensor))!.ValidatedCopy().Widgets![0];
+        Require(restored.Source == "Sensor: GPU > Board power" && restored.Prefix == "GPU:" && restored.AutoWidth && restored.AlarmThreshold == 2000, "Extended sources, labels, width mode and non-percentage alarm thresholds survive restart.");
         foreach (int layout in new[] { 1, 3, 9 }) foreach (int rows in new[] { 4, 5, 45, 54 })
         {
             var legacy = new MatrixSettings { Layout = layout, RowHeight = rows };
