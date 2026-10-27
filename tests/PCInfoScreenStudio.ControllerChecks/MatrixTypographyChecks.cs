@@ -8,6 +8,7 @@ internal static class MatrixTypographyChecks
 {
     public static void Check(Action<Func<bool>> pump)
     {
+        MatrixFontChecks.Check();
         var time = new DateTime(2026, 10, 27, 12, 34, 0, DateTimeKind.Utc);
         var settings = new MatrixSettings { Layout = 1 };
         settings.Tiles[0].Text = "H   H"; settings.Tiles[0].Scroll = false;
@@ -47,6 +48,23 @@ internal static class MatrixTypographyChecks
             int count = PageCount(fake); vm.Text = "DRAFT"; Run(vm.TickAsync(), pump);
             Require(PageCount(fake) == count, "An unapplied draft edit does not replace the active output.");
         }
+        foreach (int rowHeights in new[] { 4, 5, 45, 54 })
+        {
+            var mixed = new MatrixSettings { Layout = 9, RowHeight = rowHeights, FourDotFont = MatrixFourDotFont.Able4, FiveDotFont = MatrixFiveDotFont.Petty5H };
+            foreach (var item in mixed.Tiles) { item.Content = MatrixContent.Text; item.Text = "H"; item.Scroll = false; }
+            var mixedFake = new Matrix900ProtocolChecks.Connection();
+            using var mixedVm = new MatrixWorkspaceViewModel(mixed, _ => { }, new Matrix900Device(() => mixedFake));
+            mixedVm.Initialize(); Run(mixedVm.ToggleAsync(), pump); Run(mixedVm.ApplyAsync(), pump);
+            var uploaded = new byte[2700];
+            for (int i = 0; i < 6; i++)
+            {
+                var bytes = mixedFake.Writes.Where(r => r[1] == 5 && r[2] == i).SelectMany(r => r.Skip(8).Take(r[5] - 2)).ToArray();
+                Require(bytes.Length == 450, "Each mixed-height tile keeps the controller's native 30 by 5 upload geometry.");
+                var region = MatrixSettings.Region(9, i);
+                for (int y = 0; y < 5; y++) Array.Copy(bytes, y * 90, uploaded, ((region.Y + y) * 90 + region.X) * 3, 90);
+            }
+            Require(uploaded.SequenceEqual(mixedVm.PreviewPixels()), "Every mixed-height Apply uploads exactly the six tile images shown in the preview.");
+        }
         settings.Tiles[0].Content = MatrixContent.Sensor; settings.Tiles[0].Source = "GPU.Usage";
         settings.Tiles[0].Alarm = true; settings.Tiles[0].AlarmThreshold = 70;
         fake = new Matrix900ProtocolChecks.Connection();
@@ -66,7 +84,7 @@ internal static class MatrixTypographyChecks
             vm.UpdateMetrics(new Dictionary<string, MetricValue> { ["GPU.Usage"] = new(30) }); Run(vm.TickAsync(), pump);
             Require(!vm.IsConnected && fake.Disposed && vm.Status.StartsWith("Matrix disconnected"), "A failed live pixel acknowledgement stops output and releases HID.");
         }
-        Console.WriteLine("PASS: exact Matrix text height/word gap, 4+4/5+5 rows, artwork preservation, clock/scroll masks, preview-to-HID identity, changed-only sensors, blank/resume and failed-update cleanup.");
+        Console.WriteLine("PASS: exact Matrix text height/word gap, all four two-row arrangements, artwork preservation, clock/scroll masks, preview-to-HID identity, changed-only sensors, blank/resume and failed-update cleanup.");
     }
     private static byte[] Frame(MatrixSettings settings, DateTime time) => MatrixPixelRenderer.Compose(MatrixPixelRenderer.Render(settings, _ => 42, time));
     private static bool RowLit(byte[] rgb, int row) => rgb.Skip(row * 270).Take(270).Any(b => b != 0);

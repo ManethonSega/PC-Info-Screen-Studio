@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.0-alpha.31 (draft)
+
+- Added the selected 4-/5-/10-dot Matrix font collection, with saved choices per height.
+- Added 4+5 and 5+4 two-row layouts alongside 4+4 and 5+5, with exact blank-row spacing and preserved artwork.
+- Included all fourteen bitmap choices for development, with source credits and recorded release-review items for Limitdot H4 and piconano.
+- Kept preview, sensor/clock text and uploaded RGB output on the same bitmap renderer.
+
 ## 0.10.0-alpha.30 (draft)
 
 - Add a saved five-dot Matrix font choice: Tom Thumb or PixelFont 5×5 Thin. Four- and ten-dot defaults remain pending review.

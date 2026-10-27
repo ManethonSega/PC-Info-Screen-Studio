@@ -75,10 +75,34 @@ internal static class MatrixWorkspaceChecks
             var heightSelector = (ComboBox)matrix.FindName("RowHeightSelector");
             heightSelector.SetCurrentValue(Selector.SelectedValueProperty, 5); heightSelector.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource(); Flush(window);
             Require(vm.Matrix.RowHeight == 5, "The actual WPF row-height control enables five dots with no gap.");
+            vm.Matrix.ContentKind = MatrixContent.Text;
             var fontSelector = (ComboBox)matrix.FindName("FiveDotFontSelector");
             fontSelector.SetCurrentValue(Selector.SelectedValueProperty, MatrixFiveDotFont.Pixel5x5Thin); fontSelector.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource(); Flush(window);
             Require(vm.Matrix.FiveDotFont == MatrixFiveDotFont.Pixel5x5Thin && fontSelector.IsVisible, "Five-dot font selector updates actual settings.");
             Capture(window, captures, "Matrix900-five-row.png");
+            Require(vm.Matrix.FourDotFonts.Count == 4 && vm.Matrix.FiveDotFonts.Count == 6 && vm.Matrix.TenDotFonts.Count == 4 && heightSelector.Items.Count == 4, "The controls expose all fourteen choices and four row arrangements.");
+            foreach (int rows in new[] { 45, 54 })
+            {
+                heightSelector.SetCurrentValue(Selector.SelectedValueProperty, rows); heightSelector.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource();
+                vm.Matrix.SelectedTile = rows == 45 ? 4 : 5; vm.Matrix.ContentKind = MatrixContent.Text; Flush(window);
+                var four = (ComboBox)matrix.FindName("FourDotFontSelector");
+                Require(four.IsVisible && !fontSelector.IsVisible, "Selecting a four-dot tile shows its four-dot font control.");
+                four.SetCurrentValue(Selector.SelectedValueProperty, MatrixFourDotFont.Able4); four.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource();
+                vm.Matrix.SelectedTile = rows == 45 ? 5 : 4; vm.Matrix.ContentKind = MatrixContent.Text; Flush(window);
+                Require(fontSelector.IsVisible && !four.IsVisible, "Selecting a five-dot tile shows its five-dot font control.");
+                fontSelector.SetCurrentValue(Selector.SelectedValueProperty, MatrixFiveDotFont.Able5); fontSelector.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource();
+                Flush(window); Capture(window, captures, $"Matrix900-rows-{rows}.png");
+            }
+            vm.Matrix.Layout = 1; vm.Matrix.ContentKind = MatrixContent.Text; Flush(window);
+            var ten = (ComboBox)matrix.FindName("TenDotFontSelector");
+            Require(ten.IsVisible, "A ten-dot column exposes the ten-dot font control.");
+            ten.SetCurrentValue(Selector.SelectedValueProperty, MatrixTenDotFont.Micro3x10); ten.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource();
+            Flush(window); Capture(window, captures, "Matrix900-ten-dot-Micro.png");
+            ten.SetCurrentValue(Selector.SelectedValueProperty, MatrixTenDotFont.Piconano3x10); ten.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource(); Flush(window);
+            Require(vm.Matrix.Validation.Length == 0 && vm.Matrix.PreviewPixels().Any(b => b != 0), "piconano is included and immediately renders without a local-file step.");
+            Capture(window, captures, "Matrix900-ten-dot-piconano.png");
+            ten.SetCurrentValue(Selector.SelectedValueProperty, MatrixTenDotFont.Micro3x10); ten.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource();
+            vm.Matrix.Layout = 9; vm.Matrix.RowHeight = 54; vm.Matrix.SelectedTile = 4;
             vm.ShowPage(true); Flush(window); Require(!matrix.IsVisible && vm.IsHardwarePage, "Hardware navigation hides the Matrix workspace.");
             vm.ShowPage(false); Flush(window); Require(matrix.IsVisible, "Editor navigation returns to the selected Matrix workspace.");
             vm.SelectedDisplayTarget = DisplayTarget.Turing52; Flush(window);
@@ -89,7 +113,7 @@ internal static class MatrixWorkspaceChecks
         }
         finally { window.MarkSessionSavedForExit(); window.Close(); }
         var loaded = new SettingsController(new AppSettingsService(path));
-        Require(loaded.Matrix.Selected && loaded.Matrix.Layout == 9 && loaded.Matrix.RowHeight == 5 && loaded.Matrix.FiveDotFont == MatrixFiveDotFont.Pixel5x5Thin && loaded.Matrix.Tiles[4].Text == "PERSIST ME" && loaded.Matrix.Tiles[4].Pixels[93] == 33,
+        Require(loaded.Matrix.Selected && loaded.Matrix.Layout == 9 && loaded.Matrix.RowHeight == 54 && loaded.Matrix.FourDotFont == MatrixFourDotFont.Able4 && loaded.Matrix.FiveDotFont == MatrixFiveDotFont.Able5 && loaded.Matrix.TenDotFont == MatrixTenDotFont.Micro3x10 && loaded.Matrix.Tiles[4].Text == "PERSIST ME" && loaded.Matrix.Tiles[4].Pixels[93] == 33,
             "Exit flushes the latest Matrix layout, selection target, text and pixels to validated settings.");
         using var secondVm = new MainViewModel(loaded, new SessionStateService(Path.Combine(root, "matrix-second")));
         Require(secondVm.IsMatrixWorkspace && secondVm.Matrix.Layout == 9 && secondVm.Matrix.SelectedTile == 0, "Restart restores Matrix without changing the LCD theme format.");

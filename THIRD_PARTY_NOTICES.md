@@ -342,3 +342,20 @@ License: Apache-2.0. See `ThirdPartyLicenses/HidSharp-LICENSE.txt` in the applic
 ## Matrix bitmap fonts
 
 Tom Thumb: Brian Swetland and Robey Pointer, BSD notice included. Source: Adafruit GFX Fonts/TomThumb.h. PixelFont 5×5 Thin: mcer12/PixelFonts, MIT notice included. Glyph masks retain native pixels; lowercase descenders are fitted in the five-row band. A degree-sign glyph is supplied by this project.
+
+## Matrix bitmap fonts (alpha.31)
+
+The bundled collection adds mem (oidoid, AGPL-3.0), Able 4 and Able 5
+(Joseph Fatula / stormgold, software embedding with credit), Petty 5H and
+Petty 5×5 (TakWolf, OFL-1.1), and the public-domain Micro bitmap from u8g2.
+Their licenses/notices accompany the application under ThirdPartyLicenses.
+Editable binary glyph data is included in Assets/MatrixFonts.json; mem-derived
+glyphs retain AGPL-3.0 terms. The application's original code remains GPL-3.0-or-later.
+
+Limitdot H4 (Masubiwa) and piconano (picocherry) bitmap glyphs are included
+for development at the project owner’s explicit request. Redistribution
+permission remains unverified; this must be resolved before public release.
+Original TTF files are not bundled. See Matrix-font-release-review-NOTICE.txt.
+
+See docs/research/MATRIX_FONTS.md for original source links, credits and pixel
+adaptations, including the five-row mem Q and vertically doubled ten-dot forms.

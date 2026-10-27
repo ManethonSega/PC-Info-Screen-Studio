@@ -37,16 +37,34 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
         ClearPixelsCommand = new RelayCommand(() => { Tile.Pixels = new byte[2700]; Changed(); });
     }
     public IReadOnlyList<MatrixLayoutOption> Layouts { get; } =
-        [new("One panel · 90 × 10", 1), new("Three columns · 30 × 10", 3), new("Six tiles · 30 × 5", 9)];
+        [new("One panel · 90 × 10", 1), new("Three columns · 30 × 10", 3), new("Two rows · three columns", 9)];
     public IReadOnlyList<MatrixContentOption> ContentKinds { get; } = [new("Text", MatrixContent.Text), new("Sensor", MatrixContent.Sensor), new("Clock (UTC)", MatrixContent.Clock), new("Pixel art", MatrixContent.PixelArt)];
     public IReadOnlyList<MatrixSourceOption> Sources => MatrixTileSettings.Sources;
     public IReadOnlyList<MatrixRowHeightOption> RowHeights { get; } =
-        [new("4 dots each · 2-dot gap", 4), new("5 dots each · no gap", 5)];
-    public int RowHeight { get => _draft.RowHeight; set { if (value is not (4 or 5) || value == RowHeight) return; _draft.RowHeight = value; RaisePropertyChanged(); RaisePropertyChanged(nameof(FiveDotFontVisibility)); Changed(); } }
-    public IReadOnlyList<MatrixFontOption> FiveDotFonts { get; } = [new("Tom Thumb", MatrixFiveDotFont.TomThumb), new("PixelFont 5×5 Thin", MatrixFiveDotFont.Pixel5x5Thin)];
-    public MatrixFiveDotFont FiveDotFont { get => _draft.FiveDotFont; set { if (!Enum.IsDefined(value) || value == FiveDotFont) return; _draft.FiveDotFont = value; RaisePropertyChanged(); Changed(); } }
-    public Visibility FiveDotFontVisibility => Layout == 9 && RowHeight == 5 ? Visibility.Visible : Visibility.Collapsed;
+        [new("4 + 4 dots · 2-dot gap", 4), new("5 + 5 dots · no gap", 5),
+         new("4 + 5 dots · 1-dot gap", 45), new("5 + 4 dots · 1-dot gap", 54)];
+    public int RowHeight { get => _draft.RowHeight; set { if (value is not (4 or 5 or 45 or 54) || value == RowHeight) return; _draft.RowHeight = value; RefreshFields(); Changed(); } }
+    public IReadOnlyList<MatrixFourDotFontOption> FourDotFonts { get; } =
+        [new("mem 4×4", MatrixFourDotFont.Mem), new("mem mono 4×4", MatrixFourDotFont.MemMono), new("Able 4", MatrixFourDotFont.Able4), new("Limitdot H4", MatrixFourDotFont.LimitdotH4)];
+    public IReadOnlyList<MatrixFontOption> FiveDotFonts { get; } =
+        [new("Tom Thumb", MatrixFiveDotFont.TomThumb), new("PixelFont 5×5 Thin", MatrixFiveDotFont.Pixel5x5Thin),
+         new("Petty 5H", MatrixFiveDotFont.Petty5H), new("Petty 5×5", MatrixFiveDotFont.Petty5x5),
+         new("Able 5", MatrixFiveDotFont.Able5), new("mem 5×6", MatrixFiveDotFont.Mem5x6)];
+    public IReadOnlyList<MatrixTenDotFontOption> TenDotFonts { get; } =
+        [new("PixelFont 5×5 Thin ×2", MatrixTenDotFont.Pixel5x5Double), new("PixelFont 5×10 Condensed", MatrixTenDotFont.Pixel5x10Condensed),
+         new("Micro 3×10", MatrixTenDotFont.Micro3x10), new("piconano 3×10", MatrixTenDotFont.Piconano3x10)];
+    public MatrixFourDotFont FourDotFont { get => _draft.FourDotFont; set { if (!Enum.IsDefined(value) || value == FourDotFont) return; _draft.FourDotFont = value; RefreshFields(); Changed(); } }
+    public MatrixFiveDotFont FiveDotFont { get => _draft.FiveDotFont; set { if (!Enum.IsDefined(value) || value == FiveDotFont) return; _draft.FiveDotFont = value; RefreshFields(); Changed(); } }
+    public MatrixTenDotFont TenDotFont { get => _draft.TenDotFont; set { if (!Enum.IsDefined(value) || value == TenDotFont) return; _draft.TenDotFont = value; RefreshFields(); Changed(); } }
+    public Visibility FourDotFontVisibility => FontVisibility(4);
+    public Visibility FiveDotFontVisibility => FontVisibility(5);
+    public Visibility TenDotFontVisibility => FontVisibility(10);
+    private Visibility FontVisibility(int height) => ContentKind != MatrixContent.PixelArt && SelectedContentRegion.Height == height ? Visibility.Visible : Visibility.Collapsed;
     public Visibility RowHeightVisibility => Layout == 9 ? Visibility.Visible : Visibility.Collapsed;
+    public string FontNote => ContentKind == MatrixContent.PixelArt ? ""
+        : SelectedContentRegion.Height == 5 && FiveDotFont == MatrixFiveDotFont.Mem5x6 ? "Five-dot capitals; Q is fitted within five rows."
+        : SelectedContentRegion.Height == 5 && FiveDotFont is MatrixFiveDotFont.Petty5H or MatrixFiveDotFont.Petty5x5 ? "Uppercase font. Lowercase text uses capitals."
+        : SelectedContentRegion.Height == 10 && TenDotFont != MatrixTenDotFont.Pixel5x5Double ? "Tall adaptation: height doubled, width unchanged." : "";
     public int TileCount => _draft.Count;
     public string SelectedTileLabel => $"Tile {SelectedTile + 1} selected";
     public (int X, int Y, int Width, int Height) SelectedContentRegion => _draft.ContentRegion(SelectedTile);
@@ -64,11 +82,22 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
     public int Brightness { get => _draft.Brightness; set { _draft.Brightness = Math.Clamp(value, 0, 100); if (_applied is not null) _applied.Brightness = _draft.Brightness; RaisePropertyChanged(); Changed(); ConnectionChanged?.Invoke(this, EventArgs.Empty); } }
     public bool IsConnected => _device.IsConnected;
     public string? FirmwareVersion => _device.FirmwareVersion;
-    public bool IsBusy { get => _busy; private set { _busy = value; RaisePropertyChanged(); ApplyCommand.RaiseCanExecuteChanged(); ImportImageCommand.RaiseCanExecuteChanged(); ConnectionChanged?.Invoke(this, EventArgs.Empty); } }
+    public bool IsBusy { get => _busy; private set { _busy = value; RaisePropertyChanged(); ApplyCommand.RaiseCanExecuteChanged(); ImportImageCommand.RaiseCanExecuteChanged(); RaisePropertyChanged(nameof(FontNote)); ConnectionChanged?.Invoke(this, EventArgs.Empty); } }
     public string Status { get => _status; private set { _status = value; RaisePropertyChanged(); } }
-    public string Validation => Enumerable.Range(0, _draft.Count).Any(i => _draft.Tiles[i].Content == MatrixContent.Text &&
-        (_draft.Tiles[i].Text.Length > 50 || _draft.Tiles[i].Text.Any(c => c is < ' ' or > '~')))
-        ? "Matrix text supports 50 printable ASCII characters per tile. Use pixel art for other glyphs." : "";
+    public string Validation
+    {
+        get
+        {
+            for (int i = 0; i < _draft.Count; i++)
+            {
+                var tile = _draft.Tiles[i];
+                if (tile.Content == MatrixContent.Text && (tile.Text.Length > 50 || tile.Text.Any(c => c is < ' ' or > '~')))
+                    return "Matrix text supports 50 printable ASCII characters per tile. Use pixel art for other glyphs.";
+
+            }
+            return "";
+        }
+    }
     public Visibility TextVisibility => ContentKind == MatrixContent.Text ? Visibility.Visible : Visibility.Collapsed;
     public Visibility SensorVisibility => ContentKind == MatrixContent.Sensor ? Visibility.Visible : Visibility.Collapsed;
     public Visibility PixelVisibility => ContentKind == MatrixContent.PixelArt ? Visibility.Visible : Visibility.Collapsed;
@@ -79,7 +108,7 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
     public void Initialize() => RefreshFields();
     private void RefreshFields()
     {
-        foreach (var name in new[] { nameof(Layout), nameof(RowHeightVisibility), nameof(FiveDotFontVisibility), nameof(SelectedTile), nameof(SelectedTileLabel), nameof(ContentKind), nameof(Text), nameof(Source), nameof(Colour), nameof(Scroll), nameof(Alarm), nameof(AlarmThreshold), nameof(Brightness), nameof(TextVisibility), nameof(SensorVisibility), nameof(PixelVisibility), nameof(PreviewReading), nameof(Validation) }) RaisePropertyChanged(name);
+        foreach (var name in new[] { nameof(Layout), nameof(RowHeight), nameof(FourDotFont), nameof(FiveDotFont), nameof(TenDotFont), nameof(RowHeightVisibility), nameof(FourDotFontVisibility), nameof(FiveDotFontVisibility), nameof(TenDotFontVisibility), nameof(FontNote), nameof(SelectedTile), nameof(SelectedTileLabel), nameof(ContentKind), nameof(Text), nameof(Source), nameof(Colour), nameof(Scroll), nameof(Alarm), nameof(AlarmThreshold), nameof(Brightness), nameof(TextVisibility), nameof(SensorVisibility), nameof(PixelVisibility), nameof(PreviewReading), nameof(Validation) }) RaisePropertyChanged(name);
     }
     private void Changed()
     {

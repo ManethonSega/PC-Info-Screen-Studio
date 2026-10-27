@@ -2,8 +2,12 @@ namespace PCInfoScreenStudio.Models;
 
 public enum DisplayTarget { Serial35, Turing52, Matrix900 }
 public sealed record DisplayTargetOption(string Label, DisplayTarget Value);
-public enum MatrixFiveDotFont { TomThumb, Pixel5x5Thin }
+public enum MatrixFourDotFont { Mem, MemMono, Able4, LimitdotH4 }
+public enum MatrixFiveDotFont { TomThumb, Pixel5x5Thin, Petty5H, Petty5x5, Able5, Mem5x6 }
+public enum MatrixTenDotFont { Pixel5x5Double, Pixel5x10Condensed, Micro3x10, Piconano3x10 }
 public sealed record MatrixFontOption(string Label, MatrixFiveDotFont Value);
+public sealed record MatrixFourDotFontOption(string Label, MatrixFourDotFont Value);
+public sealed record MatrixTenDotFontOption(string Label, MatrixTenDotFont Value);
 public enum MatrixContent { Text, Sensor, Clock, PixelArt }
 public sealed record MatrixContentOption(string Label, MatrixContent Value);
 public sealed record MatrixLayoutOption(string Label, int Value);
@@ -40,14 +44,18 @@ public sealed class MatrixSettings
     public int Layout { get; set; } = 3;
     public int Brightness { get; set; } = 30;
     public int RowHeight { get; set; } = 4;
+    public MatrixFourDotFont FourDotFont { get; set; }
     public MatrixFiveDotFont FiveDotFont { get; set; } = MatrixFiveDotFont.TomThumb;
+    public MatrixTenDotFont TenDotFont { get; set; }
     public List<MatrixTileSettings> Tiles { get; set; } = Enumerable.Range(0, 6).Select(i => new MatrixTileSettings
         { Content = i == 1 ? MatrixContent.Sensor : i == 2 ? MatrixContent.Clock : MatrixContent.Text }).ToList();
     public MatrixSettings ValidatedCopy() => new()
     {
         Selected = Selected, Layout = Layout is 1 or 3 or 9 ? Layout : 3, Brightness = Math.Clamp(Brightness, 0, 100),
-        RowHeight = RowHeight == 5 ? 5 : 4,
+        RowHeight = RowHeight is 4 or 5 or 45 or 54 ? RowHeight : 4,
+        FourDotFont = Enum.IsDefined(FourDotFont) ? FourDotFont : MatrixFourDotFont.Mem,
         FiveDotFont = Enum.IsDefined(FiveDotFont) ? FiveDotFont : MatrixFiveDotFont.TomThumb,
+        TenDotFont = Enum.IsDefined(TenDotFont) ? TenDotFont : MatrixTenDotFont.Pixel5x5Double,
         Tiles = Enumerable.Range(0, 6).Select(i => Tiles is not null && i < Tiles.Count && Tiles[i] is not null
             ? Tiles[i].Copy() : new MatrixTileSettings()).ToList()
     };
@@ -59,11 +67,18 @@ public sealed class MatrixSettings
         _ => throw new ArgumentOutOfRangeException(nameof(layout))
     };
     public int Count => Layout == 1 ? 1 : Layout == 3 ? 3 : 6;
+    public int TopRowHeight => RowHeight is 5 or 54 ? 5 : 4;
+    public int BottomRowHeight => RowHeight is 5 or 45 ? 5 : 4;
+    public string FontKey(int height) => height switch
+    {
+        4 => "Four" + FourDotFont, 5 => "Five" + FiveDotFont, _ => "Ten" + TenDotFont
+    };
     public (int X, int Y, int Width, int Height) ContentRegion(int index)
     {
         var region = Region(Layout, index);
-        return Layout == 9 && RowHeight == 4
-            ? (region.X, region.Y + (index % 2 == 0 ? 0 : 1), region.Width, 4) : region;
+        if (Layout != 9) return region;
+        int height = index % 2 == 0 ? TopRowHeight : BottomRowHeight;
+        return (region.X, index % 2 == 0 ? 0 : 10 - height, region.Width, height);
     }
     public static int TileAt(int layout, int x, int y) => x is < 0 or >= 90 || y is < 0 or >= 10 ? -1
         : layout == 1 ? 0 : layout == 3 ? x / 30 : layout == 9 ? x / 30 * 2 + y / 5 : -1;

@@ -4,6 +4,10 @@
   <Compile Include="../../src/PCInfoScreenStudio.App/Models/MatrixSettings.cs" Link="MatrixSettings.cs"/>
   <Compile Include="../../src/PCInfoScreenStudio.App/Services/Matrix/*.cs" Link="%(Filename)%(Extension)"/>
   <Compile Include="../PCInfoScreenStudio.ControllerChecks/Matrix900ProtocolChecks.cs" Link="Matrix900ProtocolChecks.cs"/>
+  <Compile Include="../../src/PCInfoScreenStudio.App/Rendering/Matrix*.cs" Link="%(Filename)%(Extension)"/>
+  <Compile Include="../PCInfoScreenStudio.ControllerChecks/MatrixFontChecks.cs" Link="MatrixFontChecks.cs"/>
+  <EmbeddedResource Include="../../src/PCInfoScreenStudio.App/Assets/MatrixFonts.json" LogicalName="PCInfoScreenStudio.Assets.MatrixFonts.json"/>
+  <PackageReference Include="SkiaSharp" Version="3.119.1"/>
   <PackageReference Include="HidSharp" Version="2.6.4"/>
  </ItemGroup>
 </Project>

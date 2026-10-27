@@ -10,17 +10,26 @@
      <TextBlock Text="Layout" Foreground="{StaticResource MutedTextBrush}"/>
      <ComboBox AutomationProperties.Name="Matrix layout" ItemsSource="{Binding Layouts}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Layout}" Margin="0,5,0,14"/>
      <StackPanel Visibility="{Binding RowHeightVisibility}" Margin="0,0,0,14">
-      <TextBlock Text="Row height" Foreground="{StaticResource MutedTextBrush}"/>
+      <TextBlock Text="Top + bottom row heights" Foreground="{StaticResource MutedTextBrush}"/>
       <ComboBox x:Name="RowHeightSelector" AutomationProperties.Name="Matrix row height" ItemsSource="{Binding RowHeights}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding RowHeight}" Margin="0,5,0,0"/>
-     </StackPanel>
-     <StackPanel Visibility="{Binding FiveDotFontVisibility}" Margin="0,0,0,14">
-      <TextBlock Text="5-dot font" Foreground="{StaticResource MutedTextBrush}"/>
-      <ComboBox x:Name="FiveDotFontSelector" AutomationProperties.Name="Matrix five-dot font" ItemsSource="{Binding FiveDotFonts}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding FiveDotFont}" Margin="0,5,0,0"/>
      </StackPanel>
      <TextBlock x:Name="SelectedTileCaption" Text="{Binding SelectedTileLabel}" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" Margin="0,0,0,5"/>
      <TextBlock Text="Click a tile in the preview to edit it." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,16"/>
      <TextBlock Text="Content" Foreground="{StaticResource MutedTextBrush}"/>
      <ComboBox AutomationProperties.Name="Matrix content" ItemsSource="{Binding ContentKinds}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding ContentKind}" Margin="0,5,0,14"/>
+     <StackPanel Visibility="{Binding FourDotFontVisibility}" Margin="0,0,0,14">
+      <TextBlock Text="4-dot font" Foreground="{StaticResource MutedTextBrush}"/>
+      <ComboBox x:Name="FourDotFontSelector" AutomationProperties.Name="Matrix 4-dot font" ItemsSource="{Binding FourDotFonts}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding FourDotFont}" Margin="0,5,0,0"/>
+     </StackPanel>
+     <StackPanel Visibility="{Binding FiveDotFontVisibility}" Margin="0,0,0,14">
+      <TextBlock Text="5-dot font" Foreground="{StaticResource MutedTextBrush}"/>
+      <ComboBox x:Name="FiveDotFontSelector" AutomationProperties.Name="Matrix 5-dot font" ItemsSource="{Binding FiveDotFonts}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding FiveDotFont}" Margin="0,5,0,0"/>
+     </StackPanel>
+     <StackPanel Visibility="{Binding TenDotFontVisibility}" Margin="0,0,0,14">
+      <TextBlock Text="10-dot font" Foreground="{StaticResource MutedTextBrush}"/>
+      <ComboBox x:Name="TenDotFontSelector" AutomationProperties.Name="Matrix 10-dot font" ItemsSource="{Binding TenDotFonts}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding TenDotFont}" Margin="0,5,0,0"/>
+     </StackPanel>
+     <TextBlock Text="{Binding FontNote}" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
      <StackPanel Visibility="{Binding TextVisibility}">
       <TextBlock Text="Message" Foreground="{StaticResource MutedTextBrush}"/>
       <TextBox x:Name="MessageBox" AutomationProperties.Name="Matrix message" Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" MaxLength="200" Margin="0,5,0,7"/>
