@@ -78,6 +78,12 @@ internal static class MatrixWorkspaceChecks
             Require(Enumerable.Range(0, emojiPixels.Length / 3).Any(i => emojiPixels[i * 3] > 30 && emojiPixels[i * 3 + 1] > 10 && emojiPixels[i * 3] != emojiPixels[i * 3 + 1] && emojiPixels[i * 3] != 33), "Emojis preserve their own coloured palette in the actual LED RGB frame.");
             var family = new MatrixSettings { Widgets = [new() { Text = "👨‍👩‍👧‍👦", Height = 10, Width = 20 }] }.ValidatedCopy();
             Require(MatrixLayerRenderer.Compose(family, _ => null, DateTime.UnixEpoch).Any(b => b != 0), "Joined emoji graphemes render as a shaped glyph without surrogate splitting.");
+            foreach (int h in new[] { 4, 5, 10 })
+            {
+                var invisible = new MatrixSettings { Widgets = [new() { Text = "\uFE0F \uFE0F \uFE0F \uFE0F \uFE0F", Height = h, Width = 90, Scroll = false }] }.ValidatedCopy();
+                var fallback = MatrixLayerRenderer.Compose(invisible, _ => null, DateTime.UnixEpoch);
+                Require(fallback.Length == 2700 && fallback.Any(b => b != 0), "Invisible emoji selectors recover to visible glyphs without invalid spacing at every height.");
+            }
             Capture(window, captures, "Matrix900-widgets-layers-emojis.png");
             model.SelectedWidgetId = textId; Flush(window); Capture(window, captures, "Matrix900-widget-properties.png");
             window.Width = 1080; window.Height = 680; Flush(window);

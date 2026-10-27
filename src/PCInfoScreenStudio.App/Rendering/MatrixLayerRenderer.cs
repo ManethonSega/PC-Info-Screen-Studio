@@ -75,6 +75,10 @@ public static class MatrixLayerRenderer
             string element = elements.GetTextElement();
             if (string.IsNullOrWhiteSpace(element)) { space = true; continue; }
             var raster = IsEmoji(element) ? Emoji(element, height) : BitmapText(element, height, key, colour);
+            // Isolated selectors and unsupported emoji can shape to no visible ink.
+            // Keep them visible and prevent whitespace trimming consuming a whole raster.
+            if (!Enumerable.Range(0, raster.Width * height).Any(i => raster.Rgba[i * 4 + 3] != 0))
+                raster = BitmapText("?", height, key, colour);
             if (parts.Count > 0)
             {
                 width += space ? 3 : 1;
