@@ -25,7 +25,7 @@ public static class MatrixLayerRenderer
             if (!w.Visible) continue;
             if (w.Content is MatrixContent.PixelArt or MatrixContent.ProgressBar or MatrixContent.FlyingArt)
             {
-                var source = w.Content == MatrixContent.PixelArt ? w.Pixels : MatrixGraphicsRenderer.Render(w,w.UseSensor ? reading(w.Source) : MatrixWidgetReading.Unavailable,step);
+                var source = w.Content == MatrixContent.PixelArt ? w.Pixels : MatrixGraphicsRenderer.Render(w,w.Content==MatrixContent.ProgressBar && w.UseSensor ? reading(w.Source) : MatrixWidgetReading.Unavailable,step);
                 for (int y = 0; y < w.Height; y++) for (int x = 0; x < w.Width; x++)
                 {
                     int p = (y * 90 + x) * 3, d = ((w.Y + y) * 90 + w.X + x) * 3;

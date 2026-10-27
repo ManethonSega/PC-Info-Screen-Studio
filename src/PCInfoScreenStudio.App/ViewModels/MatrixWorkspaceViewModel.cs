@@ -213,7 +213,13 @@ public sealed partial class MatrixWorkspaceViewModel : ObservableObject, IDispos
         if (next < 0 || next >= _draft.Widgets!.Count) return;
         var item = Tile; _draft.Widgets.RemoveAt(index); _draft.Widgets.Insert(next, item); RefreshFields(); Changed();
     }
-    public MatrixWidgetSettings? HitWidget(int x, int y) => _draft.Widgets!.LastOrDefault(w => w.Visible && x >= w.X && x < w.X + w.Width && y >= w.Y && y < w.Y + w.Height);
+    public MatrixWidgetSettings? HitWidget(int x, int y) => _draft.Widgets!.LastOrDefault(w =>
+    {
+        if(!w.Visible || x<w.X || x>=w.X+w.Width || y<w.Y || y>=w.Y+w.Height)return false;
+        if(w.Content!=MatrixContent.FlyingArt)return true;
+        int origin=MatrixGraphicsRenderer.FlightOrigin(w,_previewStep);
+        return x>=w.X+origin && x<w.X+origin+w.ArtWidth;
+    });
 
     private void RefreshFields()
     {

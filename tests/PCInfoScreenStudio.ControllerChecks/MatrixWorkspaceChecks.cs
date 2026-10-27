@@ -132,6 +132,7 @@ internal static class MatrixWorkspaceChecks
             Execute(matrix,"AddRocketButton");
             var direction=(ComboBox)matrix.FindName("FlightDirectionSelector");Set(direction,MatrixFlightDirection.LeftToRight);
             model.AnimationPlaying=false;
+            Require(model.HitWidget(50,5) is null,"Empty parts of a flight area do not steal canvas clicks from widgets underneath.");
             foreach(int h in new[] {4,5,10}) { Set(size,h);Require(model.Tile.ArtWidth==MatrixArtBank.Get("rocket",h).Width && model.Width==90,"Rocket sizing preserves the flight area and selects the correct native sprite."); }
             model.Width=60;model.AnimationPlaying=true;Flush(window);
             long phase=model.PreviewAnimationStep;var beforeFlight=model.PreviewPixels();

@@ -6,6 +6,15 @@ namespace PCInfoScreenStudio.Rendering;
 /// <summary>Native LED primitives, with no desktop scaling or firmware effects.</summary>
 public static class MatrixGraphicsRenderer
 {
+    public static int FlightOrigin(MatrixWidgetSettings w,long step)
+    {
+        int cycle=w.Width+w.ArtWidth;
+        int phase=w.AnimationPlaying ? (int)((Math.Max(0,step)%(cycle*5L))*w.FlightSpeed/5%cycle) : 0;
+        int origin=w.FlightDirection==MatrixFlightDirection.RightToLeft ? w.Width-w.ArtWidth-phase : phase;
+        if(origin < -w.ArtWidth)origin+=cycle;
+        if(origin>=w.Width)origin-=cycle;
+        return origin;
+    }
     public static byte[] Render(MatrixWidgetSettings w, MatrixWidgetReading reading, long step)
     {
         var pixels = new byte[2700];
@@ -16,11 +25,7 @@ public static class MatrixGraphicsRenderer
         }
         if (w.Content == MatrixContent.FlyingArt)
         {
-            int cycle = w.Width + w.ArtWidth;
-            int phase = w.AnimationPlaying ? (int)((Math.Max(0,step) % (cycle * 5L)) * w.FlightSpeed / 5 % cycle) : 0;
-            int origin = w.FlightDirection == MatrixFlightDirection.RightToLeft ? w.Width - w.ArtWidth - phase : phase;
-            if (origin < -w.ArtWidth) origin += cycle;
-            if (origin >= w.Width) origin -= cycle;
+            int origin=FlightOrigin(w,step);
             for (int y = 0; y < w.Height; y++) for (int x = 0; x < w.ArtWidth; x++)
             {
                 int sx = w.FlightDirection == MatrixFlightDirection.RightToLeft ? w.ArtWidth - 1 - x : x;

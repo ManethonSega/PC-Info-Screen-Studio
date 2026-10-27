@@ -88,7 +88,7 @@ internal static class Matrix900ProtocolChecks
     internal sealed class Connection : IMatrixConnection
     {
         public int ReportLength => 65;
-        public readonly List<byte[]> Writes = [];
+        public readonly System.Collections.Concurrent.ConcurrentQueue<byte[]> Writes = new();
         private readonly Queue<byte[]> _replies = new();
         public int Reads;
         public bool Disposed;
@@ -96,7 +96,7 @@ internal static class Matrix900ProtocolChecks
         public string Version = "V1.0.0.5";
         public void Write(byte[] r)
         {
-            Writes.Add((byte[])r.Clone());
+            Writes.Enqueue((byte[])r.Clone());
             if (r[1] == 13)
             {
                 var text = System.Text.Encoding.ASCII.GetBytes("CHIP,BOOT,TYPE,Phanteks,Matrix900," + Version);

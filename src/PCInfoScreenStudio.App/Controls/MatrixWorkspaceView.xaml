@@ -18,9 +18,9 @@
       <Button x:Name="AddRocketButton" Content="Rocket flight" Command="{Binding AddRocketCommand}" AutomationProperties.Name="Add flying rocket"/>
      </UniformGrid>
      <Expander x:Name="ArtBankExpander" Header="Pixel art bank" Margin="0,9,0,0">
-      <ScrollViewer MaxHeight="165" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+      <ScrollViewer MaxHeight="130" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
        <ItemsControl x:Name="ArtBankItems" ItemsSource="{Binding ArtChoices}">
-        <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+        <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="3"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate><DataTemplate>
          <Button Command="{Binding DataContext.AddBankArtCommand,RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding Key}" ToolTip="{Binding Label}" AutomationProperties.Name="{Binding Label}" Padding="3,5">
           <StackPanel><Image Source="{Binding Image}" Height="24" MaxWidth="68" Stretch="Uniform" RenderOptions.BitmapScalingMode="NearestNeighbor"/><TextBlock Text="{Binding Label}" FontSize="10" TextAlignment="Center" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/></StackPanel>
