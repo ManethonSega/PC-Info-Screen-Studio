@@ -11,6 +11,7 @@ public sealed class MatrixSurface : FrameworkElement
 {
     private MatrixWorkspaceViewModel? _model;
     private int _x, _y;
+    private int _cursorTile = -1, _cursorLayout = -1;
     public MatrixSurface()
     {
         DataContextChanged += (_, e) =>
@@ -18,7 +19,8 @@ public sealed class MatrixSurface : FrameworkElement
             if (_model is not null) _model.PreviewChanged -= OnPreviewChanged;
             _model = e.NewValue as MatrixWorkspaceViewModel;
             if (_model is not null) _model.PreviewChanged += OnPreviewChanged;
-            InvalidateVisual();
+            _cursorTile = _cursorLayout = -1;
+            OnPreviewChanged(this, EventArgs.Empty);
         };
         ToolTip = "Click a tile to select it. Ctrl+arrow keys select tiles. Pixel art: drag to paint, right-click to erase; arrows move, Space paints, Delete erases.";
     }
@@ -28,6 +30,8 @@ public sealed class MatrixSurface : FrameworkElement
         if (_model is not null)
         {
             var region = _model.SelectedContentRegion;
+            if (_cursorTile != _model.SelectedTile || _cursorLayout != _model.Layout)
+            { _x = region.X; _y = region.Y; _cursorTile = _model.SelectedTile; _cursorLayout = _model.Layout; }
             _x = Math.Clamp(_x, region.X, region.X + region.Width - 1);
             _y = Math.Clamp(_y, region.Y, region.Y + region.Height - 1);
         }
