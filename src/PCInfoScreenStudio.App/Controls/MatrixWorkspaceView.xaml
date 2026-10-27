@@ -9,8 +9,12 @@
      <TextBlock Text="Matrix controls" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,16"/>
      <TextBlock Text="Layout" Foreground="{StaticResource MutedTextBrush}"/>
      <ComboBox AutomationProperties.Name="Matrix layout" ItemsSource="{Binding Layouts}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Layout}" Margin="0,5,0,14"/>
-     <TextBlock Text="Selected tile" Foreground="{StaticResource MutedTextBrush}"/>
-     <ComboBox x:Name="TileSelector" AutomationProperties.Name="Matrix selected tile" ItemsSource="{Binding TileNames}" SelectedIndex="{Binding SelectedTile}" Margin="0,5,0,14"/>
+     <StackPanel Visibility="{Binding RowHeightVisibility}" Margin="0,0,0,14">
+      <TextBlock Text="Row height" Foreground="{StaticResource MutedTextBrush}"/>
+      <ComboBox x:Name="RowHeightSelector" AutomationProperties.Name="Matrix row height" ItemsSource="{Binding RowHeights}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding RowHeight}" Margin="0,5,0,0"/>
+     </StackPanel>
+     <TextBlock x:Name="SelectedTileCaption" Text="{Binding SelectedTileLabel}" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" Margin="0,0,0,5"/>
+     <TextBlock Text="Click a tile in the preview to edit it." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,16"/>
      <TextBlock Text="Content" Foreground="{StaticResource MutedTextBrush}"/>
      <ComboBox AutomationProperties.Name="Matrix content" ItemsSource="{Binding ContentKinds}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding ContentKind}" Margin="0,5,0,14"/>
      <StackPanel Visibility="{Binding TextVisibility}">
@@ -31,7 +35,7 @@
      <StackPanel Visibility="{Binding PixelVisibility}">
       <Button Content="Import image" Command="{Binding ImportImageCommand}" ToolTip="Resize an image into the selected tile. Animated files use their first frame."/>
       <Button Content="Clear tile" Command="{Binding ClearPixelsCommand}"/>
-      <TextBlock Text="Click or drag to paint. Right-click erases. Arrow keys move the pixel cursor; Space paints and Delete erases." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" Margin="0,8,0,12"/>
+      <TextBlock Text="Select a tile, then click or drag to paint. Right-click erases. Arrow keys move the pixel cursor; Space paints and Delete erases." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" Margin="0,8,0,12"/>
      </StackPanel>
      <TextBlock Text="{Binding Validation}" Foreground="{StaticResource AccentBrush}" TextWrapping="Wrap" Margin="0,6,0,8"/>
      <Button Content="Apply to Matrix" Command="{Binding ApplyCommand}" Style="{StaticResource PrimaryButtonStyle}" Padding="16,9"/>
@@ -43,9 +47,9 @@
    <TextBlock Text="Phanteks Matrix 900" FontSize="23" FontWeight="SemiBold" Margin="0,0,0,6"/>
    <TextBlock Text="90 × 10 colour LEDs · dedicated Matrix workspace" Foreground="{StaticResource MutedTextBrush}"/>
    <Border Background="{StaticResource InputBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Padding="12" Margin="0,22,0,12">
-    <local:MatrixSurface x:Name="MatrixPreview" Height="190" Focusable="True" AutomationProperties.Name="Matrix pixel editor" AutomationProperties.HelpText="In PixelArt mode, use arrow keys to move; Space paints and Delete erases."/>
+    <local:MatrixSurface x:Name="MatrixPreview" Height="190" Focusable="True" AutomationProperties.Name="Matrix canvas" AutomationProperties.ItemStatus="{Binding SelectedTileLabel}" AutomationProperties.HelpText="Click a tile to select it. Ctrl+arrow keys select adjacent tiles; Home and End select first and last. In Pixel art, arrows move the pixel cursor, Space paints and Delete erases."/>
    </Border>
-   <TextBlock Text="Cyan outline: selected tile. Text and sensor previews approximate the firmware fonts. Clock content uses UTC." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap"/>
+   <TextBlock Text="Click a column or tile to select it. Cyan marks the selection. Ctrl+arrow keys change tiles; Home / End select first / last. The same pixels are sent on Apply. Clock uses UTC." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap"/>
    <TextBlock Text="{Binding Status}" FontSize="14" TextWrapping="Wrap" Margin="0,24,0,14"/>
    <TextBlock Text="Experimental hardware support. Close NexLinq before starting the Matrix here. Check the physical output after applying a layout." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap"/>
   </StackPanel>

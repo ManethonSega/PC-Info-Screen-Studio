@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.0-alpha.29 (draft)
+
+- Select Matrix columns and tiles directly in the preview, with visible boundaries and keyboard tile navigation.
+- Use all 10 rows for single-row text and cap word gaps at three LEDs. Two-row content defaults to 4 + 4 dots with two blank rows between; 5 + 5 is available without a gap.
+- Render text, sensors and UTC clock into the same RGB pixels for preview and acknowledged hardware uploads. Only changed tiles are resent; scrolling is bounded without queuing frames. Artwork outside the selected four-row area is preserved.
+
 ## 0.10.0-alpha.28 (draft)
 
 - Added a dedicated experimental Phanteks Matrix 900 workspace selected through the top-bar Screen menu, with separate saved settings and LCD session preservation.

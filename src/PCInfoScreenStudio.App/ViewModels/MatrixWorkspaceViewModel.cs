@@ -4,6 +4,7 @@ using System.Windows.Threading;
 using PCInfoScreenStudio.Models;
 using PCInfoScreenStudio.Services;
 using PCInfoScreenStudio.Services.Matrix;
+using PCInfoScreenStudio.Rendering;
 using SkiaSharp;
 
 namespace PCInfoScreenStudio.ViewModels;
@@ -18,6 +19,9 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
     private readonly DispatcherTimer _saveTimer = new() { Interval = TimeSpan.FromMilliseconds(300) };
     private IReadOnlyDictionary<string, MetricValue> _sample = new Dictionary<string, MetricValue>();
     private int _selectedTile;
+    private readonly DispatcherTimer _outputTimer = new() { Interval = TimeSpan.FromMilliseconds(200) };
+    private long _scrollStarted, _lastHeartbeat;
+    private bool _wasVisible;
     private bool _busy, _heartbeatRunning, _disposed;
     private DateTime _sampleAt;
     private string _status = "Preview ready. Start display to connect the Matrix 900.";
@@ -27,6 +31,7 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
     {
         _draft = settings.ValidatedCopy(); _save = save; _device = device ?? new Matrix900Device();
         _saveTimer.Tick += (_, _) => { _saveTimer.Stop(); _save(Snapshot); };
+        _outputTimer.Tick += async (_, _) => await TickAsync();
         ApplyCommand = new RelayCommand(() => _ = ApplyAsync(), () => IsConnected && !IsBusy && Validation.Length == 0);
         ImportImageCommand = new RelayCommand(ImportImage, () => !IsBusy);
         ClearPixelsCommand = new RelayCommand(() => { Tile.Pixels = new byte[2700]; Changed(); });
@@ -35,10 +40,16 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
         [new("One panel · 90 × 10", 1), new("Three columns · 30 × 10", 3), new("Six tiles · 30 × 5", 9)];
     public IReadOnlyList<MatrixContentOption> ContentKinds { get; } = [new("Text", MatrixContent.Text), new("Sensor", MatrixContent.Sensor), new("Clock (UTC)", MatrixContent.Clock), new("Pixel art", MatrixContent.PixelArt)];
     public IReadOnlyList<MatrixSourceOption> Sources => MatrixTileSettings.Sources;
-    public IReadOnlyList<string> TileNames { get; private set; } = [];
+    public IReadOnlyList<MatrixRowHeightOption> RowHeights { get; } =
+        [new("4 dots each · 2-dot gap", 4), new("5 dots each · no gap", 5)];
+    public int RowHeight { get => _draft.RowHeight; set { if (value is not (4 or 5) || value == RowHeight) return; _draft.RowHeight = value; RaisePropertyChanged(); Changed(); } }
+    public Visibility RowHeightVisibility => Layout == 9 ? Visibility.Visible : Visibility.Collapsed;
+    public int TileCount => _draft.Count;
+    public string SelectedTileLabel => $"Tile {SelectedTile + 1} selected";
+    public (int X, int Y, int Width, int Height) SelectedContentRegion => _draft.ContentRegion(SelectedTile);
     public MatrixSettings Snapshot => _draft.ValidatedCopy();
     public MatrixTileSettings Tile => _draft.Tiles[_selectedTile];
-    public int Layout { get => _draft.Layout; set { if (value == Layout || value is not (1 or 3 or 9)) return; _draft.Layout = value; _selectedTile = 0; RefreshTiles(); Changed(); RefreshFields(); } }
+    public int Layout { get => _draft.Layout; set { if (value == Layout || value is not (1 or 3 or 9)) return; _draft.Layout = value; _selectedTile = 0; Changed(); RefreshFields(); } }
     public int SelectedTile { get => _selectedTile; set { if (value < 0 || value >= _draft.Count || value == _selectedTile) return; _selectedTile = value; RefreshFields(); PreviewChanged?.Invoke(this, EventArgs.Empty); } }
     public MatrixContent ContentKind { get => Tile.Content; set { if (!Enum.IsDefined(value) || value == Tile.Content) return; Tile.Content = value; Changed(); RefreshFields(); } }
     public string Text { get => Tile.Text; set { Tile.Text = value ?? ""; RaisePropertyChanged(); Changed(); } }
@@ -54,7 +65,7 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
     public string Status { get => _status; private set { _status = value; RaisePropertyChanged(); } }
     public string Validation => Enumerable.Range(0, _draft.Count).Any(i => _draft.Tiles[i].Content == MatrixContent.Text &&
         (_draft.Tiles[i].Text.Length > 50 || _draft.Tiles[i].Text.Any(c => c is < ' ' or > '~')))
-        ? "Firmware text supports 50 printable ASCII characters per tile. Use pixel art for other glyphs." : "";
+        ? "Matrix text supports 50 printable ASCII characters per tile. Use pixel art for other glyphs." : "";
     public Visibility TextVisibility => ContentKind == MatrixContent.Text ? Visibility.Visible : Visibility.Collapsed;
     public Visibility SensorVisibility => ContentKind == MatrixContent.Sensor ? Visibility.Visible : Visibility.Collapsed;
     public Visibility PixelVisibility => ContentKind == MatrixContent.PixelArt ? Visibility.Visible : Visibility.Collapsed;
@@ -62,12 +73,10 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
     public RelayCommand ApplyCommand { get; }
     public RelayCommand ImportImageCommand { get; }
     public RelayCommand ClearPixelsCommand { get; }
-    public void Initialize() { RefreshTiles(); RefreshFields(); }
-    private void RefreshTiles()
-    { TileNames = Enumerable.Range(1, _draft.Count).Select(i => "Tile " + i).ToArray(); RaisePropertyChanged(nameof(TileNames)); RaisePropertyChanged(nameof(SelectedTile)); }
+    public void Initialize() => RefreshFields();
     private void RefreshFields()
     {
-        foreach (var name in new[] { nameof(Layout), nameof(SelectedTile), nameof(ContentKind), nameof(Text), nameof(Source), nameof(Colour), nameof(Scroll), nameof(Alarm), nameof(AlarmThreshold), nameof(Brightness), nameof(TextVisibility), nameof(SensorVisibility), nameof(PixelVisibility), nameof(PreviewReading), nameof(Validation) }) RaisePropertyChanged(name);
+        foreach (var name in new[] { nameof(Layout), nameof(RowHeightVisibility), nameof(SelectedTile), nameof(SelectedTileLabel), nameof(ContentKind), nameof(Text), nameof(Source), nameof(Colour), nameof(Scroll), nameof(Alarm), nameof(AlarmThreshold), nameof(Brightness), nameof(TextVisibility), nameof(SensorVisibility), nameof(PixelVisibility), nameof(PreviewReading), nameof(Validation) }) RaisePropertyChanged(name);
     }
     private void Changed()
     {
@@ -95,10 +104,13 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
         for (int i = 0; i < snapshot.Count; i++)
             if (snapshot.Tiles[i].Content == MatrixContent.Sensor && !TryValue(snapshot.Tiles[i].Source, out _))
             { Status = "A selected sensor has no current reading. Choose an available source or enable full sensors before applying."; return; }
+        _outputTimer.Stop(); _applied = null;
         IsBusy = true; Status = "Sending layout to the Matrix...";
         try
         {
-            await _device.ConfigureAsync(snapshot, _lifetime.Token); _applied = snapshot;
+            await _device.ConfigureAsync(RenderOutput(snapshot, DateTime.UtcNow, 0), _lifetime.Token); _applied = snapshot;
+            _scrollStarted = Environment.TickCount64; _lastHeartbeat = 0; _wasVisible = true;
+            if (Enumerable.Range(0, snapshot.Count).Any(i => snapshot.Tiles[i].Content == MatrixContent.Text && snapshot.Tiles[i].Scroll)) _outputTimer.Start();
             Status = "Layout sent. Verify it on the physical panel; changes here need Apply again.";
         }
         catch (Exception ex) { if (_disposed) return; _applied = null; await _device.StopAsync(); Status = "Matrix output stopped: " + ex.Message; }
@@ -107,7 +119,7 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
     public async Task StopAsync()
     {
         if (_disposed) return;
-        await _device.StopAsync(); _applied = null;
+        _outputTimer.Stop(); _applied = null; await _device.StopAsync();
         Status = "Matrix stopped. The controller may retain its last visual.";
         ConnectionChanged?.Invoke(this, EventArgs.Empty); ApplyCommand.RaiseCanExecuteChanged();
     }
@@ -129,46 +141,30 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
         _heartbeatRunning = true;
         try
         {
-            var values = new int[_applied.Count]; bool visible = true;
-            for (int i = 0; i < _applied.Count; i++)
-                if (_applied.Tiles[i].Content == MatrixContent.Sensor && !TryValue(_applied.Tiles[i].Source, out values[i])) visible = false;
-            await _device.HeartbeatAsync(DateTime.UtcNow, values, _applied.Brightness, visible, _lifetime.Token);
+            var applied = _applied; bool visible = true; var utc = DateTime.UtcNow;
+            for (int i = 0; i < applied.Count; i++)
+                if (applied.Tiles[i].Content == MatrixContent.Sensor && !TryValue(applied.Tiles[i].Source, out _)) visible = false;
+            if (visible) await _device.UpdatePixelsAsync(RenderOutput(applied, utc, (Environment.TickCount64 - _scrollStarted) / 200), _lifetime.Token);
+            if (!ReferenceEquals(applied, _applied) || _disposed) return;
+            if (Environment.TickCount64 - _lastHeartbeat >= 1000 || visible != _wasVisible)
+            {
+                await _device.HeartbeatAsync(utc, [], applied.Brightness, visible, _lifetime.Token);
+                _lastHeartbeat = Environment.TickCount64; _wasVisible = visible;
+            }
             if (visible && Status.StartsWith("Output blanked")) Status = "Sensor readings restored. Output resumed.";
             if (!visible) Status = "Output blanked while a selected sensor is unavailable. It resumes when readings return.";
         }
-        catch (Exception ex) { if (_disposed) return; await _device.StopAsync(); _applied = null; Status = "Matrix disconnected: " + ex.Message; ConnectionChanged?.Invoke(this, EventArgs.Empty); }
+        catch (Exception ex) { if (_disposed) return; _outputTimer.Stop(); _applied = null; await _device.StopAsync(); Status = "Matrix disconnected: " + ex.Message; ConnectionChanged?.Invoke(this, EventArgs.Empty); }
         finally { _heartbeatRunning = false; }
     }
-    public byte[] PreviewPixels()
-    {
-        var pixels = new byte[2700];
-        for (int i = 0; i < _draft.Count; i++)
-        {
-            var tile = _draft.Tiles[i]; var region = MatrixSettings.Region(Layout, i);
-            byte[] source;
-            if (tile.Content == MatrixContent.PixelArt) source = tile.Pixels;
-            else
-            {
-                using var bitmap = new SKBitmap(region.Width, region.Height); bitmap.Erase(SKColors.Black);
-                using var canvas = new SKCanvas(bitmap); using var typeface = SKTypeface.FromFamilyName("Consolas");
-                using var font = new SKFont(typeface, region.Height <= 5 ? 5 : 8) { Edging = SKFontEdging.Alias };
-                using var paint = new SKPaint { Color = SKColor.Parse(tile.Colour), IsAntialias = false };
-                var text = tile.Content == MatrixContent.Clock ? DateTime.UtcNow.ToString("HH:mm") : tile.Content == MatrixContent.Sensor ? Reading(tile.Source) : tile.Text;
-                canvas.DrawText(text, 0, region.Height <= 5 ? 4 : 8, font, paint);
-                source = new byte[region.Width * region.Height * 3];
-                for (int y = 0; y < region.Height; y++) for (int x = 0; x < region.Width; x++)
-                { var c = bitmap.GetPixel(x, y); int p = (y * region.Width + x) * 3; source[p] = c.Red; source[p + 1] = c.Green; source[p + 2] = c.Blue; }
-            }
-            for (int y = 0; y < region.Height; y++) for (int x = 0; x < region.Width; x++)
-                Array.Copy(source, (y * region.Width + x) * 3, pixels, ((region.Y + y) * 90 + region.X + x) * 3, 3);
-        }
-        return pixels;
-    }
+    private MatrixSettings RenderOutput(MatrixSettings settings, DateTime utc, long step)
+        => MatrixPixelRenderer.Render(settings, source => TryValue(source, out var value) ? value : null, utc, step);
+    public byte[] PreviewPixels() => MatrixPixelRenderer.Compose(RenderOutput(_draft, DateTime.UtcNow, 0));
     public void PaintPixel(int x, int y, bool erase)
     {
-        var r = MatrixSettings.Region(Layout, SelectedTile);
+        var r = _draft.ContentRegion(SelectedTile); var native = MatrixSettings.Region(Layout, SelectedTile);
         if (ContentKind != MatrixContent.PixelArt || x < r.X || x >= r.X + r.Width || y < r.Y || y >= r.Y + r.Height) return;
-        int offset = ((y - r.Y) * r.Width + x - r.X) * 3;
+        int offset = ((y - native.Y) * native.Width + x - native.X) * 3;
         var colour = erase ? SKColors.Black : SKColor.Parse(Colour);
         if (Tile.Pixels[offset] == colour.Red && Tile.Pixels[offset + 1] == colour.Green && Tile.Pixels[offset + 2] == colour.Blue) return;
         Tile.Pixels[offset] = colour.Red; Tile.Pixels[offset + 1] = colour.Green; Tile.Pixels[offset + 2] = colour.Blue;
@@ -182,15 +178,15 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
         {
             using var stream = File.OpenRead(dialog.FileName); using var codec = SKCodec.Create(stream);
             if (codec is null || (long)codec.Info.Width * codec.Info.Height > 16000000) throw new InvalidDataException("Choose an image of at most 16 megapixels.");
-            using var original = SKBitmap.Decode(codec); var r = MatrixSettings.Region(Layout, SelectedTile);
+            using var original = SKBitmap.Decode(codec); var r = _draft.ContentRegion(SelectedTile); var native = MatrixSettings.Region(Layout, SelectedTile);
             using var reduced = original.Resize(new SKImageInfo(r.Width, r.Height), new SKSamplingOptions(SKFilterMode.Linear));
             if (reduced is null) throw new InvalidDataException("Could not resize the image.");
             Tile.Content = MatrixContent.PixelArt; Tile.Pixels = new byte[2700];
             for (int y = 0; y < r.Height; y++) for (int x = 0; x < r.Width; x++)
-            { var c = reduced.GetPixel(x, y); int p = (y * r.Width + x) * 3; Tile.Pixels[p] = c.Red; Tile.Pixels[p + 1] = c.Green; Tile.Pixels[p + 2] = c.Blue; }
+            { var c = reduced.GetPixel(x, y); int p = ((y + r.Y - native.Y) * r.Width + x) * 3; Tile.Pixels[p] = c.Red; Tile.Pixels[p + 1] = c.Green; Tile.Pixels[p + 2] = c.Blue; }
             Changed(); RefreshFields();
         }
         catch (Exception ex) { Status = "Could not import image: " + ex.Message; }
     }
-    public void Dispose() { if (_disposed) return; _saveTimer.Stop(); _save(Snapshot); _disposed = true; _lifetime.Cancel(); _device.Dispose(); _lifetime.Dispose(); }
+    public void Dispose() { if (_disposed) return; _saveTimer.Stop(); _outputTimer.Stop(); _save(Snapshot); _disposed = true; _lifetime.Cancel(); _device.Dispose(); _lifetime.Dispose(); }
 }

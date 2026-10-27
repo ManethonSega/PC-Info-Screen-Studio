@@ -1,6 +1,6 @@
 # Roadmap
 
-Current source version: **0.10.0-alpha.28** (draft candidate).
+Current source version: **0.10.0-alpha.29** (draft candidate).
 
 The next milestone is product polish, not another broad feature category. Priorities remain **easy to use, lightweight, intuitive, and visually clear**. Checked items below describe implemented functionality, not a claim that every device or workload has been validated.
 
@@ -21,7 +21,7 @@ The next milestone is product polish, not another broad feature category. Priori
 - [x] Automatic preview fitting across window/panel changes, with separate manual zoom and 100% view.
 - [x] Free panel dragging with docking previews, cross-docking, keyboard menu alternatives and owned floating windows with saved bounds and off-screen recovery. Interactive mixed-DPI qualification remains open.
 
-- [x] Experimental Phanteks Matrix 900 workspace and HID interoperability; physical-device qualification remains open.
+- [x] Experimental Phanteks Matrix 900 workspace, direct tile selection, exact-height pixel typography and configurable row spacing; physical-device qualification remains open.
 
 ### Info Screen editor
 

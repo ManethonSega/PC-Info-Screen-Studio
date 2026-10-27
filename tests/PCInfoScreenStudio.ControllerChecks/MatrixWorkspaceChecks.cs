@@ -16,6 +16,7 @@ internal static class MatrixWorkspaceChecks
 {
     public static void Check(string root, Action<Func<bool>> pump, string? captures)
     {
+        MatrixTypographyChecks.Check(pump);
         var path = Path.Combine(root, "matrix-workspace.json");
         var settings = new SettingsController(new AppSettingsService(path))
             { FirstRunCompleted = true, AutoStartDisplay = false, CloseToTray = false, StartWithWindows = false };
@@ -39,8 +40,10 @@ internal static class MatrixWorkspaceChecks
             Require(!vm.Matrix.ApplyCommand.CanExecute(null), "A disconnected preview cannot claim to apply to hardware.");
             Require((document.CanvasWidth, document.CanvasHeight, document.Mode, vm.IsDirty, vm.SelectedWidget) == original,
                 "Selecting Matrix preserves all LCD theme geometry, mode, selection and dirty state.");
+            var surface = Find<MatrixSurface>(matrix)!;
+            Require(surface.SelectTileAt(PixelPoint(surface, 40, 2)) && vm.Matrix.SelectedTile == 1, "Clicking a column selects it and its controls.");
             vm.Matrix.Layout = 1; vm.Matrix.Text = "SEGA MATRIX"; vm.Matrix.Colour = "#FF21E6E8"; Flush(window);
-            Require(((ComboBox)matrix.FindName("TileSelector")).SelectedItem as string == "Tile 1", "Changing layout keeps the current tile visibly selected.");
+            Require(matrix.FindName("TileSelector") is null && ((TextBlock)matrix.FindName("SelectedTileCaption")).Text == "Tile 1 selected", "The preview selects tiles directly, with an explicit selection caption and no tile dropdown.");
             Require(((TextBox)matrix.FindName("MessageBox")).Text == "SEGA MATRIX", "The message field and preview stay synchronized after restoring draft values.");
             Require(vm.Matrix.Colour == "#21E6E8" && vm.Matrix.PreviewPixels().Any(b => b != 0), "Colour picker ARGB values normalize to physical RGB, and the preview renders pixels.");
             Capture(window, captures, "Matrix900-text.png");
@@ -48,7 +51,6 @@ internal static class MatrixWorkspaceChecks
             Require(vm.Matrix.Validation.Length > 0 && !vm.Matrix.ApplyCommand.CanExecute(null), "Unsupported firmware text is explained and never silently corrupted.");
             vm.Matrix.Text = "SEGA MATRIX";
             vm.Matrix.ContentKind = MatrixContent.PixelArt;
-            var surface = Find<MatrixSurface>(matrix)!;
             surface.Focus();
             surface.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(window), 0, Key.Space) { RoutedEvent = Keyboard.KeyDownEvent });
             Require(vm.Matrix.Snapshot.Tiles[0].Pixels[1] == 230, "Keyboard Space paints the selected pixel using the chosen brush.");
@@ -63,6 +65,17 @@ internal static class MatrixWorkspaceChecks
             var bounds = surface.TransformToAncestor(window).TransformBounds(new Rect(surface.RenderSize));
             Require(bounds.Right <= window.ActualWidth && bounds.Bottom <= window.ActualHeight, "Compact Matrix preview fits the window.");
             Capture(window, captures, "Matrix900-compact.png");
+            var saved = vm.Matrix.Snapshot.Tiles[4].Pixels;
+            Require(surface.SelectTileAt(PixelPoint(surface, 35, 8)) && vm.Matrix.SelectedTile == 3, "Clicking a bottom-row tile selects its native slot.");
+            Require(vm.Matrix.Snapshot.Tiles[4].Pixels.SequenceEqual(saved), "Selecting another tile does not paint into saved art.");
+            Require(!surface.SelectTileAt(new Point(-5, -5)) && vm.Matrix.SelectedTile == 3, "Clicking outside the LED canvas leaves selection unchanged.");
+            surface.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(window), 0, Key.End) { RoutedEvent = Keyboard.KeyDownEvent });
+            Require(vm.Matrix.SelectedTile == 5, "Keyboard End selects the final tile without a dropdown.");
+            vm.Matrix.SelectedTile = 4;
+            var heightSelector = (ComboBox)matrix.FindName("RowHeightSelector");
+            heightSelector.SetCurrentValue(Selector.SelectedValueProperty, 5); heightSelector.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource(); Flush(window);
+            Require(vm.Matrix.RowHeight == 5, "The actual WPF row-height control enables five dots with no gap.");
+            Capture(window, captures, "Matrix900-five-row.png");
             vm.ShowPage(true); Flush(window); Require(!matrix.IsVisible && vm.IsHardwarePage, "Hardware navigation hides the Matrix workspace.");
             vm.ShowPage(false); Flush(window); Require(matrix.IsVisible, "Editor navigation returns to the selected Matrix workspace.");
             vm.SelectedDisplayTarget = DisplayTarget.Turing52; Flush(window);
@@ -73,13 +86,18 @@ internal static class MatrixWorkspaceChecks
         }
         finally { window.MarkSessionSavedForExit(); window.Close(); }
         var loaded = new SettingsController(new AppSettingsService(path));
-        Require(loaded.Matrix.Selected && loaded.Matrix.Layout == 9 && loaded.Matrix.Tiles[4].Text == "PERSIST ME" && loaded.Matrix.Tiles[4].Pixels[93] == 33,
+        Require(loaded.Matrix.Selected && loaded.Matrix.Layout == 9 && loaded.Matrix.RowHeight == 5 && loaded.Matrix.Tiles[4].Text == "PERSIST ME" && loaded.Matrix.Tiles[4].Pixels[93] == 33,
             "Exit flushes the latest Matrix layout, selection target, text and pixels to validated settings.");
         using var secondVm = new MainViewModel(loaded, new SessionStateService(Path.Combine(root, "matrix-second")));
         Require(secondVm.IsMatrixWorkspace && secondVm.Matrix.Layout == 9 && secondVm.Matrix.SelectedTile == 0, "Restart restores Matrix without changing the LCD theme format.");
         Console.WriteLine("PASS: real WPF Matrix target selection, dedicated controls, LCD preservation, unsupported text validation, keyboard painting, tile mapping, compact sizing, navigation and settings restart.");
     }
     private static void Flush(Window window) { Dispatcher.CurrentDispatcher.Invoke(new Action(() => { }), DispatcherPriority.ContextIdle); window.UpdateLayout(); }
+    private static Point PixelPoint(MatrixSurface surface, int x, int y)
+    {
+        double scale = Math.Min(surface.ActualWidth / 90, surface.ActualHeight / 10);
+        return new((surface.ActualWidth - scale * 90) / 2 + (x + .5) * scale, (surface.ActualHeight - scale * 10) / 2 + (y + .5) * scale);
+    }
     private static T? Find<T>(DependencyObject p) where T : DependencyObject
     { if (p is T found) return found; for (int i = 0; i < VisualTreeHelper.GetChildrenCount(p); i++) if (Find<T>(VisualTreeHelper.GetChild(p, i)) is T child) return child; return null; }
     private static void Capture(Window window, string? directory, string name)

@@ -19,6 +19,7 @@ public sealed class Matrix900Device : IDisposable
     private readonly SemaphoreSlim _gate = new(1, 1);
     private IMatrixConnection? _connection;
     private bool _disposed;
+    private MatrixSettings? _pixelFrame;
     public bool IsConnected => _connection is not null;
     public string? FirmwareVersion { get; private set; }
     public Matrix900Device(Func<IMatrixConnection>? open = null) => _open = open ?? OpenHardware;
@@ -59,7 +60,7 @@ public sealed class Matrix900Device : IDisposable
         catch { connection.Dispose(); throw; }
     }, token);
     public Task StopAsync(CancellationToken token = default) => RunAsync(() =>
-    { var connection = _connection; _connection = null; connection?.Dispose(); FirmwareVersion = null; }, token);
+    { var connection = _connection; _connection = null; connection?.Dispose(); FirmwareVersion = null; _pixelFrame = null; }, token);
 
     public Task ConfigureAsync(MatrixSettings settings, CancellationToken token = default)
     {
@@ -71,6 +72,7 @@ public sealed class Matrix900Device : IDisposable
             // Validate every text before any device write, so an invalid later tile cannot partly replace a layout.
             for (int i = 0; i < snapshot.Count; i++)
                 if (snapshot.Tiles[i].Content == MatrixContent.Text) _ = Matrix900Protocol.Text(c.ReportLength, i, snapshot.Tiles[i].Text);
+            _pixelFrame = null;
             if (art.Length > 0)
                 for (int stale = 0; stale < 64; stale++)
                 { token.ThrowIfCancellationRequested(); try { _ = c.Read(); } catch (TimeoutException) { break; } }
@@ -78,13 +80,7 @@ public sealed class Matrix900Device : IDisposable
             token.WaitHandle.WaitOne(100); token.ThrowIfCancellationRequested();
             foreach (int slot in art)
             {
-                var region = MatrixSettings.Region(snapshot.Layout, slot);
-                var bytes = snapshot.Tiles[slot].Pixels.AsSpan(0, region.Width * region.Height * 3).ToArray();
-                var pages = Matrix900Protocol.PixelPages(c.ReportLength, slot, region.Width, region.Height, bytes);
-                for (int page = 0; page < pages.Count; page++)
-                {
-                    token.ThrowIfCancellationRequested(); c.Write(pages[page]); WaitForPage(c, slot, page, token);
-                }
+                WritePixels(c, snapshot, slot, token);
             }
             for (int i = 0; i < snapshot.Count; i++)
                 if (snapshot.Tiles[i].Content == MatrixContent.Text)
@@ -95,7 +91,34 @@ public sealed class Matrix900Device : IDisposable
                 token.WaitHandle.WaitOne(50);
             }
             token.ThrowIfCancellationRequested(); c.Write(Matrix900Protocol.Brightness(c.ReportLength, snapshot.Brightness));
+            if (art.Length == snapshot.Count) _pixelFrame = snapshot;
         }, token);
+    }
+    public Task UpdatePixelsAsync(MatrixSettings pixels, CancellationToken token = default)
+    {
+        var snapshot = pixels.ValidatedCopy();
+        return RunAsync(() =>
+        {
+            var c = RequireConnection();
+            if (_pixelFrame is null || _pixelFrame.Layout != snapshot.Layout ||
+                Enumerable.Range(0, snapshot.Count).Any(i => snapshot.Tiles[i].Content != MatrixContent.PixelArt))
+                throw new InvalidDataException("Apply the pixel layout before updating it.");
+            for (int i = 0; i < snapshot.Count; i++)
+            {
+                var r = MatrixSettings.Region(snapshot.Layout, i); int count = r.Width * r.Height * 3;
+                if (!snapshot.Tiles[i].Pixels.AsSpan(0, count).SequenceEqual(_pixelFrame.Tiles[i].Pixels.AsSpan(0, count)))
+                    WritePixels(c, snapshot, i, token);
+            }
+            _pixelFrame = snapshot;
+        }, token);
+    }
+    private static void WritePixels(IMatrixConnection c, MatrixSettings frame, int slot, CancellationToken token)
+    {
+        var region = MatrixSettings.Region(frame.Layout, slot);
+        var bytes = frame.Tiles[slot].Pixels.AsSpan(0, region.Width * region.Height * 3).ToArray();
+        var pages = Matrix900Protocol.PixelPages(c.ReportLength, slot, region.Width, region.Height, bytes);
+        for (int page = 0; page < pages.Count; page++)
+        { token.ThrowIfCancellationRequested(); c.Write(pages[page]); WaitForPage(c, slot, page, token); }
     }
     private static void WaitForPage(IMatrixConnection connection, int slot, int page, CancellationToken token)
     {
