@@ -30,6 +30,7 @@ internal static class MatrixWorkspaceChecks
             var layout = ((WorkspaceDock)window.FindName("LeftDock")).CaptureLayout();
             selector.SetCurrentValue(Selector.SelectedValueProperty, DisplayTarget.Matrix900);
             selector.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource(); Flush(window);
+            pump(() => vm.CanChooseScreen);
             Require(vm.IsMatrixWorkspace && !vm.IsEditorPage && !vm.IsCanvasActive && !vm.LivePreview, "Choosing Matrix suspends the LCD editor/runtime rendering path.");
             var matrix = (MatrixWorkspaceView)window.FindName("MatrixWorkspace");
             Require(matrix.IsVisible && !((Grid)window.FindName("EditorWorkspace")).IsVisible,
@@ -39,6 +40,8 @@ internal static class MatrixWorkspaceChecks
             Require((document.CanvasWidth, document.CanvasHeight, document.Mode, vm.IsDirty, vm.SelectedWidget) == original,
                 "Selecting Matrix preserves all LCD theme geometry, mode, selection and dirty state.");
             vm.Matrix.Layout = 1; vm.Matrix.Text = "SEGA MATRIX"; vm.Matrix.Colour = "#FF21E6E8"; Flush(window);
+            Require(((ComboBox)matrix.FindName("TileSelector")).SelectedItem as string == "Tile 1", "Changing layout keeps the current tile visibly selected.");
+            Require(((TextBox)matrix.FindName("MessageBox")).Text == "SEGA MATRIX", "The message field and preview stay synchronized after restoring draft values.");
             Require(vm.Matrix.Colour == "#21E6E8" && vm.Matrix.PreviewPixels().Any(b => b != 0), "Colour picker ARGB values normalize to physical RGB, and the preview renders pixels.");
             Capture(window, captures, "Matrix900-text.png");
             vm.Matrix.Text = "Hello 👌"; Flush(window);
@@ -63,9 +66,10 @@ internal static class MatrixWorkspaceChecks
             vm.ShowPage(true); Flush(window); Require(!matrix.IsVisible && vm.IsHardwarePage, "Hardware navigation hides the Matrix workspace.");
             vm.ShowPage(false); Flush(window); Require(matrix.IsVisible, "Editor navigation returns to the selected Matrix workspace.");
             vm.SelectedDisplayTarget = DisplayTarget.Turing52; Flush(window);
+            pump(() => vm.CanChooseScreen);
             Require(!matrix.IsVisible && vm.IsEditorPage && vm.Document.CanvasWidth == 1280, "Choosing the 5.2-inch target restores its LCD workspace and sizing.");
             Require(((WorkspaceDock)window.FindName("LeftDock")).CaptureLayout().Panels.Select(p => (p.Id, p.IsOpen)).SequenceEqual(layout.Panels.Select(p => (p.Id, p.IsOpen))), "Matrix controls do not replace dock preferences.");
-            vm.SelectedDisplayTarget = DisplayTarget.Matrix900; vm.Matrix.Text = "PERSIST ME";
+            vm.SelectedDisplayTarget = DisplayTarget.Matrix900; pump(() => vm.CanChooseScreen); vm.Matrix.Text = "PERSIST ME";
         }
         finally { window.MarkSessionSavedForExit(); window.Close(); }
         var loaded = new SettingsController(new AppSettingsService(path));

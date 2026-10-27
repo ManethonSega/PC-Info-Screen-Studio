@@ -10,12 +10,12 @@
      <TextBlock Text="Layout" Foreground="{StaticResource MutedTextBrush}"/>
      <ComboBox AutomationProperties.Name="Matrix layout" ItemsSource="{Binding Layouts}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Layout}" Margin="0,5,0,14"/>
      <TextBlock Text="Selected tile" Foreground="{StaticResource MutedTextBrush}"/>
-     <ComboBox AutomationProperties.Name="Matrix selected tile" ItemsSource="{Binding TileNames}" SelectedIndex="{Binding SelectedTile}" Margin="0,5,0,14"/>
+     <ComboBox x:Name="TileSelector" AutomationProperties.Name="Matrix selected tile" ItemsSource="{Binding TileNames}" SelectedIndex="{Binding SelectedTile}" Margin="0,5,0,14"/>
      <TextBlock Text="Content" Foreground="{StaticResource MutedTextBrush}"/>
      <ComboBox AutomationProperties.Name="Matrix content" ItemsSource="{Binding ContentKinds}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding ContentKind}" Margin="0,5,0,14"/>
      <StackPanel Visibility="{Binding TextVisibility}">
       <TextBlock Text="Message" Foreground="{StaticResource MutedTextBrush}"/>
-      <TextBox AutomationProperties.Name="Matrix message" Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" MaxLength="200" Margin="0,5,0,7"/>
+      <TextBox x:Name="MessageBox" AutomationProperties.Name="Matrix message" Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" MaxLength="200" Margin="0,5,0,7"/>
       <CheckBox Content="Scroll message" IsChecked="{Binding Scroll}" Margin="0,0,0,12"/>
      </StackPanel>
      <StackPanel Visibility="{Binding SensorVisibility}">

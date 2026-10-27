@@ -7,6 +7,7 @@ public sealed partial class MainViewModel
 {
     public MatrixWorkspaceViewModel Matrix { get; private set; } = null!;
     private bool _matrixSelected;
+    private bool _switchingDisplayTarget;
     private readonly SemaphoreSlim _displayTargetGate = new(1, 1);
     public bool IsMatrixWorkspace => _matrixSelected;
     public IReadOnlyList<DisplayTargetOption> DisplayTargets { get; } =
@@ -22,6 +23,7 @@ public sealed partial class MainViewModel
             var snapshot = Matrix.Snapshot; snapshot.Selected = _matrixSelected; _settings.Matrix = snapshot;
             _autoDisplayCts?.Cancel();
             if (!IsMatrixWorkspace) CanvasSize = value == DisplayTarget.Turing52 ? DisplayCanvasSize.Turing52 : DisplayCanvasSize.Serial35;
+            _switchingDisplayTarget = true;
             NotifyDisplayWorkspace();
             _ = SwitchDisplayWorkspaceAsync();
         }
@@ -50,12 +52,23 @@ public sealed partial class MainViewModel
             if (IsMatrixWorkspace && _device.IsConnected) await _device.ConnectOrDisconnectAsync();
             else if (!IsMatrixWorkspace) await Matrix.StopAsync();
         }
-        finally { _displayTargetGate.Release(); }
+        finally
+        {
+            _displayTargetGate.Release();
+            _switchingDisplayTarget = false;
+            if (!_isDisposed)
+            {
+                RaisePropertyChanged(nameof(IsDeviceBusy));
+                RaisePropertyChanged(nameof(CanChooseScreen));
+                RaisePropertyChanged(nameof(DisplayActionLabel));
+                ConnectCommand.RaiseCanExecuteChanged();
+            }
+        }
     }
     private void NotifyDisplayWorkspace()
     {
         foreach (var name in new[] { nameof(SelectedDisplayTarget), nameof(IsMatrixWorkspace), nameof(MatrixPageVisibility), nameof(LcdControlsVisibility),
-            nameof(IsEditorPage), nameof(IsCanvasActive), nameof(LivePreview), nameof(EditorPageVisibility), nameof(IsDeviceBusy), nameof(DisplayActionLabel), nameof(DisplayBrightness), nameof(BrightnessLabel) }) RaisePropertyChanged(name);
+            nameof(IsEditorPage), nameof(IsCanvasActive), nameof(LivePreview), nameof(EditorPageVisibility), nameof(IsDeviceBusy), nameof(CanChooseScreen), nameof(DisplayActionLabel), nameof(DisplayBrightness), nameof(BrightnessLabel) }) RaisePropertyChanged(name);
         NewCommand.RaiseCanExecuteChanged(); OpenCommand.RaiseCanExecuteChanged(); SaveCommand.RaiseCanExecuteChanged(); SaveAsCommand.RaiseCanExecuteChanged();
         RaiseHistoryCommandStates(); ToggleEditorModeCommand.RaiseCanExecuteChanged(); ConnectCommand.RaiseCanExecuteChanged();
         EditorActivityChanged?.Invoke(this, EventArgs.Empty);

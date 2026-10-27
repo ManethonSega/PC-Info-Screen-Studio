@@ -551,7 +551,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool UseLiveData => true;
 
-    public bool IsDeviceBusy => IsMatrixWorkspace ? Matrix.IsBusy : _device.IsDeviceBusy;
+    public bool IsDeviceBusy => _switchingDisplayTarget || _device.IsDeviceBusy || Matrix.IsBusy;
 
     public int DisplayBrightness
     {
@@ -1284,7 +1284,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public void NotifyDisplayDevicesChanged()
     {
-        if (_isDisposed) return;
+        if (_isDisposed || IsMatrixWorkspace) return;
         _ = HandleDisplayDevicesChangedAsync();
     }
 

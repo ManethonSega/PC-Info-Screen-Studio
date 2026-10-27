@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -36,19 +35,19 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
         [new("One panel · 90 × 10", 1), new("Three columns · 30 × 10", 3), new("Six tiles · 30 × 5", 9)];
     public IReadOnlyList<MatrixContentOption> ContentKinds { get; } = [new("Text", MatrixContent.Text), new("Sensor", MatrixContent.Sensor), new("Clock (UTC)", MatrixContent.Clock), new("Pixel art", MatrixContent.PixelArt)];
     public IReadOnlyList<MatrixSourceOption> Sources => MatrixTileSettings.Sources;
-    public ObservableCollection<string> TileNames { get; } = [];
+    public IReadOnlyList<string> TileNames { get; private set; } = [];
     public MatrixSettings Snapshot => _draft.ValidatedCopy();
     public MatrixTileSettings Tile => _draft.Tiles[_selectedTile];
     public int Layout { get => _draft.Layout; set { if (value == Layout || value is not (1 or 3 or 9)) return; _draft.Layout = value; _selectedTile = 0; RefreshTiles(); Changed(); RefreshFields(); } }
     public int SelectedTile { get => _selectedTile; set { if (value < 0 || value >= _draft.Count || value == _selectedTile) return; _selectedTile = value; RefreshFields(); PreviewChanged?.Invoke(this, EventArgs.Empty); } }
     public MatrixContent ContentKind { get => Tile.Content; set { if (!Enum.IsDefined(value) || value == Tile.Content) return; Tile.Content = value; Changed(); RefreshFields(); } }
-    public string Text { get => Tile.Text; set { Tile.Text = value ?? ""; Changed(); } }
-    public string Source { get => Tile.Source; set { if (!Sources.Any(s => s.Key == value)) return; Tile.Source = value; Changed(); } }
-    public string Colour { get => Tile.Colour; set { if (value?.Length == 9) value = "#" + value[3..]; if (!System.Text.RegularExpressions.Regex.IsMatch(value ?? "", "^#[0-9a-fA-F]{6}$")) return; Tile.Colour = value!; Changed(); } }
-    public bool Scroll { get => Tile.Scroll; set { Tile.Scroll = value; Changed(); } }
-    public bool Alarm { get => Tile.Alarm; set { Tile.Alarm = value; Changed(); } }
-    public int AlarmThreshold { get => Tile.AlarmThreshold; set { Tile.AlarmThreshold = Math.Clamp(value, 0, 100); Changed(); } }
-    public int Brightness { get => _draft.Brightness; set { _draft.Brightness = Math.Clamp(value, 0, 100); if (_applied is not null) _applied.Brightness = _draft.Brightness; Changed(); ConnectionChanged?.Invoke(this, EventArgs.Empty); } }
+    public string Text { get => Tile.Text; set { Tile.Text = value ?? ""; RaisePropertyChanged(); Changed(); } }
+    public string Source { get => Tile.Source; set { if (!Sources.Any(s => s.Key == value)) return; Tile.Source = value; RaisePropertyChanged(); Changed(); } }
+    public string Colour { get => Tile.Colour; set { if (value?.Length == 9) value = "#" + value[3..]; if (!System.Text.RegularExpressions.Regex.IsMatch(value ?? "", "^#[0-9a-fA-F]{6}$")) return; Tile.Colour = value!; RaisePropertyChanged(); Changed(); } }
+    public bool Scroll { get => Tile.Scroll; set { Tile.Scroll = value; RaisePropertyChanged(); Changed(); } }
+    public bool Alarm { get => Tile.Alarm; set { Tile.Alarm = value; RaisePropertyChanged(); Changed(); } }
+    public int AlarmThreshold { get => Tile.AlarmThreshold; set { Tile.AlarmThreshold = Math.Clamp(value, 0, 100); RaisePropertyChanged(); Changed(); } }
+    public int Brightness { get => _draft.Brightness; set { _draft.Brightness = Math.Clamp(value, 0, 100); if (_applied is not null) _applied.Brightness = _draft.Brightness; RaisePropertyChanged(); Changed(); ConnectionChanged?.Invoke(this, EventArgs.Empty); } }
     public bool IsConnected => _device.IsConnected;
     public string? FirmwareVersion => _device.FirmwareVersion;
     public bool IsBusy { get => _busy; private set { _busy = value; RaisePropertyChanged(); ApplyCommand.RaiseCanExecuteChanged(); ImportImageCommand.RaiseCanExecuteChanged(); ConnectionChanged?.Invoke(this, EventArgs.Empty); } }
@@ -65,7 +64,7 @@ public sealed class MatrixWorkspaceViewModel : ObservableObject, IDisposable
     public RelayCommand ClearPixelsCommand { get; }
     public void Initialize() { RefreshTiles(); RefreshFields(); }
     private void RefreshTiles()
-    { TileNames.Clear(); for (int i = 0; i < _draft.Count; i++) TileNames.Add("Tile " + (i + 1)); RaisePropertyChanged(nameof(SelectedTile)); }
+    { TileNames = Enumerable.Range(1, _draft.Count).Select(i => "Tile " + i).ToArray(); RaisePropertyChanged(nameof(TileNames)); RaisePropertyChanged(nameof(SelectedTile)); }
     private void RefreshFields()
     {
         foreach (var name in new[] { nameof(Layout), nameof(SelectedTile), nameof(ContentKind), nameof(Text), nameof(Source), nameof(Colour), nameof(Scroll), nameof(Alarm), nameof(AlarmThreshold), nameof(Brightness), nameof(TextVisibility), nameof(SensorVisibility), nameof(PixelVisibility), nameof(PreviewReading), nameof(Validation) }) RaisePropertyChanged(name);
