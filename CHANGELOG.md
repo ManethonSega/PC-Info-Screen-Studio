@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.0-alpha.33 (draft)
+
+- Added a Matrix widget canvas with Text, Value, Clock, Pixel art and Emoji buttons, plus an ordered Layers list.
+- Added free dragging with one-LED snapping, keyboard nudging, independent 4-/5-/10-dot sizes, position/width controls, visibility, locking, duplication and deletion.
+- Added coloured emoji and joined-grapheme rendering alongside the approved bitmap fonts.
+- Migrated prior tile layouts to pixel-identical layers while preserving their source data, fonts and alignment.
+
 ## 0.10.0-alpha.32 (draft)
 
 - Fixed Matrix font selection changing all tiles. Each tile now saves its own four-, five- and ten-dot font choices.

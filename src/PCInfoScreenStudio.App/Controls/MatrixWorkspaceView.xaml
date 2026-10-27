@@ -2,41 +2,93 @@
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
  xmlns:local="clr-namespace:PCInfoScreenStudio.Controls" Background="{StaticResource WorkspaceBrush}">
  <Grid Margin="18">
-  <Grid.ColumnDefinitions><ColumnDefinition Width="310"/><ColumnDefinition Width="18"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-   <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Padding="16" VerticalAlignment="Top">
+  <Grid.ColumnDefinitions><ColumnDefinition Width="240"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="270"/></Grid.ColumnDefinitions>
+  <Grid>
+   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="12"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+   <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Padding="12">
     <StackPanel>
-     <TextBlock Text="Matrix controls" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,16"/>
-     <TextBlock Text="Layout" Foreground="{StaticResource MutedTextBrush}"/>
-     <ComboBox AutomationProperties.Name="Matrix layout" ItemsSource="{Binding Layouts}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Layout}" Margin="0,5,0,14"/>
-     <StackPanel Visibility="{Binding RowHeightVisibility}" Margin="0,0,0,14">
-      <TextBlock Text="Top + bottom row heights" Foreground="{StaticResource MutedTextBrush}"/>
-      <ComboBox x:Name="RowHeightSelector" AutomationProperties.Name="Matrix row height" ItemsSource="{Binding RowHeights}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding RowHeight}" Margin="0,5,0,0"/>
-     </StackPanel>
-     <TextBlock x:Name="SelectedTileCaption" Text="{Binding SelectedTileLabel}" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" Margin="0,0,0,5"/>
-     <TextBlock Text="Click a tile in the preview to edit it." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,16"/>
-     <TextBlock Text="Content" Foreground="{StaticResource MutedTextBrush}"/>
-     <ComboBox AutomationProperties.Name="Matrix content" ItemsSource="{Binding ContentKinds}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding ContentKind}" Margin="0,5,0,14"/>
-     <StackPanel Visibility="{Binding FourDotFontVisibility}" Margin="0,0,0,14">
-      <TextBlock Text="4-dot font · this tile" Foreground="{StaticResource MutedTextBrush}"/>
-      <ComboBox x:Name="FourDotFontSelector" AutomationProperties.Name="Selected tile 4-dot font" ItemsSource="{Binding FourDotFonts}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding FourDotFont}" Margin="0,5,0,0"/>
+     <TextBlock Text="Widgets" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,9"/>
+     <UniformGrid Columns="2">
+      <Button x:Name="AddTextButton" Content="Text" Command="{Binding AddTextCommand}" AutomationProperties.Name="Add Matrix text widget"/>
+      <Button x:Name="AddValueButton" Content="Value" Command="{Binding AddValueCommand}" AutomationProperties.Name="Add Matrix value widget"/>
+      <Button x:Name="AddClockButton" Content="Clock" Command="{Binding AddClockCommand}" AutomationProperties.Name="Add Matrix clock widget"/>
+      <Button x:Name="AddPixelArtButton" Content="Pixel art" Command="{Binding AddPixelArtCommand}" AutomationProperties.Name="Add Matrix pixel art widget"/>
+      <Button x:Name="AddEmojiButton" Content="Emoji" Command="{Binding AddEmojiCommand}" AutomationProperties.Name="Add Matrix emoji widget"/>
+     </UniformGrid>
+    </StackPanel>
+   </Border>
+   <Border Grid.Row="2" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Padding="12">
+    <Grid>
+     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+     <TextBlock Text="Layers" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,9"/>
+     <ListBox x:Name="LayerList" Grid.Row="1" ItemsSource="{Binding Layers}" SelectedValuePath="Id" SelectedValue="{Binding SelectedWidgetId}" AutomationProperties.Name="Matrix widget layers" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+      <ListBox.ItemTemplate><DataTemplate>
+       <Grid Margin="1,5"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <CheckBox IsChecked="{Binding Visible}" Checked="LayerFlagChanged" Unchecked="LayerFlagChanged" VerticalAlignment="Center" ToolTip="Show widget" AutomationProperties.Name="Layer visibility" Margin="0,0,6,0"/>
+        <StackPanel Grid.Column="1"><TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/><TextBlock Text="{Binding KindLabel}" FontSize="11" Foreground="{StaticResource MutedTextBrush}"/></StackPanel>
+        <CheckBox Grid.Column="2" IsChecked="{Binding Locked}" Content="Lock" Checked="LayerFlagChanged" Unchecked="LayerFlagChanged" ToolTip="Lock editing and position" AutomationProperties.Name="Lock widget" VerticalAlignment="Center" Margin="5,0,0,0"/>
+       </Grid>
+      </DataTemplate></ListBox.ItemTemplate>
+     </ListBox>
+     <UniformGrid Grid.Row="2" Columns="2" Margin="0,8,0,0">
+      <Button Content="Up" Command="{Binding LayerUpCommand}" ToolTip="Move the widget above the next layer"/>
+      <Button Content="Down" Command="{Binding LayerDownCommand}" ToolTip="Move the widget below the previous layer"/>
+      <Button x:Name="DuplicateWidgetButton" Content="Duplicate" Command="{Binding DuplicateCommand}"/>
+      <Button x:Name="DeleteWidgetButton" Content="Delete" Command="{Binding DeleteCommand}"/>
+     </UniformGrid>
+    </Grid>
+   </Border>
+  </Grid>
+  <Grid Grid.Column="2">
+   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+   <StackPanel><TextBlock Text="Phanteks Matrix 900" FontSize="22" FontWeight="SemiBold"/><TextBlock Text="90 × 10 LED canvas" Foreground="{StaticResource MutedTextBrush}" Margin="0,6,0,0"/></StackPanel>
+   <Border Grid.Row="1" Background="{StaticResource InputBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Padding="12" Margin="0,20,0,12">
+    <local:MatrixSurface x:Name="MatrixPreview" Height="150" Focusable="True" AutomationProperties.Name="Matrix widget canvas" AutomationProperties.ItemStatus="{Binding SelectedTileLabel}" AutomationProperties.HelpText="Select and drag a widget. It snaps to individual LEDs. Arrow keys nudge, Shift plus arrows moves ten LEDs, Escape cancels a drag. Use Paint pixels for pixel art."/>
+   </Border>
+   <TextBlock Grid.Row="2" Text="Drag widgets onto the LED grid. Arrow keys move one dot; Shift + arrows move ten. Layers at the top draw in front." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap"/>
+   <TextBlock Grid.Row="3" Text="{Binding Status}" TextWrapping="Wrap" Margin="0,20,0,12"/>
+   <StackPanel Grid.Row="5">
+    <TextBlock Text="{Binding Validation}" Foreground="{StaticResource AccentBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+    <Button x:Name="ApplyMatrixButton" Content="Apply to Matrix" Command="{Binding ApplyCommand}" Style="{StaticResource PrimaryButtonStyle}" HorizontalAlignment="Left" Padding="16,9"/>
+    <TextBlock Text="Edits save on this PC. Apply updates the display. Clock uses UTC. Close NexLinq before connecting here." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+   </StackPanel>
+  </Grid>
+  <ScrollViewer Grid.Column="4" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+   <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Padding="12" VerticalAlignment="Top">
+    <StackPanel>
+     <TextBlock Text="Properties" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12"/>
+     <TextBlock Text="Add a widget or select one from Layers." Visibility="{Binding EmptyVisibility}" TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}"/>
+     <StackPanel Visibility="{Binding SelectionVisibility}" IsEnabled="{Binding IsEditable}">
+      <TextBlock x:Name="SelectedTileCaption" Text="{Binding SelectedTileLabel}" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,8"/>
+      <TextBlock Text="Name" Foreground="{StaticResource MutedTextBrush}"/>
+      <TextBox MaxLength="80" Text="{Binding Name, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Matrix widget name" Margin="0,5,0,12"/>
+      <TextBlock Text="Size" Foreground="{StaticResource MutedTextBrush}"/>
+      <ComboBox x:Name="WidgetSizeSelector" ItemsSource="{Binding Sizes}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding WidgetHeight}" AutomationProperties.Name="Matrix widget height" Margin="0,5,0,12"/>
+      <Grid Margin="0,0,0,12"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+       <StackPanel Margin="0,0,6,0"><TextBlock Text="X"/><TextBox Text="{Binding X, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Matrix widget X"/></StackPanel>
+       <StackPanel Grid.Column="1" Margin="0,0,6,0"><TextBlock Text="Y"/><TextBox Text="{Binding Y, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Matrix widget Y"/></StackPanel>
+       <StackPanel Grid.Column="2"><TextBlock Text="Width"/><TextBox Text="{Binding Width, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Matrix widget width"/></StackPanel>
+      </Grid>
+           <StackPanel Visibility="{Binding FourDotFontVisibility}" Margin="0,0,0,14">
+      <TextBlock Text="4-dot font · this widget" Foreground="{StaticResource MutedTextBrush}"/>
+      <ComboBox x:Name="FourDotFontSelector" AutomationProperties.Name="Selected widget 4-dot font" ItemsSource="{Binding FourDotFonts}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding FourDotFont}" Margin="0,5,0,0"/>
      </StackPanel>
      <StackPanel Visibility="{Binding FiveDotFontVisibility}" Margin="0,0,0,14">
-      <TextBlock Text="5-dot font · this tile" Foreground="{StaticResource MutedTextBrush}"/>
-      <ComboBox x:Name="FiveDotFontSelector" AutomationProperties.Name="Selected tile 5-dot font" ItemsSource="{Binding FiveDotFonts}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding FiveDotFont}" Margin="0,5,0,0"/>
+      <TextBlock Text="5-dot font · this widget" Foreground="{StaticResource MutedTextBrush}"/>
+      <ComboBox x:Name="FiveDotFontSelector" AutomationProperties.Name="Selected widget 5-dot font" ItemsSource="{Binding FiveDotFonts}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding FiveDotFont}" Margin="0,5,0,0"/>
      </StackPanel>
      <StackPanel Visibility="{Binding TenDotFontVisibility}" Margin="0,0,0,14">
-      <TextBlock Text="10-dot font · this tile" Foreground="{StaticResource MutedTextBrush}"/>
-      <ComboBox x:Name="TenDotFontSelector" AutomationProperties.Name="Selected tile 10-dot font" ItemsSource="{Binding TenDotFonts}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding TenDotFont}" Margin="0,5,0,0"/>
+      <TextBlock Text="10-dot font · this widget" Foreground="{StaticResource MutedTextBrush}"/>
+      <ComboBox x:Name="TenDotFontSelector" AutomationProperties.Name="Selected widget 10-dot font" ItemsSource="{Binding TenDotFonts}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding TenDotFont}" Margin="0,5,0,0"/>
      </StackPanel>
      <TextBlock Text="{Binding FontNote}" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
      <StackPanel Visibility="{Binding AlignmentVisibility}" Margin="0,0,0,14">
-      <TextBlock Text="Text alignment · this tile" Foreground="{StaticResource MutedTextBrush}"/>
-      <ComboBox x:Name="AlignmentSelector" AutomationProperties.Name="Selected tile text alignment" ItemsSource="{Binding Alignments}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Alignment}" ToolTip="Align text, sensor values and the clock. Long scrolling messages use the full tile width." Margin="0,5,0,0"/>
+      <TextBlock Text="Text alignment · this widget" Foreground="{StaticResource MutedTextBrush}"/>
+      <ComboBox x:Name="AlignmentSelector" AutomationProperties.Name="Selected widget text alignment" ItemsSource="{Binding Alignments}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding Alignment}" ToolTip="Align text, sensor values and the clock. Long scrolling messages use the full tile width." Margin="0,5,0,0"/>
      </StackPanel>
      <StackPanel Visibility="{Binding TextVisibility}">
-      <TextBlock Text="Message" Foreground="{StaticResource MutedTextBrush}"/>
-      <TextBox x:Name="MessageBox" AutomationProperties.Name="Matrix message" Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" MaxLength="200" Margin="0,5,0,7"/>
+      <TextBlock Text="Message / emoji (Windows + .)" Foreground="{StaticResource MutedTextBrush}"/>
+      <TextBox x:Name="MessageBox" AutomationProperties.Name="Matrix message" Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" MaxLength="512" Margin="0,5,0,7"/>
       <CheckBox Content="Scroll message" IsChecked="{Binding Scroll}" Margin="0,0,0,12"/>
      </StackPanel>
      <StackPanel Visibility="{Binding SensorVisibility}">
@@ -50,25 +102,15 @@
      <TextBlock Text="Colour / brush" Foreground="{StaticResource MutedTextBrush}"/>
      <local:ColorPickerButton HexColor="{Binding Colour}" AutomationProperties.Name="Matrix colour" Margin="0,5,0,12"/>
      <StackPanel Visibility="{Binding PixelVisibility}">
-      <Button Content="Import image" Command="{Binding ImportImageCommand}" ToolTip="Resize an image into the selected tile. Animated files use their first frame."/>
-      <Button Content="Clear tile" Command="{Binding ClearPixelsCommand}"/>
-      <TextBlock Text="Select a tile, then click or drag to paint. Right-click erases. Arrow keys move the pixel cursor; Space paints and Delete erases." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" Margin="0,8,0,12"/>
+      <CheckBox Content="Paint pixels" IsChecked="{Binding IsPainting}" Margin="0,0,0,8"/>
+      <Button Content="Import image" Command="{Binding ImportImageCommand}" ToolTip="Resize an image into the selected widget. Animated files use their first frame."/>
+      <Button Content="Clear pixels" Command="{Binding ClearPixelsCommand}"/>
+      <TextBlock Text="Select a widget, then click or drag to paint. Right-click erases. When painting, arrow keys move the pixel cursor; Space paints and Delete erases." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" Margin="0,8,0,12"/>
      </StackPanel>
-     <TextBlock Text="{Binding Validation}" Foreground="{StaticResource AccentBrush}" TextWrapping="Wrap" Margin="0,6,0,8"/>
-     <Button Content="Apply to Matrix" Command="{Binding ApplyCommand}" Style="{StaticResource PrimaryButtonStyle}" Padding="16,9"/>
-     <TextBlock Text="Edits save on this PC. Apply sends the layout to the display. Brightness updates live after Apply." TextWrapping="Wrap" Foreground="{StaticResource MutedTextBrush}" Margin="0,10,0,0"/>
+
+     </StackPanel>
     </StackPanel>
    </Border>
   </ScrollViewer>
-  <StackPanel Grid.Column="2">
-   <TextBlock Text="Phanteks Matrix 900" FontSize="23" FontWeight="SemiBold" Margin="0,0,0,6"/>
-   <TextBlock Text="90 × 10 colour LEDs · dedicated Matrix workspace" Foreground="{StaticResource MutedTextBrush}"/>
-   <Border Background="{StaticResource InputBrush}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Padding="12" Margin="0,22,0,12">
-    <local:MatrixSurface x:Name="MatrixPreview" Height="190" Focusable="True" AutomationProperties.Name="Matrix canvas" AutomationProperties.ItemStatus="{Binding SelectedTileLabel}" AutomationProperties.HelpText="Click a tile to select it. Ctrl+arrow keys select adjacent tiles; Home and End select first and last. In Pixel art, arrows move the pixel cursor, Space paints and Delete erases."/>
-   </Border>
-   <TextBlock Text="Click a column or tile to select it. Cyan marks the selection. Ctrl+arrow keys change tiles; Home / End select first / last. The same pixels are sent on Apply. Clock uses UTC." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap"/>
-   <TextBlock Text="{Binding Status}" FontSize="14" TextWrapping="Wrap" Margin="0,24,0,14"/>
-   <TextBlock Text="Experimental hardware support. Close NexLinq before starting the Matrix here. Check the physical output after applying a layout." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap"/>
-  </StackPanel>
  </Grid>
 </UserControl>

@@ -18,7 +18,7 @@ public sealed record MatrixLayoutOption(string Label, int Value);
 public sealed record MatrixRowHeightOption(string Label, int Value);
 public sealed record MatrixSourceOption(string Label, string Key, int FirmwareId);
 
-public sealed class MatrixTileSettings
+public class MatrixTileSettings
 {
     public MatrixContent Content { get; set; }
     public string Text { get; set; } = "PC INFO SCREEN";
@@ -66,10 +66,12 @@ public sealed class MatrixSettings
     public MatrixFiveDotFont LegacyFiveDotFont { get; set; } = MatrixFiveDotFont.TomThumb;
     [JsonPropertyName("TenDotFont")]
     public MatrixTenDotFont LegacyTenDotFont { get; set; }
+    public List<MatrixWidgetSettings>? Widgets { get; set; }
     public List<MatrixTileSettings> Tiles { get; set; } = Enumerable.Range(0, 6).Select(i => new MatrixTileSettings
         { Content = i == 1 ? MatrixContent.Sensor : i == 2 ? MatrixContent.Clock : MatrixContent.Text }).ToList();
     public MatrixSettings ValidatedCopy() => new()
     {
+        Widgets = CopyWidgets(),
         Selected = Selected, Layout = Layout is 1 or 3 or 9 ? Layout : 3, Brightness = Math.Clamp(Brightness, 0, 100),
         RowHeight = RowHeight is 4 or 5 or 45 or 54 ? RowHeight : 4,
         LegacyFourDotFont = Enum.IsDefined(LegacyFourDotFont) ? LegacyFourDotFont : MatrixFourDotFont.Mem,
@@ -78,6 +80,23 @@ public sealed class MatrixSettings
         Tiles = Enumerable.Range(0, 6).Select(i => (Tiles is not null && i < Tiles.Count && Tiles[i] is not null
             ? Tiles[i] : new MatrixTileSettings()).Copy(this)).ToList()
     };
+    private List<MatrixWidgetSettings>? CopyWidgets()
+    {
+        if (Widgets is null) return null;
+        var ids = new HashSet<Guid>(); var result = new List<MatrixWidgetSettings>();
+        foreach (var item in Widgets.Take(64))
+        {
+            if (item is null) continue;
+            var widget = item.CopyWidget(this);
+            if (!ids.Add(widget.Id)) { widget.Id = Guid.NewGuid(); ids.Add(widget.Id); }
+            result.Add(widget);
+        }
+        return result;
+    }
+    public MatrixSettings ToWidgetWorkspace()
+    {
+        var result = ValidatedCopy(); result.Widgets ??= MatrixWidgetSettings.Migrate(result); return result;
+    }
     public static (int X, int Y, int Width, int Height) Region(int layout, int index) => layout switch
     {
         1 => (0, 0, 90, 10),

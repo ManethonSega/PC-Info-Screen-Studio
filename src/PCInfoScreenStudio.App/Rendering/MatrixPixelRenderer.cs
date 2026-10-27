@@ -13,6 +13,11 @@ public static class MatrixPixelRenderer
     public static MatrixSettings Render(MatrixSettings settings, Func<string, int?> reading, DateTime utc, long scrollStep = 0)
     {
         var output = settings.ValidatedCopy();
+        if (output.Widgets is not null)
+        {
+            var frame = MatrixLayerRenderer.Compose(output, reading, utc, scrollStep);
+            return new MatrixSettings { Layout = 1, Brightness = output.Brightness, Tiles = [new() { Content = MatrixContent.PixelArt, Pixels = frame }] }.ValidatedCopy();
+        }
         for (int i = 0; i < output.Count; i++)
         {
             var original = output.Tiles[i]; var tile = original;

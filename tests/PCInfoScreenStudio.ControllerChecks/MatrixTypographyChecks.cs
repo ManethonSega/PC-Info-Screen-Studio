@@ -62,15 +62,9 @@ internal static class MatrixTypographyChecks
             var mixedFake = new Matrix900ProtocolChecks.Connection();
             using var mixedVm = new MatrixWorkspaceViewModel(mixed, _ => { }, new Matrix900Device(() => mixedFake));
             mixedVm.Initialize(); Run(mixedVm.ToggleAsync(), pump); Run(mixedVm.ApplyAsync(), pump);
-            var uploaded = new byte[2700];
-            for (int i = 0; i < 6; i++)
-            {
-                var bytes = mixedFake.Writes.Where(r => r[1] == 5 && r[2] == i).SelectMany(r => r.Skip(8).Take(r[5] - 2)).ToArray();
-                Require(bytes.Length == 450, "Each mixed-height tile keeps the controller's native 30 by 5 upload geometry.");
-                var region = MatrixSettings.Region(9, i);
-                for (int y = 0; y < 5; y++) Array.Copy(bytes, y * 90, uploaded, ((region.Y + y) * 90 + region.X) * 3, 90);
-            }
-            Require(uploaded.SequenceEqual(mixedVm.PreviewPixels()), "Every mixed-height Apply uploads exactly the six tile images shown in the preview.");
+            var uploaded = LastFrame(mixedFake);
+            Require(uploaded.Length == 2700, "Free layers are composited into one native full-panel image before upload.");
+            Require(uploaded.SequenceEqual(mixedVm.PreviewPixels()), "Every migrated mixed-height Apply uploads exactly the composited pixels shown in the preview.");
         }
         settings.Tiles[0].Content = MatrixContent.Sensor; settings.Tiles[0].Source = "GPU.Usage";
         settings.Tiles[0].Alarm = true; settings.Tiles[0].AlarmThreshold = 70;

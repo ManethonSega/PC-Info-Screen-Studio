@@ -1,6 +1,6 @@
 # Matrix bitmap fonts
 
-The Matrix renderer uses editable binary glyph rows in `Assets/MatrixFonts.json`, never a scaled desktop fallback font. Every tile saves independent four-, five- and ten-dot settings. The selected tile exposes the menu for its actual row height; edits affect only that tile. Earlier workspace-wide values are read as migration defaults for missing tile fields, while explicit tile values (including enum value zero) take precedence. Existing numeric five-dot selections remain compatible.
+The Matrix renderer uses editable binary glyph rows in `Assets/MatrixFonts.json`, never a scaled desktop fallback font. Every widget saves independent four-, five- and ten-dot settings. The selected widget exposes the menu for its actual row height; edits affect only that widget. Earlier workspace-wide values are read as migration defaults for missing tile fields, while explicit tile values (including enum value zero) take precedence. Existing numeric five-dot selections remain compatible.
 
 | Height | Choices | Source and terms |
 | --- | --- | --- |
@@ -48,3 +48,9 @@ Rows above are zero-based. The controller always receives six native 30×5 tile 
 ## Verification
 
 `PCInfoScreenStudio.MatrixProtocolChecks` checks all fourteen bundled bitmap masks, proportions, word gaps, row combinations, artwork preservation, packet fixtures and settings serialization on any supported host. Windows controller checks additionally exercise the actual WPF selectors, compact captures and exact preview-to-HID identity in every two-row layout. Physical Matrix output still requires hardware qualification.
+
+## Free widget canvas (alpha.33)
+
+`Widgets` distinguishes the new ordered software-layer document from an older fixed tile layout. A null list migrates once, copying prior content rectangles and fonts; an empty list stays intentionally empty. Original tile settings remain available in the saved document. Every widget has a stable ID, an integer X/Y position, a 1–90-dot width and a 4-, 5- or 10-dot height. Validation caps the document at 64 layers and bounds the complete widget inside 90×10. Pixel-art source buffers use a fixed 90×10 stride, so reducing width/height does not delete hidden artwork. Existing bottom-row hidden art is rotated behind visible rows during migration.
+
+The last visible layer draws in front. Empty pixel-art cells are transparent, while text uses its actual glyph coverage. Each frame is composited into one 90×10 pixel widget for the existing HID driver. Locks protect interaction without changing the rendered image. Native and emoji text caches are bounded; complete graphemes are shaped in Segoe UI Emoji and reduced to the chosen LED height. Emoji retain their palette rather than inheriting the text colour.

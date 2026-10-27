@@ -6,9 +6,10 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
-using PCInfoScreenStudio.Controllers;
 using PCInfoScreenStudio.Controls;
+using PCInfoScreenStudio.Controllers;
 using PCInfoScreenStudio.Models;
+using PCInfoScreenStudio.Rendering;
 using PCInfoScreenStudio.Services;
 using PCInfoScreenStudio.ViewModels;
 
@@ -16,144 +17,99 @@ internal static class MatrixWorkspaceChecks
 {
     public static void Check(string root, Action<Func<bool>> pump, string? captures)
     {
-        MatrixTypographyChecks.Check(pump);
+        MatrixWidgetChecks.Check(); MatrixTypographyChecks.Check(pump);
         var path = Path.Combine(root, "matrix-workspace.json");
-        var settings = new SettingsController(new AppSettingsService(path))
-            { FirstRunCompleted = true, AutoStartDisplay = false, CloseToTray = false, StartWithWindows = false };
+        var settings = new SettingsController(new AppSettingsService(path)) { FirstRunCompleted = true, AutoStartDisplay = false, CloseToTray = false, StartWithWindows = false };
         var vm = new MainViewModel(settings, new SessionStateService(Path.Combine(root, "matrix-session")));
         var window = new PCInfoScreenStudio.MainWindow(vm);
+        Guid textId = Guid.Empty;
         try
         {
             window.Show(); pump(() => window.IsEnabled); vm.SetEditorActive(false);
+            var document = vm.Document; var original = (document.CanvasWidth, document.CanvasHeight, document.Mode, vm.IsDirty, vm.SelectedWidget);
+            var docks = ((WorkspaceDock)window.FindName("LeftDock")).CaptureLayout();
             var selector = (ComboBox)window.FindName("ScreenSelector");
-            var document = vm.Document;
-            var original = (document.CanvasWidth, document.CanvasHeight, document.Mode, vm.IsDirty, vm.SelectedWidget);
-            var layout = ((WorkspaceDock)window.FindName("LeftDock")).CaptureLayout();
-            selector.SetCurrentValue(Selector.SelectedValueProperty, DisplayTarget.Matrix900);
-            selector.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource(); Flush(window);
-            pump(() => vm.CanChooseScreen);
-            Require(vm.IsMatrixWorkspace && !vm.IsEditorPage && !vm.IsCanvasActive && !vm.LivePreview, "Choosing Matrix suspends the LCD editor/runtime rendering path.");
-            var matrix = (MatrixWorkspaceView)window.FindName("MatrixWorkspace");
-            Require(matrix.IsVisible && !((Grid)window.FindName("EditorWorkspace")).IsVisible,
-                "Matrix opens its dedicated controls instead of changing the LCD canvas into an LED canvas.");
-            Require(!vm.NewCommand.CanExecute(null) && !vm.UndoCommand.CanExecute(null), "LCD document shortcuts do not edit a hidden theme from Matrix mode.");
-            Require(!vm.Matrix.ApplyCommand.CanExecute(null), "A disconnected preview cannot claim to apply to hardware.");
-            Require((document.CanvasWidth, document.CanvasHeight, document.Mode, vm.IsDirty, vm.SelectedWidget) == original,
-                "Selecting Matrix preserves all LCD theme geometry, mode, selection and dirty state.");
-            var surface = Find<MatrixSurface>(matrix)!;
-            Require(surface.SelectTileAt(PixelPoint(surface, 40, 2)) && vm.Matrix.SelectedTile == 1, "Clicking a column selects it and its controls.");
-            vm.Matrix.Layout = 1; vm.Matrix.Text = "SEGA MATRIX"; vm.Matrix.Colour = "#FF21E6E8"; Flush(window);
-            Require(matrix.FindName("TileSelector") is null && ((TextBlock)matrix.FindName("SelectedTileCaption")).Text == "Tile 1 selected", "The preview selects tiles directly, with an explicit selection caption and no tile dropdown.");
-            Require(((TextBox)matrix.FindName("MessageBox")).Text == "SEGA MATRIX", "The message field and preview stay synchronized after restoring draft values.");
-            Require(vm.Matrix.Colour == "#21E6E8" && vm.Matrix.PreviewPixels().Any(b => b != 0), "Colour picker ARGB values normalize to physical RGB, and the preview renders pixels.");
-            Capture(window, captures, "Matrix900-text.png");
-            vm.Matrix.Text = "Hello 👌"; Flush(window);
-            Require(vm.Matrix.Validation.Length > 0 && !vm.Matrix.ApplyCommand.CanExecute(null), "Unsupported firmware text is explained and never silently corrupted.");
-            vm.Matrix.Text = "SEGA MATRIX";
-            vm.Matrix.ContentKind = MatrixContent.PixelArt;
-            surface.Focus();
-            surface.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(window), 0, Key.Space) { RoutedEvent = Keyboard.KeyDownEvent });
-            Require(vm.Matrix.Snapshot.Tiles[0].Pixels[1] == 230, "Keyboard Space paints the selected pixel using the chosen brush.");
-            surface.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(window), 0, Key.Delete) { RoutedEvent = Keyboard.KeyDownEvent });
-            Require(vm.Matrix.Snapshot.Tiles[0].Pixels.Take(3).All(b => b == 0), "Keyboard Delete erases the pixel.");
-            for (int x = 12; x < 78; x++) { vm.Matrix.PaintPixel(x, 2, false); vm.Matrix.PaintPixel(x, 7, false); }
-            Capture(window, captures, "Matrix900-pixel-art.png");
-            vm.Matrix.Layout = 9; vm.Matrix.SelectedTile = 4; vm.Matrix.ContentKind = MatrixContent.PixelArt;
-            vm.Matrix.PaintPixel(61, 1, false); vm.Matrix.PaintPixel(2, 9, false);
-            Require(vm.Matrix.Snapshot.Tiles[4].Pixels[93] == 33, "Six-tile painting maps into its local pixel buffer and ignores other regions.");
+            selector.SetCurrentValue(Selector.SelectedValueProperty, DisplayTarget.Matrix900); selector.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource(); Flush(window); pump(() => vm.CanChooseScreen);
+            var matrix = (MatrixWorkspaceView)window.FindName("MatrixWorkspace"); var model = vm.Matrix;
+            Require(matrix.IsVisible && vm.IsMatrixWorkspace && !vm.IsCanvasActive && !vm.LivePreview, "Matrix retains its separate LED workspace and suspends the LCD editor.");
+            Require((document.CanvasWidth, document.CanvasHeight, document.Mode, vm.IsDirty, vm.SelectedWidget) == original, "Opening Matrix preserves LCD theme geometry, selection and dirty state.");
+            Require(model.Snapshot.Widgets!.Count == 3 && model.Snapshot.Widgets[1].X == 30, "Existing three-column content migrates to layers at its previous position.");
+            Require(!model.ApplyCommand.CanExecute(null), "A disconnected preview cannot claim hardware output.");
+            var surface = (MatrixSurface)matrix.FindName("MatrixPreview");
+            Capture(window, captures, "Matrix900-layers-migrated.png");
+            foreach (var layer in model.Layers) layer.Visible = false; model.LayerFlagsChanged();
+            Execute(matrix, "AddTextButton"); textId = model.SelectedWidgetId!.Value;
+            model.Name = "CPU label"; model.Text = "CPU"; model.Width = 16; model.X = 1; model.Y = 1;
+            var size = (ComboBox)matrix.FindName("WidgetSizeSelector"); Require(size.Items.Count == 3, "Every widget offers exactly 10-, 5- and 4-dot heights.");
+            foreach (int h in new[] { 4, 10, 5 })
+            { Set(size, h); Flush(window); Require(model.WidgetHeight == h && model.Y + h <= 10, "The actual size control changes height and clamps the widget inside the LED grid."); }
+            var font = (ComboBox)matrix.FindName("FiveDotFontSelector"); Set(font, MatrixFiveDotFont.Petty5x5); Flush(window);
+            var alignment = (ComboBox)matrix.FindName("AlignmentSelector"); Set(alignment, MatrixAlignment.Centre); Flush(window);
+            model.Y = 1;
+            Execute(matrix, "AddValueButton"); var valueId = model.SelectedWidgetId; model.X = 22; model.Source = "GPU.Usage"; model.WidgetHeight = 4;
+            Execute(matrix, "AddClockButton"); var clockId = model.SelectedWidgetId; model.X = 45; model.Y = 5; model.Width = 22;
+            Require(model.SelectedWidget!.Content == MatrixContent.Clock && model.WidgetHeight == 5, "Clock button adds an independent clock layer.");
+            model.SelectedWidgetId = textId; Flush(window);
+            Require(model.FiveDotFont == MatrixFiveDotFont.Petty5x5 && model.Alignment == MatrixAlignment.Centre && model.WidgetHeight == 5, "Switching layers restores each widget's font, alignment and size.");
+            var list = (ListBox)matrix.FindName("LayerList"); Require((Guid)list.SelectedValue == textId && list.Items.Count == 6, "The Layers list and canvas share selection and include migrated hidden layers.");
+            Require(surface.BeginDrag(PixelPoint(surface, 2, 2)), "An unlocked widget can be grabbed on the actual WPF canvas.");
+            surface.DragTo(PixelPoint(surface, 4.4, 3.4)); surface.EndDrag();
+            Require(model.X == 3 && model.Y == 2, "Dragging rounds movement to individual LED columns and rows.");
+            Require(surface.BeginDrag(PixelPoint(surface, 4, 3)), "The moved layer can be dragged again.");
+            surface.DragTo(PixelPoint(surface, 200, 50)); Require(model.X == 74 && model.Y == 5, "Dragging cannot move any part of a widget beyond the 90 by 10 grid.");
+            surface.EndDrag(true); Require(model.X == 3 && model.Y == 2, "Cancel restores the position before the drag.");
+            surface.Focus(); surface.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(window), 0, Key.Left) { RoutedEvent = Keyboard.KeyDownEvent });
+            Require(model.X == 2, "Canvas arrow keys nudge a layer by one LED.");
+            Flush(window); var container = (ListBoxItem)list.ItemContainerGenerator.ContainerFromItem(model.SelectedWidget);
+            var lockBox = Descendants<CheckBox>(container).Single(c => c.Content?.ToString() == "Lock");
+            lockBox.SetCurrentValue(ToggleButton.IsCheckedProperty, true); lockBox.GetBindingExpression(ToggleButton.IsCheckedProperty)!.UpdateSource(); Flush(window);
+            Require(model.Tile.Locked && !model.IsEditable && !model.DeleteCommand.CanExecute(null), "The actual layer lock checkbox protects editing and deletion.");
+            int lockedX = model.X; model.X = 40; Require(model.X == lockedX && !surface.BeginDrag(PixelPoint(surface, lockedX + 1, 3)), "Locked layers cannot be moved by properties or dragging.");
+            lockBox.SetCurrentValue(ToggleButton.IsCheckedProperty, false); lockBox.GetBindingExpression(ToggleButton.IsCheckedProperty)!.UpdateSource(); Flush(window);
+            Execute(matrix, "AddPixelArtButton"); var artId = model.SelectedWidgetId!.Value; model.Width = 6; model.WidgetHeight = 4; model.X = 74;
+            model.IsPainting = true; surface.Focus(); surface.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(window), 0, Key.Space) { RoutedEvent = Keyboard.KeyDownEvent });
+            Require(model.Tile.Pixels.Take(3).SequenceEqual(new byte[] { 33, 230, 232 }), "Pixel-art painting writes into the selected widget's local bitmap.");
+            model.DuplicateCommand.Execute(null); Require(model.SelectedWidgetId != artId && model.Tile.Pixels[1] == 230, "Duplicate creates an independent widget with copied artwork.");
+            model.PaintPixel(model.X, model.Y, true); Require(model.Snapshot.Widgets!.Single(w => w.Id == artId).Pixels[1] == 230, "Editing duplicate artwork leaves the source layer unchanged.");
+            model.DeleteCommand.Execute(null); Require(!model.Layers.Any(w => w.Name.EndsWith(" copy")), "Delete removes only the selected duplicate.");
+            Execute(matrix, "AddEmojiButton"); model.WidgetHeight = 10; model.Width = 20; model.X = 68; model.Text = "💕👌"; model.Scroll = false;
+            Require(model.Validation.Length == 0, "Emoji text is supported instead of being rejected by the old ASCII-only validation.");
+            var emojiPixels = model.PreviewPixels();
+            Require(Enumerable.Range(0, emojiPixels.Length / 3).Any(i => emojiPixels[i * 3] > 30 && emojiPixels[i * 3 + 1] > 10 && emojiPixels[i * 3] != emojiPixels[i * 3 + 1] && emojiPixels[i * 3] != 33), "Emojis preserve their own coloured palette in the actual LED RGB frame.");
+            var family = new MatrixSettings { Widgets = [new() { Text = "👨‍👩‍👧‍👦", Height = 10, Width = 20 }] }.ValidatedCopy();
+            Require(MatrixLayerRenderer.Compose(family, _ => null, DateTime.UnixEpoch).Any(b => b != 0), "Joined emoji graphemes render as a shaped glyph without surrogate splitting.");
+            Capture(window, captures, "Matrix900-widgets-layers-emojis.png");
+            model.SelectedWidgetId = textId; Flush(window); Capture(window, captures, "Matrix900-widget-properties.png");
             window.Width = 1080; window.Height = 680; Flush(window);
             var bounds = surface.TransformToAncestor(window).TransformBounds(new Rect(surface.RenderSize));
-            Require(bounds.Right <= window.ActualWidth && bounds.Bottom <= window.ActualHeight, "Compact Matrix preview fits the window.");
-            Capture(window, captures, "Matrix900-compact.png");
-            var saved = vm.Matrix.Snapshot.Tiles[4].Pixels;
-            Require(surface.SelectTileAt(PixelPoint(surface, 35, 8)) && vm.Matrix.SelectedTile == 3, "Clicking a bottom-row tile selects its native slot.");
-            Require(vm.Matrix.Snapshot.Tiles[4].Pixels.SequenceEqual(saved), "Selecting another tile does not paint into saved art.");
-            Require(!surface.SelectTileAt(new Point(-5, -5)) && vm.Matrix.SelectedTile == 3, "Clicking outside the LED canvas leaves selection unchanged.");
-            surface.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(window), 0, Key.End) { RoutedEvent = Keyboard.KeyDownEvent });
-            Require(vm.Matrix.SelectedTile == 5, "Keyboard End selects the final tile without a dropdown.");
-            vm.Matrix.SelectedTile = 4;
-            var heightSelector = (ComboBox)matrix.FindName("RowHeightSelector");
-            heightSelector.SetCurrentValue(Selector.SelectedValueProperty, 5); heightSelector.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource(); Flush(window);
-            Require(vm.Matrix.RowHeight == 5, "The actual WPF row-height control enables five dots with no gap.");
-            vm.Matrix.ContentKind = MatrixContent.Text;
-            var fontSelector = (ComboBox)matrix.FindName("FiveDotFontSelector");
-            fontSelector.SetCurrentValue(Selector.SelectedValueProperty, MatrixFiveDotFont.Pixel5x5Thin); fontSelector.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource(); Flush(window);
-            Require(vm.Matrix.FiveDotFont == MatrixFiveDotFont.Pixel5x5Thin && fontSelector.IsVisible, "Five-dot font selector updates actual settings.");
-            vm.Matrix.SelectedTile = 5; vm.Matrix.ContentKind = MatrixContent.Text; vm.Matrix.Scroll = false; vm.Matrix.Text = "HH"; Flush(window);
-            Require(vm.Matrix.FiveDotFont == MatrixFiveDotFont.TomThumb && (MatrixFiveDotFont)fontSelector.SelectedValue == MatrixFiveDotFont.TomThumb, "Selecting a neighbor restores its independent font selection in the real combo box.");
-            var beforeOtherEdit = vm.Matrix.PreviewPixels();
-            fontSelector.SetCurrentValue(Selector.SelectedValueProperty, MatrixFiveDotFont.Petty5H); fontSelector.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource(); Flush(window);
-            var afterOtherEdit = vm.Matrix.PreviewPixels();
-            Require(!beforeOtherEdit.SequenceEqual(afterOtherEdit), "The selected tile's font edit changes visible pixels.");
-            for (int y = 0; y < 10; y++) for (int x = 0; x < 90; x++)
-                if (x < 60 || y < 5) Require(beforeOtherEdit.AsSpan((y * 90 + x) * 3, 3).SequenceEqual(afterOtherEdit.AsSpan((y * 90 + x) * 3, 3)), "The font control cannot alter any neighboring tile's pixels.");
-            Require(vm.Matrix.Snapshot.Tiles[4].FiveDotFont == MatrixFiveDotFont.Pixel5x5Thin, "Editing tile six leaves tile five's font unchanged.");
-            vm.Matrix.SelectedTile = 4; Flush(window);
-            Require(vm.Matrix.FiveDotFont == MatrixFiveDotFont.Pixel5x5Thin && (MatrixFiveDotFont)fontSelector.SelectedValue == MatrixFiveDotFont.Pixel5x5Thin, "Returning to a tile restores its saved font in the editor.");
-            var alignmentSelector = (ComboBox)matrix.FindName("AlignmentSelector");
-            Require(alignmentSelector.Items.Count == 3 && alignmentSelector.IsVisible, "The selected tile offers Left, Centre and Right alignment.");
-            vm.Matrix.Text = "H"; vm.Matrix.Scroll = false;
-            alignmentSelector.SetCurrentValue(Selector.SelectedValueProperty, MatrixAlignment.Right); alignmentSelector.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource(); Flush(window);
-            Require(vm.Matrix.Alignment == MatrixAlignment.Right && vm.Matrix.Snapshot.Tiles[5].Alignment == MatrixAlignment.Left, "Right alignment updates the selected tile without touching its neighbor.");
-            vm.Matrix.SelectedTile = 5; Flush(window);
-            Require((MatrixAlignment)alignmentSelector.SelectedValue == MatrixAlignment.Left, "Selecting another tile restores its alignment control.");
-            alignmentSelector.SetCurrentValue(Selector.SelectedValueProperty, MatrixAlignment.Centre); alignmentSelector.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource(); Flush(window);
-            vm.Matrix.SelectedTile = 4; Flush(window);
-            Require((MatrixAlignment)alignmentSelector.SelectedValue == MatrixAlignment.Right, "Re-selecting the first tile retains its independent alignment.");
-            Capture(window, captures, "Matrix900-independent-five-dot-fonts.png");
-            Capture(window, captures, "Matrix900-five-row.png");
-            Require(vm.Matrix.FourDotFonts.Count == 4 && vm.Matrix.FiveDotFonts.Count == 6 && vm.Matrix.TenDotFonts.Count == 4 && heightSelector.Items.Count == 4, "The controls expose all fourteen choices and four row arrangements.");
-            foreach (int rows in new[] { 45, 54 })
-            {
-                heightSelector.SetCurrentValue(Selector.SelectedValueProperty, rows); heightSelector.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource();
-                vm.Matrix.SelectedTile = rows == 45 ? 4 : 5; vm.Matrix.ContentKind = MatrixContent.Text; Flush(window);
-                var four = (ComboBox)matrix.FindName("FourDotFontSelector");
-                Require(four.IsVisible && !fontSelector.IsVisible, "Selecting a four-dot tile shows its four-dot font control.");
-                four.SetCurrentValue(Selector.SelectedValueProperty, MatrixFourDotFont.Able4); four.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource();
-                vm.Matrix.SelectedTile = rows == 45 ? 5 : 4; vm.Matrix.ContentKind = MatrixContent.Text; Flush(window);
-                Require(fontSelector.IsVisible && !four.IsVisible, "Selecting a five-dot tile shows its five-dot font control.");
-                fontSelector.SetCurrentValue(Selector.SelectedValueProperty, MatrixFiveDotFont.Able5); fontSelector.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource();
-                Flush(window); Capture(window, captures, $"Matrix900-rows-{rows}.png");
-            }
-            vm.Matrix.Layout = 1; vm.Matrix.ContentKind = MatrixContent.Text; Flush(window);
-            var ten = (ComboBox)matrix.FindName("TenDotFontSelector");
-            Require(ten.IsVisible, "A ten-dot column exposes the ten-dot font control.");
-            ten.SetCurrentValue(Selector.SelectedValueProperty, MatrixTenDotFont.Micro3x10); ten.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource();
-            Flush(window); Capture(window, captures, "Matrix900-ten-dot-Micro.png");
-            ten.SetCurrentValue(Selector.SelectedValueProperty, MatrixTenDotFont.Piconano3x10); ten.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource(); Flush(window);
-            Require(vm.Matrix.Validation.Length == 0 && vm.Matrix.PreviewPixels().Any(b => b != 0), "piconano is included and immediately renders without a local-file step.");
-            Capture(window, captures, "Matrix900-ten-dot-piconano.png");
-            ten.SetCurrentValue(Selector.SelectedValueProperty, MatrixTenDotFont.Micro3x10); ten.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource();
-            vm.Matrix.Layout = 9; vm.Matrix.RowHeight = 54; vm.Matrix.SelectedTile = 4;
-            vm.ShowPage(true); Flush(window); Require(!matrix.IsVisible && vm.IsHardwarePage, "Hardware navigation hides the Matrix workspace.");
-            vm.ShowPage(false); Flush(window); Require(matrix.IsVisible, "Editor navigation returns to the selected Matrix workspace.");
-            vm.SelectedDisplayTarget = DisplayTarget.Turing52; Flush(window);
-            pump(() => vm.CanChooseScreen);
-            Require(!matrix.IsVisible && vm.IsEditorPage && vm.Document.CanvasWidth == 1280, "Choosing the 5.2-inch target restores its LCD workspace and sizing.");
-            Require(((WorkspaceDock)window.FindName("LeftDock")).CaptureLayout().Panels.Select(p => (p.Id, p.IsOpen)).SequenceEqual(layout.Panels.Select(p => (p.Id, p.IsOpen))), "Matrix controls do not replace dock preferences.");
-            vm.SelectedDisplayTarget = DisplayTarget.Matrix900; pump(() => vm.CanChooseScreen); vm.Matrix.Text = "PERSIST ME";
+            Require(bounds.Right <= window.ActualWidth && bounds.Bottom <= window.ActualHeight, "The complete LED canvas fits a compact window with both side panels open.");
+            Capture(window, captures, "Matrix900-widgets-compact.png");
+            vm.SelectedDisplayTarget = DisplayTarget.Turing52; Flush(window); pump(() => vm.CanChooseScreen);
+            Require(!matrix.IsVisible && vm.IsEditorPage, "The LCD editor returns when a different screen is selected.");
+            Require(((WorkspaceDock)window.FindName("LeftDock")).CaptureLayout().Panels.Select(p => (p.Id, p.IsOpen)).SequenceEqual(docks.Panels.Select(p => (p.Id, p.IsOpen))), "Matrix layers preserve LCD dock preferences.");
+            vm.SelectedDisplayTarget = DisplayTarget.Matrix900; pump(() => vm.CanChooseScreen); model.SelectedWidgetId = textId; model.Text = "PERSIST ME";
         }
         finally { window.MarkSessionSavedForExit(); window.Close(); }
         var loaded = new SettingsController(new AppSettingsService(path));
-        Require(loaded.Matrix.Selected && loaded.Matrix.Layout == 9 && loaded.Matrix.RowHeight == 54 && loaded.Matrix.Tiles[4].FourDotFont == MatrixFourDotFont.Able4 && loaded.Matrix.Tiles[4].FiveDotFont == MatrixFiveDotFont.Able5 && loaded.Matrix.Tiles[0].TenDotFont == MatrixTenDotFont.Micro3x10 && loaded.Matrix.Tiles[1].FiveDotFont == MatrixFiveDotFont.TomThumb && loaded.Matrix.Tiles[4].Alignment == MatrixAlignment.Right && loaded.Matrix.Tiles[5].Alignment == MatrixAlignment.Centre && loaded.Matrix.Tiles[4].Text == "PERSIST ME" && loaded.Matrix.Tiles[4].Pixels[93] == 33,
-            "Exit flushes the latest Matrix layout, selection target, text and pixels to validated settings.");
-        using var secondVm = new MainViewModel(loaded, new SessionStateService(Path.Combine(root, "matrix-second")));
-        Require(secondVm.IsMatrixWorkspace && secondVm.Matrix.Layout == 9 && secondVm.Matrix.SelectedTile == 0, "Restart restores Matrix without changing the LCD theme format.");
-        Console.WriteLine("PASS: real WPF Matrix target selection, dedicated controls, LCD preservation, unsupported text validation, keyboard painting, tile mapping, compact sizing, navigation and settings restart.");
+        var text = loaded.Matrix.Widgets!.Single(w => w.Id == textId);
+        Require(text.Text == "PERSIST ME" && text.X == 2 && text.Y == 2 && text.FiveDotFont == MatrixFiveDotFont.Petty5x5 && text.Alignment == MatrixAlignment.Centre, "Restart preserves layer identity, geometry, content, fonts and alignment.");
+        using var second = new MainViewModel(loaded, new SessionStateService(Path.Combine(root, "matrix-second")));
+        Require(second.IsMatrixWorkspace && second.Matrix.Snapshot.Widgets!.Count == loaded.Matrix.Widgets!.Count, "Restart restores the layer workspace without migrating or duplicating it again.");
+        Console.WriteLine("PASS: WPF Matrix widget buttons, layer selection/lock/duplicate/delete, pixel-snapped drag/cancel/nudge, all heights, coloured/joined emojis, compact layout and restart.");
     }
+    private static void Execute(MatrixWorkspaceView view, string name)
+    { var button = (Button)view.FindName(name); Require(button.Command.CanExecute(null), name + " is available."); button.Command.Execute(null); }
+    private static void Set(ComboBox control, object value) { control.SetCurrentValue(Selector.SelectedValueProperty, value); control.GetBindingExpression(Selector.SelectedValueProperty)!.UpdateSource(); }
     private static void Flush(Window window) { Dispatcher.CurrentDispatcher.Invoke(new Action(() => { }), DispatcherPriority.ContextIdle); window.UpdateLayout(); }
-    private static Point PixelPoint(MatrixSurface surface, int x, int y)
-    {
-        double scale = Math.Min(surface.ActualWidth / 90, surface.ActualHeight / 10);
-        return new((surface.ActualWidth - scale * 90) / 2 + (x + .5) * scale, (surface.ActualHeight - scale * 10) / 2 + (y + .5) * scale);
-    }
-    private static T? Find<T>(DependencyObject p) where T : DependencyObject
-    { if (p is T found) return found; for (int i = 0; i < VisualTreeHelper.GetChildrenCount(p); i++) if (Find<T>(VisualTreeHelper.GetChild(p, i)) is T child) return child; return null; }
+    private static Point PixelPoint(MatrixSurface surface, double x, double y)
+    { double s = Math.Min(surface.ActualWidth / 90, surface.ActualHeight / 10); return new((surface.ActualWidth - s * 90) / 2 + (x + .5) * s, (surface.ActualHeight - s * 10) / 2 + (y + .5) * s); }
+    private static IEnumerable<T> Descendants<T>(DependencyObject item) where T : DependencyObject
+    { if (item is T found) yield return found; for (int i = 0; i < VisualTreeHelper.GetChildrenCount(item); i++) foreach (var child in Descendants<T>(VisualTreeHelper.GetChild(item, i))) yield return child; }
     private static void Capture(Window window, string? directory, string name)
     {
         if (directory is null) return; Directory.CreateDirectory(directory); Flush(window); var element = (FrameworkElement)window.Content;
-        var bitmap = new RenderTargetBitmap((int)Math.Ceiling(element.ActualWidth), (int)Math.Ceiling(element.ActualHeight), 96, 96, PixelFormats.Pbgra32);
-        bitmap.Render(element); using var file = File.Create(Path.Combine(directory, name)); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap)); encoder.Save(file);
+        var image = new RenderTargetBitmap((int)Math.Ceiling(element.ActualWidth), (int)Math.Ceiling(element.ActualHeight), 96, 96, PixelFormats.Pbgra32);
+        image.Render(element); using var file = File.Create(Path.Combine(directory, name)); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image)); encoder.Save(file);
     }
-    private static void Require(bool condition, string message) { if (!condition) throw new Exception(message); }
+    private static void Require(bool value, string message) { if (!value) throw new Exception(message); }
 }

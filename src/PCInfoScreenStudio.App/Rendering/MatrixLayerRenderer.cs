@@ -1,0 +1,135 @@
+using System.Globalization;
+using System.Text;
+using SkiaSharp;
+using SkiaSharp.HarfBuzz;
+using PCInfoScreenStudio.Models;
+
+namespace PCInfoScreenStudio.Rendering;
+
+/// <summary>Composites software widgets before the controller receives one ordinary 90x10 image.</summary>
+public static class MatrixLayerRenderer
+{
+    private sealed record Raster(int Width, int Height, byte[] Rgba);
+    private static readonly object Gate = new();
+    private static readonly Dictionary<(string, int, string, uint), Raster> TextCache = [];
+    private static readonly Dictionary<(string, int), Raster> EmojiCache = [];
+    public static bool IsEmoji(string text) => text.EnumerateRunes().Any(r => r.Value is >= 0x1F000 and <= 0x1FAFF or >= 0x2600 and <= 0x27BF or 0xFE0F or 0x20E3 or 0x2764 or 0x2B50);
+    public static byte[] Compose(MatrixSettings settings, Func<string, int?> reading, DateTime utc, long step = 0)
+    {
+        var frame = new byte[2700];
+        foreach (var w in settings.Widgets ?? [])
+        {
+            if (!w.Visible) continue;
+            if (w.Content == MatrixContent.PixelArt)
+            {
+                for (int y = 0; y < w.Height; y++) for (int x = 0; x < w.Width; x++)
+                {
+                    int p = (y * 90 + x) * 3, d = ((w.Y + y) * 90 + w.X + x) * 3;
+                    if (w.Pixels[p] == 0 && w.Pixels[p + 1] == 0 && w.Pixels[p + 2] == 0) continue;
+                    Array.Copy(w.Pixels, p, frame, d, 3);
+                }
+                continue;
+            }
+            int? value = w.Content == MatrixContent.Sensor ? reading(w.Source) : null;
+            string text = w.Content switch
+            {
+                MatrixContent.Clock => utc.ToString("HH:mm"),
+                MatrixContent.Sensor => value is int n ? n + (w.Source.EndsWith("Usage") ? "%" : "°C") : "N/A",
+                _ => w.Text
+            };
+            var colour = w.Content == MatrixContent.Sensor && w.Alarm && value is int v && v >= w.AlarmThreshold ? SKColors.Red : SKColor.Parse(w.Colour);
+            Raster raster;
+            lock (Gate)
+            {
+                var key = (text, w.Height, w.FontKey, (uint)colour);
+                if (!TextCache.TryGetValue(key, out raster!))
+                {
+                    raster = BuildText(text, w.Height, w.FontKey, colour);
+                    if (TextCache.Count >= 32) TextCache.Clear();
+                    TextCache[key] = raster;
+                }
+            }
+            bool scroll = w.Content == MatrixContent.Text && w.Scroll && raster.Width > w.Width;
+            int phase = scroll ? (int)(Math.Max(0, step) % (raster.Width + 3)) : 0;
+            var occupied = Enumerable.Range(0, raster.Width).Where(x => Enumerable.Range(0, w.Height).Any(y => raster.Rgba[(y * raster.Width + x) * 4 + 3] != 0)).ToArray();
+            int left = occupied.Length == 0 ? 0 : occupied[0], right = occupied.Length == 0 ? -1 : occupied[^1];
+            int offset = scroll ? 0 : w.Alignment == MatrixAlignment.Centre ? (w.Width - (right - left + 1)) / 2 - left : w.Alignment == MatrixAlignment.Right ? w.Width - 1 - right : 0;
+            for (int y = 0; y < w.Height; y++) for (int x = 0; x < w.Width; x++)
+            {
+                int sx = scroll ? (x + phase) % (raster.Width + 3) : x - offset;
+                if (sx < 0 || sx >= raster.Width) continue;
+                int p = (y * raster.Width + sx) * 4, d = ((w.Y + y) * 90 + w.X + x) * 3, alpha = raster.Rgba[p + 3];
+                for (int channel = 0; channel < 3; channel++) frame[d + channel] = (byte)((raster.Rgba[p + channel] * alpha + frame[d + channel] * (255 - alpha) + 127) / 255);
+            }
+        }
+        return frame;
+    }
+    private static Raster BuildText(string text, int height, string key, SKColor colour)
+    {
+        // Keep ordinary bitmap text byte-identical to the approved font renderer.
+        if (!IsEmoji(text)) return BitmapText(text, height, key, colour);
+        var parts = new List<(Raster Raster, int X)>(); int width = 0; bool space = false;
+        var elements = StringInfo.GetTextElementEnumerator(text);
+        while (elements.MoveNext())
+        {
+            string element = elements.GetTextElement();
+            if (string.IsNullOrWhiteSpace(element)) { space = true; continue; }
+            var raster = IsEmoji(element) ? Emoji(element, height) : BitmapText(element, height, key, colour);
+            if (parts.Count > 0)
+            {
+                width += space ? 3 : 1;
+                if (space)
+                {
+                    var previous = parts[^1].Raster;
+                    bool Dark(Raster r, int x) => Enumerable.Range(0, height).All(y => r.Rgba[(y * r.Width + x) * 4 + 3] == 0);
+                    width -= Enumerable.Range(0, previous.Width).Reverse().TakeWhile(x => Dark(previous, x)).Count();
+                    width -= Enumerable.Range(0, raster.Width).TakeWhile(x => Dark(raster, x)).Count();
+                }
+            }
+            parts.Add((raster, width)); width += raster.Width; space = false;
+        }
+        var bytes = new byte[width * height * 4];
+        foreach (var (raster, position) in parts) for (int y = 0; y < height; y++) for (int x = 0; x < raster.Width; x++)
+            if (raster.Rgba[(y * raster.Width + x) * 4 + 3] != 0)
+                Array.Copy(raster.Rgba, (y * raster.Width + x) * 4, bytes, (y * width + position + x) * 4, 4);
+        return new(width, height, bytes);
+    }
+    private static Raster BitmapText(string text, int height, string key, SKColor colour)
+    {
+        var mask = MatrixBitmapFonts.Render(text, height, key); var bytes = new byte[mask.Width * height * 4];
+        for (int i = 0; i < mask.Ink.Length; i++) if (mask.Ink[i])
+        { bytes[i * 4] = colour.Red; bytes[i * 4 + 1] = colour.Green; bytes[i * 4 + 2] = colour.Blue; bytes[i * 4 + 3] = 255; }
+        return new(mask.Width, height, bytes);
+    }
+    private static Raster Emoji(string element, int height)
+    {
+        if (EmojiCache.TryGetValue((element, height), out var cached)) return cached;
+        using var face = SKTypeface.FromFamilyName("Segoe UI Emoji");
+        using var font = new SKFont(face, 64); using var shaper = new SKShaper(face);
+        var shape = shaper.Shape(element, font);
+        using var builder = new SKTextBlobBuilder();
+        var run = builder.AllocateRawPositionedRun(font, shape.Codepoints.Length, null);
+        for (int i = 0; i < shape.Codepoints.Length; i++) { run.Glyphs[i] = (ushort)shape.Codepoints[i]; run.Positions[i] = shape.Points[i]; }
+        using var blob = builder.Build();
+        if (blob is null || blob.Bounds.IsEmpty) return new(height, height, new byte[height * height * 4]);
+        var bounds = blob.Bounds;
+        using var bitmap = new SKBitmap(Math.Clamp((int)Math.Ceiling(bounds.Width) + 8, 8, 256), Math.Clamp((int)Math.Ceiling(bounds.Height) + 8, 8, 256));
+        bitmap.Erase(SKColors.Transparent);
+        using (var canvas = new SKCanvas(bitmap)) using (var paint = new SKPaint { Color = SKColors.White, IsAntialias = true })
+            canvas.DrawText(blob, 4 - bounds.Left, 4 - bounds.Top, paint);
+        int minX = bitmap.Width, minY = bitmap.Height, maxX = -1, maxY = -1;
+        for (int y = 0; y < bitmap.Height; y++) for (int x = 0; x < bitmap.Width; x++) if (bitmap.GetPixel(x, y).Alpha > 8)
+        { minX = Math.Min(minX, x); minY = Math.Min(minY, y); maxX = Math.Max(maxX, x); maxY = Math.Max(maxY, y); }
+        if (maxX < minX) return new(height, height, new byte[height * height * 4]);
+        using var crop = new SKBitmap(maxX - minX + 1, maxY - minY + 1);
+        bitmap.ExtractSubset(crop, new SKRectI(minX, minY, maxX + 1, maxY + 1));
+        int width = Math.Clamp((int)Math.Round(crop.Width * height / (double)crop.Height), 1, 20);
+        using var small = crop.Resize(new SKImageInfo(width, height), new SKSamplingOptions(SKFilterMode.Linear))!;
+        var bytes = new byte[width * height * 4];
+        for (int y = 0; y < height; y++) for (int x = 0; x < width; x++)
+        { var c = small.GetPixel(x, y); int p = (y * width + x) * 4; bytes[p] = c.Red; bytes[p + 1] = c.Green; bytes[p + 2] = c.Blue; bytes[p + 3] = c.Alpha; }
+        var result = new Raster(width, height, bytes);
+        if (EmojiCache.Count >= 128) EmojiCache.Clear();
+        EmojiCache[(element, height)] = result; return result;
+    }
+}

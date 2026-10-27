@@ -104,7 +104,7 @@ public sealed partial class MainViewModel
         photos = Document.PhotoFrame.Photos.Count, activeVideos = VideoFrameProvider.ActiveCount,
         videoDecoders = VideoFrameProvider.RunningDecoders, videoFrameBytes = VideoFrameProvider.CachedFrameBytes,
         mediaCache = MediaResourceCache.Diagnostics, fileOperationBusy = IsFileOperationBusy,
-        displayTarget = SelectedDisplayTarget.ToString(), matrix = new { connected = Matrix.IsConnected, firmware = Matrix.FirmwareVersion, layout = Matrix.Layout, brightness = Matrix.Brightness, experimental = true }
+        displayTarget = SelectedDisplayTarget.ToString(), matrix = new { connected = Matrix.IsConnected, firmware = Matrix.FirmwareVersion, layout = Matrix.Layout, layers = Matrix.Layers.Count, brightness = Matrix.Brightness, experimental = true }
     });
     private async Task ExportDiagnosticsAsync()
     {
