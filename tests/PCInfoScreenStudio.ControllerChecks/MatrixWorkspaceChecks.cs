@@ -84,7 +84,7 @@ internal static class MatrixWorkspaceChecks
     { if (p is T found) return found; for (int i = 0; i < VisualTreeHelper.GetChildrenCount(p); i++) if (Find<T>(VisualTreeHelper.GetChild(p, i)) is T child) return child; return null; }
     private static void Capture(Window window, string? directory, string name)
     {
-        if (directory is null) return; Directory.CreateDirectory(directory); window.UpdateLayout(); var element = (FrameworkElement)window.Content;
+        if (directory is null) return; Directory.CreateDirectory(directory); Flush(window); var element = (FrameworkElement)window.Content;
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(element.ActualWidth), (int)Math.Ceiling(element.ActualHeight), 96, 96, PixelFormats.Pbgra32);
         bitmap.Render(element); using var file = File.Create(Path.Combine(directory, name)); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap)); encoder.Save(file);
     }

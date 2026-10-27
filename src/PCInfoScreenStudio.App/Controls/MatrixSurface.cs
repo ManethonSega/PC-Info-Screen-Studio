@@ -21,7 +21,16 @@ public sealed class MatrixSurface : FrameworkElement
         };
         ToolTip = "Pixel art: drag to paint, right-click to erase. Arrow keys move; Space paints; Delete erases.";
     }
-    private void OnPreviewChanged(object? sender, EventArgs e) => InvalidateVisual();
+    private void OnPreviewChanged(object? sender, EventArgs e)
+    {
+        if (_model is not null)
+        {
+            var region = MatrixSettings.Region(_model.Layout, _model.SelectedTile);
+            _x = Math.Clamp(_x, region.X, region.X + region.Width - 1);
+            _y = Math.Clamp(_y, region.Y, region.Y + region.Height - 1);
+        }
+        InvalidateVisual();
+    }
     private (double Scale, double Left, double Top) Geometry()
     {
         double scale = Math.Max(.1, Math.Min(ActualWidth / 90, ActualHeight / 10));
