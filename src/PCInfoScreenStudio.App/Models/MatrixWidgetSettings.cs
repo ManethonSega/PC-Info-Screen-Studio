@@ -28,6 +28,10 @@ public sealed class MatrixWidgetSettings : MatrixTileSettings
     public string ArtKey { get; set; } = "";
     public int ArtWidth { get; set; } = 10;
     public MatrixAnimationStyle AnimationStyle { get; set; }
+    public int InstanceCount { get; set; } = 1;
+    public MatrixCatStyle CatStyle { get; set; }
+    public MatrixStarStyle StarStyle { get; set; }
+    public MatrixShootingStarStyle ShootingStarStyle { get; set; } = MatrixShootingStarStyle.White;
     public MatrixFlightDirection FlightDirection { get; set; }
     public int FlightSpeed { get; set; } = 5;
     public bool AnimationPlaying { get; set; } = true;
@@ -53,6 +57,10 @@ public sealed class MatrixWidgetSettings : MatrixTileSettings
             ManualValue = double.IsFinite(ManualValue) ? Math.Clamp(ManualValue,-1000000,1000000) : 0,
             ArtKey = Limit(ArtKey,60), ArtWidth = Math.Clamp(ArtWidth,1,90),
             AnimationStyle = Enum.IsDefined(AnimationStyle) ? AnimationStyle : MatrixAnimationStyle.Rocket,
+            InstanceCount = Math.Clamp(InstanceCount,1,3),
+            CatStyle = Enum.IsDefined(CatStyle) ? CatStyle : MatrixCatStyle.Beige,
+            StarStyle = Enum.IsDefined(StarStyle) ? StarStyle : MatrixStarStyle.White1,
+            ShootingStarStyle = Enum.IsDefined(ShootingStarStyle) ? ShootingStarStyle : MatrixShootingStarStyle.White,
             FlightDirection = Enum.IsDefined(FlightDirection) ? FlightDirection : MatrixFlightDirection.RightToLeft,
             FlightSpeed = Math.Clamp(FlightSpeed,1,20), AnimationPlaying = AnimationPlaying,
             Content = Enum.IsDefined(Content) ? Content : c.Content, Text = Limit(Text, 200), Source = string.IsNullOrWhiteSpace(Source) ? c.Source : Limit(Source, 512),

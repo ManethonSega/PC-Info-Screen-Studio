@@ -131,6 +131,20 @@
      <StackPanel Visibility="{Binding FlightVisibility}" Margin="0,0,0,12">
       <CheckBox Content="Play animation" IsChecked="{Binding AnimationPlaying}" ToolTip="Turn off to show the selected animation as a static frame."/>
      </StackPanel>
+     <StackPanel Visibility="{Binding InstanceCountVisibility}" Margin="0,0,0,12">
+      <TextBlock Text="Objects" Foreground="{StaticResource MutedTextBrush}"/>
+      <ComboBox x:Name="InstanceCountSelector" ItemsSource="{Binding InstanceCounts}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding InstanceCount}" AutomationProperties.Name="Animation object count" Margin="0,5,0,0"/>
+     </StackPanel>
+     <StackPanel Visibility="{Binding CatStyleVisibility}" Margin="0,0,0,12">
+      <TextBlock Text="Cat colour" Foreground="{StaticResource MutedTextBrush}"/>
+      <ComboBox x:Name="CatStyleSelector" ItemsSource="{Binding CatStyles}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding CatStyle}" AutomationProperties.Name="Animation cat colour" Margin="0,5,0,0"/>
+     </StackPanel>
+     <StackPanel Visibility="{Binding StarStyleVisibility}" Margin="0,0,0,12">
+      <TextBlock Text="Stars" Foreground="{StaticResource MutedTextBrush}"/>
+      <ComboBox x:Name="StarStyleSelector" ItemsSource="{Binding StarStyles}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding StarStyle}" AutomationProperties.Name="Starfield stars" Margin="0,5,0,9"/>
+      <TextBlock Text="Shooting star" Foreground="{StaticResource MutedTextBrush}"/>
+      <ComboBox x:Name="ShootingStarStyleSelector" ItemsSource="{Binding ShootingStarStyles}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding ShootingStarStyle}" AutomationProperties.Name="Starfield shooting star" Margin="0,5,0,0"/>
+     </StackPanel>
      <StackPanel Visibility="{Binding AnimationAreaVisibility}" Margin="0,0,0,12">
       <TextBlock Text="Animation area" Foreground="{StaticResource MutedTextBrush}"/>
       <ComboBox x:Name="AnimationAreaSelector" ItemsSource="{Binding AnimationAreas}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding AnimationAreaWidth}" AutomationProperties.Name="Animation area width" Margin="0,5,0,9"/>

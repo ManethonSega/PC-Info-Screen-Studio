@@ -6,10 +6,10 @@ namespace PCInfoScreenStudio.Rendering;
 /// <summary>Native LED primitives, with no desktop scaling or firmware effects.</summary>
 public static class MatrixGraphicsRenderer
 {
-    public static int MotionOrigin(int width, int contentWidth, MatrixFlightDirection direction, int speed, bool playing, long step)
+    public static int MotionOrigin(int width, int contentWidth, MatrixFlightDirection direction, int speed, bool playing, long step, int phaseOffset = 0)
     {
         int cycle = Math.Max(1, width + contentWidth);
-        int phase = playing ? (int)((Math.Max(0, step) % (cycle * 5L)) * Math.Clamp(speed, 1, 20) / 5 % cycle) : 0;
+        int phase = ((playing ? (int)((Math.Max(0, step) % (cycle * 5L)) * Math.Clamp(speed, 1, 20) / 5 % cycle) : 0) + phaseOffset) % cycle;
         int origin = direction == MatrixFlightDirection.RightToLeft ? width - contentWidth - phase : phase;
         if (origin < -contentWidth) origin += cycle;
         if (origin >= width) origin -= cycle;
@@ -18,6 +18,12 @@ public static class MatrixGraphicsRenderer
 
     public static int FlightOrigin(MatrixWidgetSettings w, long step)
         => MotionOrigin(w.Width, w.ArtWidth, w.FlightDirection, w.FlightSpeed, w.AnimationPlaying, step);
+
+    public static int[] MotionOrigins(MatrixWidgetSettings w,int contentWidth,long step)
+    {
+        int count=Math.Clamp(w.InstanceCount,1,3),cycle=w.Width+contentWidth;
+        return Enumerable.Range(0,count).Select(i=>MotionOrigin(w.Width,contentWidth,w.FlightDirection,w.FlightSpeed,w.AnimationPlaying,step,cycle*i/count)).ToArray();
+    }
 
     public static byte[] Render(MatrixWidgetSettings w, MatrixWidgetReading reading, long step)
     {
@@ -52,11 +58,16 @@ public static class MatrixGraphicsRenderer
         switch (w.AnimationStyle)
         {
             case MatrixAnimationStyle.Crab:
+                RenderCrab(w, step, primary, put);
+                break;
             case MatrixAnimationStyle.Cat:
-                RenderCreature(w, step, primary, put);
+                RenderCat(w, step, put);
+                break;
+            case MatrixAnimationStyle.Ufo:
+                RenderUfo(w, step, put);
                 break;
             case MatrixAnimationStyle.Starfield:
-                RenderStarfield(w, step, primary, put);
+                RenderStarfield(w, step, put);
                 break;
             case MatrixAnimationStyle.Rainbow:
                 for (int y = 0; y < w.Height; y++) for (int x = 0; x < w.Width; x++)
@@ -108,43 +119,40 @@ public static class MatrixGraphicsRenderer
 
     private static void RenderRocket(MatrixWidgetSettings w, long step, Action<int, int, SKColor> put)
     {
-        int origin = FlightOrigin(w, step);
-        for (int y = 0; y < w.Height; y++) for (int x = 0; x < w.ArtWidth; x++)
+        foreach (int origin in ObjectOrigins(w,w.ArtWidth,step))
         {
-            int sx = w.FlightDirection == MatrixFlightDirection.RightToLeft ? w.ArtWidth - 1 - x : x;
-            int p = (y * 90 + sx) * 3;
-            if (w.Pixels[p] != 0 || w.Pixels[p + 1] != 0 || w.Pixels[p + 2] != 0)
-                put(origin + x, y, new(w.Pixels[p], w.Pixels[p + 1], w.Pixels[p + 2]));
-        }
+            for (int y = 0; y < w.Height; y++) for (int x = 0; x < w.ArtWidth; x++)
+            {
+                int sx = w.FlightDirection == MatrixFlightDirection.RightToLeft ? w.ArtWidth - 1 - x : x;
+                int p = (y * 90 + sx) * 3;
+                if (w.Pixels[p] != 0 || w.Pixels[p + 1] != 0 || w.Pixels[p + 2] != 0)
+                    put(origin + x, y, new(w.Pixels[p], w.Pixels[p + 1], w.Pixels[p + 2]));
+            }
 
-        if (!w.AnimationPlaying) return;
-        int[] flameLengths = [1, 3, 0, 2, 4, 1];
-        int length = flameLengths[(int)(Math.Max(0, step) % flameLengths.Length)];
-        int tail = w.FlightDirection == MatrixFlightDirection.RightToLeft ? origin + w.ArtWidth : origin - 1;
-        int trail = w.FlightDirection == MatrixFlightDirection.RightToLeft ? 1 : -1;
-        int centre = w.Height / 2;
-        for (int i = 0; i < length; i++)
-        {
-            SKColor colour = i == 0 ? new(255, 220, 40) : i == 1 ? new(255, 125, 15) : new(190, 48, 20);
-            put(tail + trail * i, centre, colour);
-            if (w.Height >= 6 && i < 2) put(tail + trail * i, centre - 1 + (int)(step + i) % 2, Scale(colour, .72));
+            if (!w.AnimationPlaying) continue;
+            int[] flameLengths = [1, 3, 0, 2, 4, 1];
+            int length = flameLengths[(int)(Math.Max(0, step) % flameLengths.Length)];
+            int tail = w.FlightDirection == MatrixFlightDirection.RightToLeft ? origin + w.ArtWidth : origin - 1;
+            int trail = w.FlightDirection == MatrixFlightDirection.RightToLeft ? 1 : -1;
+            int centre = w.Height / 2;
+            for (int i = 0; i < length; i++)
+            {
+                SKColor colour = i == 0 ? new(255, 220, 40) : i == 1 ? new(255, 125, 15) : new(190, 48, 20);
+                put(tail + trail * i, centre, colour);
+                if (w.Height >= 6 && i < 2) put(tail + trail * i, centre - 1 + (int)(step + i) % 2, Scale(colour, .72));
+            }
         }
     }
 
-    private static void RenderCreature(MatrixWidgetSettings w, long step, SKColor colour, Action<int, int, SKColor> put)
+    private static void RenderCrab(MatrixWidgetSettings w, long step, SKColor colour, Action<int, int, SKColor> put)
     {
         bool secondFrame = w.AnimationPlaying && (step / 2) % 2 != 0;
-        string[] source = w.AnimationStyle == MatrixAnimationStyle.Crab
-            ? secondFrame
+        string[] source = secondFrame
                 ? ["R...R...R", ".R.ERE.R.", "..RRRRR..", "R.R.R.R.R", ".R.....R."]
-                : ["R...R...R", ".R.ERE.R.", "..RRRRR..", ".R.R.R.R.", "R.......R"]
-            : secondFrame
-                ? ["P.P.....", "PPPP....", "PEEP..P.", "PPPPPPP.", "P.P.P..P"]
-                : ["P.P.....", "PPPP....", "PEEP...P", "PPPPPPPP", ".P.P.P.."];
+                : ["R...R...R", ".R.ERE.R.", "..RRRRR..", ".R.R.R.R.", "R.......R"];
         int sourceWidth = source.Max(r => r.Length);
         int spriteWidth = Math.Max(3, (int)Math.Round(sourceWidth * w.Height / (double)source.Length));
-        int origin = MotionOrigin(w.Width, spriteWidth, w.FlightDirection, w.FlightSpeed, w.AnimationPlaying, step);
-        for (int y = 0; y < w.Height; y++) for (int x = 0; x < spriteWidth; x++)
+        foreach(int origin in ObjectOrigins(w,spriteWidth,step)) for (int y = 0; y < w.Height; y++) for (int x = 0; x < spriteWidth; x++)
         {
             int sy = Math.Min(source.Length - 1, y * source.Length / w.Height);
             int sx = Math.Min(sourceWidth - 1, x * sourceWidth / spriteWidth);
@@ -155,30 +163,58 @@ public static class MatrixGraphicsRenderer
         }
     }
 
-    private static void RenderStarfield(MatrixWidgetSettings w, long step, SKColor colour, Action<int, int, SKColor> put)
+    private static void RenderCat(MatrixWidgetSettings w,long step,Action<int,int,SKColor> put)
     {
-        int phase = w.AnimationPlaying ? (int)(step % 5) : 0;
-        for (int y = 0; y < w.Height; y++) for (int x = 0; x < w.Width; x++)
+        var art=MatrixArtBank.Get(MatrixAnimationPresets.CatKey(w.CatStyle),w.Height);
+        bool gait=w.AnimationPlaying && (step/2)%2!=0;
+        foreach(int origin in ObjectOrigins(w,art.Width,step)) DrawArt(art,origin,w.FlightDirection==MatrixFlightDirection.RightToLeft,put,1,gait);
+    }
+
+    private static void RenderUfo(MatrixWidgetSettings w,long step,Action<int,int,SKColor> put)
+    {
+        var art=MatrixArtBank.Get("anim-ufo-gray",w.Height);
+        double level=w.AnimationPlaying && step%4 is 1 or 2 ? .68 : 1;
+        foreach(int origin in ObjectOrigins(w,art.Width,step)) DrawArt(art,origin,w.FlightDirection==MatrixFlightDirection.RightToLeft,put,level);
+    }
+
+    private static void RenderStarfield(MatrixWidgetSettings w, long step, Action<int, int, SKColor> put)
+    {
+        var stars=MatrixArtBank.Get(MatrixAnimationPresets.StarKey(w.StarStyle),w.Height);
+        int spacing=stars.Width+Math.Max(2,w.Height/3);
+        for(int x=0,index=0;x<w.Width;x+=spacing,index++)
         {
-            int hash = (x * 37 + y * 61 + 17) % 23;
-            if (hash % 5 == phase) put(x, y, hash % 2 == 0 ? colour : Scale(colour, .35));
+            double level=w.AnimationPlaying ? .45+.55*(.5+.5*Math.Sin((step+index*2)*.9)) : 1;
+            DrawArt(stars,x,false,put,level);
         }
-        if (!w.AnimationPlaying) return;
-        int head = MotionOrigin(w.Width, 1, w.FlightDirection, w.FlightSpeed, true, step);
-        int trail = w.FlightDirection == MatrixFlightDirection.RightToLeft ? 1 : -1;
-        int row = (int)((step / 9) % Math.Max(1, w.Height));
-        for (int i = 0; i < Math.Min(6, w.Width); i++) put(head + trail * i, row, Scale(SKColors.White, 1 - i * .13));
+        if(w.ShootingStarStyle==MatrixShootingStarStyle.None)return;
+        var shooting=MatrixArtBank.Get(MatrixAnimationPresets.ShootingStarKey(w.ShootingStarStyle),w.Height);
+        int origin=MotionOrigin(w.Width,shooting.Width,w.FlightDirection,w.FlightSpeed,w.AnimationPlaying,step);
+        DrawArt(shooting,origin,w.FlightDirection==MatrixFlightDirection.RightToLeft,put);
     }
 
     private static void RenderMeteor(MatrixWidgetSettings w, long step, SKColor colour, Action<int, int, SKColor> put)
     {
-        int head = MotionOrigin(w.Width, 1, w.FlightDirection, w.FlightSpeed, w.AnimationPlaying, step);
         int trail = w.FlightDirection == MatrixFlightDirection.RightToLeft ? 1 : -1;
         int length = Math.Min(w.Width, Math.Max(5, w.Width / 5));
-        for (int i = 0; i < length; i++)
+        foreach(int head in ObjectOrigins(w,1,step)) for (int i = 0; i < length; i++)
         {
             double level = 1 - i / (double)length;
             for (int y = 0; y < w.Height; y++) put(head + trail * i, y, Scale(colour, level * level));
+        }
+    }
+
+    private static IEnumerable<int> ObjectOrigins(MatrixWidgetSettings w,int contentWidth,long step)
+        => MotionOrigins(w,contentWidth,step);
+
+    private static void DrawArt(MatrixArtImage art,int origin,bool mirror,Action<int,int,SKColor> put,double level=1,bool gait=false)
+    {
+        for(int y=0;y<art.Height;y++)for(int x=0;x<art.Width;x++)
+        {
+            int sx=mirror?art.Width-1-x:x,p=(y*90+sx)*3;
+            if(art.Pixels[p]==0&&art.Pixels[p+1]==0&&art.Pixels[p+2]==0)continue;
+            int gaitOffset=gait&&y>=Math.Max(1,art.Height*3/4)?(x<art.Width/2?1:-1):0;
+            var colour=new SKColor(art.Pixels[p],art.Pixels[p+1],art.Pixels[p+2]);
+            put(origin+x+gaitOffset,y,level==1?colour:Scale(colour,level));
         }
     }
 

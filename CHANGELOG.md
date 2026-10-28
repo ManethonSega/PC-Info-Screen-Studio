@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.0-alpha.37 (draft)
+
+- Replaced the procedural cat and starfield artwork with supplied native pixel sprites, including five cat colours, three star fields and white/yellow/off shooting-star choices.
+- Added the supplied UFO as a moving animation and added one-, two- or three-object counts to rocket, crab, cat, UFO and meteor layers.
+- Mirror the complete cat sprite when direction changes and animate its leg pixels without replacing the supplied body art.
+- Added five supplied cat faces to the editable pixel-art bank, with 4-, 5-, 6- and 10-dot variants.
+
 ## 0.10.0-alpha.36 (draft)
 
 - Added a 6-dot height to every Matrix widget while preserving each widget's independent font, alignment and colour.

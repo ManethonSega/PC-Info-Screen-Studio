@@ -1,8 +1,10 @@
-"""Adapt the supplied EPS sheets to exact LED grids. Requires Ghostscript and Pillow."""
+"""Adapt the supplied EPS/PNG/ZIP artwork to exact LED grids. Requires Ghostscript and Pillow."""
 import argparse
+import io
 import json
 import subprocess
 import tempfile
+import zipfile
 from pathlib import Path
 from PIL import Image, ImageDraw
 
@@ -29,6 +31,32 @@ choices = [
 choices = [c for c in choices if c[0] not in ("cat", "frog")]
 choices.append(("hourglass", "Hourglass", 2, (70,227,213,379)))
 bank = []
+
+def native_variants(source):
+ if source.width >= 100 and source.height >= 100 and source.width % 10 == 0 and source.height % 10 == 0:
+  source = source.resize((source.width//10,source.height//10),Image.Resampling.NEAREST)
+ source = source.convert("RGBA")
+ alpha_box = source.getchannel("A").getbbox()
+ if alpha_box: source = source.crop(alpha_box)
+ variants = []
+ for height in (4,5,6,10):
+  width = max(1,round(source.width*height/source.height))
+  small = source.resize((width,height),Image.Resampling.BOX)
+  quant = small.convert("RGB").quantize(colors=12).convert("RGB")
+  palette,rows = [],[]
+  for y in range(height):
+   row = ""
+   for x in range(width):
+    if small.getpixel((x,y))[3] < 80: row += "."; continue
+    rgb = quant.getpixel((x,y))
+    if max(rgb) < 45: rgb = (28,38,54)
+    colour = "%02X%02X%02X" % rgb
+    if colour not in palette: palette.append(colour)
+    row += "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"[palette.index(colour)]
+   rows.append(row)
+  variants.append(dict(Height=height,Width=width,Palette=palette,Rows=rows))
+ return variants
+
 with tempfile.TemporaryDirectory() as tmp:
  images = []
  for i, name in enumerate(sheets):
@@ -42,24 +70,7 @@ with tempfile.TemporaryDirectory() as tmp:
   image.putdata([(r,g,b,0 if sum((a-c)**2 for a,c in zip((r,g,b),bg)) < 2300 else 255) for r,g,b,_ in data])
   image = image.crop(image.getbbox())
   if key == "rocket": image = image.transpose(Image.Transpose.ROTATE_270)
-  variants = []
-  for height in (4,5,6,10):
-   width = max(1, round(image.width*height/image.height))
-   small = image.resize((width,height), Image.Resampling.BOX)
-   # Quantize each exact grid rather than retaining blurry desktop antialiasing.
-   quant = small.convert("RGB").quantize(colors=8).convert("RGB")
-   palette, rows = [], []
-   for y in range(height):
-    row = ""
-    for x in range(width):
-     if small.getpixel((x,y))[3] < 80: row += "."; continue
-     rgb = quant.getpixel((x,y))
-     if max(rgb) < 45: rgb = (28,38,54)
-     colour = "%02X%02X%02X" % rgb
-     if colour not in palette: palette.append(colour)
-     row += "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"[palette.index(colour)]
-    rows.append(row)
-   variants.append(dict(Height=height, Width=width, Palette=palette, Rows=rows))
+  variants = native_variants(image)
   # Tiny silhouettes are intentionally drawn on the native grid, preserving
   # the source's pink fins, grey hull, blue window and orange/yellow exhaust.
   if key == "rocket":
@@ -81,7 +92,35 @@ with tempfile.TemporaryDirectory() as tmp:
   if key == "skull":
    shapes = {4:["00000","0.0.0",".000.",".0.0."],5:[".000.","00000","0.0.0",".000.",".0.0."],6:[".000.","00000","0.0.0","00000",".000.",".0.0."],10:[".0000000.","000000000","000...000","00..0..00","00..0..00","000000000",".000.000.","..00000..","..0.0.0..","..0.0.0.."]}
    variants = [dict(Height=h, Width=len(rows[0]), Palette=["EDD9B6"], Rows=rows) for h,rows in shapes.items()]
-  bank.append(dict(Key=key, Label=label, Variants=variants))
+  bank.append(dict(Key=key, Label=label, Gallery=True, Variants=variants))
+
+zip_path = args.source_dir/"Pixel cats.zip"
+with zipfile.ZipFile(zip_path) as archive:
+ cat_files = [
+  ("cat-face-white","Cat face · White","Pixel cats/Pixel Art static/01_Head.png"),
+  ("cat-face-orange","Cat face · Orange","Pixel cats/Pixel Art static/02_Head.png"),
+  ("cat-face-gray","Cat face · Gray","Pixel cats/Pixel Art static/03_Head.png"),
+  ("cat-face-black","Cat face · Black","Pixel cats/Pixel Art static/04_Head.png"),
+  ("cat-face-beige","Cat face · Beige","Pixel cats/Pixel Art static/05_Head.png")]
+ moving_files = [
+  ("anim-cat-beige","Cat body · Beige","Pixel cats/Moving/Biege_Body.png"),
+  ("anim-cat-black","Cat body · Black","Pixel cats/Moving/Black_Body.png"),
+  ("anim-cat-gray","Cat body · Gray","Pixel cats/Moving/Gray_Body.png"),
+  ("anim-cat-orange","Cat body · Orange","Pixel cats/Moving/Orange_Body.png"),
+  ("anim-cat-white","Cat body · White","Pixel cats/Moving/White_Body.png")]
+ for key,label,name in cat_files+moving_files:
+  image=Image.open(io.BytesIO(archive.read(name))).convert("RGBA")
+  bank.append(dict(Key=key,Label=label,Gallery=key.startswith("cat-face-"),Variants=native_variants(image)))
+
+for key,label,name in [
+ ("anim-stars-white-1","White stars 1","WhiteStars1.png"),
+ ("anim-stars-yellow-1","Yellow stars 1","YellowStars1.png"),
+ ("anim-stars-white-2","White stars 2","WhiteStars2.png"),
+ ("anim-shooting-white","White shooting star","WhiteShootingStar.png"),
+ ("anim-shooting-yellow","Yellow shooting star","YellowShootingStar.png"),
+ ("anim-ufo-gray","Gray UFO","UfoGrey.png")]:
+ image=Image.open(args.source_dir/name).convert("RGBA")
+ bank.append(dict(Key=key,Label=label,Gallery=False,Variants=native_variants(image)))
 (root/"src/PCInfoScreenStudio.App/Assets/MatrixArtBank.json").write_text(json.dumps(bank, indent=2)+"\n")
 if args.preview:
  canvas = Image.new("RGB", (800, len(bank)*85), "#091425"); draw = ImageDraw.Draw(canvas)

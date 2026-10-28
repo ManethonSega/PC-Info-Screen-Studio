@@ -23,13 +23,17 @@ public sealed partial class MatrixWorkspaceViewModel
     public IReadOnlyList<MatrixWidgetSizeOption> BarWidths { get; } = [new("30 dots",30),new("45 dots",45),new("60 dots",60)];
     public IReadOnlyList<MatrixWidgetSizeOption> AnimationAreas { get; } = [new("60 dots · side panel",60),new("90 dots · side + front",90)];
     public IReadOnlyList<MatrixFlightOption> FlightDirections { get; } = [new("Right to left",MatrixFlightDirection.RightToLeft),new("Left to right",MatrixFlightDirection.LeftToRight)];
+    public IReadOnlyList<MatrixCountOption> InstanceCounts { get; } = [new("1 object",1),new("2 objects",2),new("3 objects",3)];
+    public IReadOnlyList<MatrixCatOption> CatStyles { get; } = [new("Beige",MatrixCatStyle.Beige),new("Black",MatrixCatStyle.Black),new("Gray",MatrixCatStyle.Gray),new("Orange",MatrixCatStyle.Orange),new("White",MatrixCatStyle.White)];
+    public IReadOnlyList<MatrixStarOption> StarStyles { get; } = [new("White stars 1",MatrixStarStyle.White1),new("Yellow stars 1",MatrixStarStyle.Yellow1),new("White stars 2",MatrixStarStyle.White2)];
+    public IReadOnlyList<MatrixShootingStarOption> ShootingStarStyles { get; } = [new("Off",MatrixShootingStarStyle.None),new("White shooting star",MatrixShootingStarStyle.White),new("Yellow shooting star",MatrixShootingStarStyle.Yellow)];
     public RelayCommand AddProgressBarCommand { get; private set; } = null!;
     public RelayCommand AddBankArtCommand { get; private set; } = null!;
     public RelayCommand AddAnimationCommand { get; private set; } = null!;
     public RelayCommand AddRocketCommand { get; private set; } = null!;
     private void InitializeGraphics()
     {
-        ArtChoices=MatrixArtBank.All.Select(a=>new MatrixArtChoice(a.Key,a.Label,Thumbnail(MatrixArtBank.Get(a.Key,10).Pixels,MatrixArtBank.Get(a.Key,10).Width,10))).ToArray();
+        ArtChoices=MatrixArtBank.All.Where(a=>a.Gallery).Select(a=>new MatrixArtChoice(a.Key,a.Label,Thumbnail(MatrixArtBank.Get(a.Key,10).Pixels,MatrixArtBank.Get(a.Key,10).Width,10))).ToArray();
         BarStyles=MatrixBarPresets.All.Select(s=>new MatrixBarChoice(s.Value,s.Label,Thumbnail(MatrixGraphicsRenderer.Render(new() { Content=MatrixContent.ProgressBar,BarStyle=s.Value,Colour=s.Colour,Width=45,Height=10,UseSensor=false },MatrixWidgetReading.Unavailable,0),45,10))).ToArray();
         AnimationChoices=MatrixAnimationPresets.All.Select(a=>new MatrixAnimationChoice(a.Value,a.Label,AnimationThumbnail(a))).ToArray();
         AddProgressBarCommand=new RelayCommand(AddBar,()=>Layers.Count<64);
@@ -66,8 +70,11 @@ public sealed partial class MatrixWorkspaceViewModel
     public Visibility FlightVisibility => ContentKind==MatrixContent.FlyingArt ? Visibility.Visible : Visibility.Collapsed;
     public Visibility TextAnimationVisibility => ContentKind==MatrixContent.Text ? Visibility.Visible : Visibility.Collapsed;
     public Visibility AnimationAreaVisibility => ContentKind==MatrixContent.FlyingArt || ContentKind==MatrixContent.Text && Scroll ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility InstanceCountVisibility => ContentKind==MatrixContent.FlyingArt && MatrixAnimationPresets.SupportsInstances(Tile.AnimationStyle) ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility CatStyleVisibility => ContentKind==MatrixContent.FlyingArt && Tile.AnimationStyle==MatrixAnimationStyle.Cat ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility StarStyleVisibility => ContentKind==MatrixContent.FlyingArt && Tile.AnimationStyle==MatrixAnimationStyle.Starfield ? Visibility.Visible : Visibility.Collapsed;
     public Visibility ValueLabelVisibility => ContentKind==MatrixContent.Sensor ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility ColourVisibility => ContentKind==MatrixContent.FlyingArt && Tile.AnimationStyle==MatrixAnimationStyle.Rocket ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility ColourVisibility => ContentKind==MatrixContent.FlyingArt && Tile.AnimationStyle is MatrixAnimationStyle.Rocket or MatrixAnimationStyle.Cat or MatrixAnimationStyle.Starfield or MatrixAnimationStyle.Ufo ? Visibility.Collapsed : Visibility.Visible;
     public Visibility ManualBarVisibility => ContentKind==MatrixContent.ProgressBar && !UseSensor ? Visibility.Visible : Visibility.Collapsed;
     public bool UseSensor { get=>Tile.UseSensor; set { if(!IsEditable)return; Tile.UseSensor=value; if(!value)Tile.Alarm=false; RefreshFields();Changed(); } }
     public MatrixBarStyle BarStyle { get=>Tile.BarStyle; set { if(!IsEditable || !Enum.IsDefined(value))return;Tile.BarStyle=value;Tile.Colour=MatrixBarPresets.Get(value).Colour;RefreshFields();Changed(); } }
@@ -77,6 +84,10 @@ public sealed partial class MatrixWorkspaceViewModel
     public MatrixFlightDirection FlightDirection { get=>Tile.FlightDirection; set { if(!IsEditable || !Enum.IsDefined(value))return;Tile.FlightDirection=value;RaisePropertyChanged();Changed(); } }
     public int FlightSpeed { get=>Tile.FlightSpeed; set { if(!IsEditable)return;Tile.FlightSpeed=Math.Clamp(value,1,20);RaisePropertyChanged();Changed(); } }
     public bool AnimationPlaying { get=>Tile.AnimationPlaying; set { if(!IsEditable)return;Tile.AnimationPlaying=value;RaisePropertyChanged();Changed(); } }
+    public int InstanceCount { get=>Tile.InstanceCount; set { if(!IsEditable)return;Tile.InstanceCount=Math.Clamp(value,1,3);RaisePropertyChanged();Changed(); } }
+    public MatrixCatStyle CatStyle { get=>Tile.CatStyle; set { if(!IsEditable || !Enum.IsDefined(value))return;Tile.CatStyle=value;RaisePropertyChanged();Changed(); } }
+    public MatrixStarStyle StarStyle { get=>Tile.StarStyle; set { if(!IsEditable || !Enum.IsDefined(value))return;Tile.StarStyle=value;RaisePropertyChanged();Changed(); } }
+    public MatrixShootingStarStyle ShootingStarStyle { get=>Tile.ShootingStarStyle; set { if(!IsEditable || !Enum.IsDefined(value))return;Tile.ShootingStarStyle=value;RaisePropertyChanged();Changed(); } }
     public int BarWidth { get=>Tile.Width; set { if(!IsEditable || value is not (30 or 45 or 60))return;Width=value;RaisePropertyChanged(); } }
     public int AnimationAreaWidth { get=>Tile.Width; set { if(!IsEditable || value is not (60 or 90))return;Width=value;RaisePropertyChanged(); } }
     private void AddBar()
@@ -112,6 +123,6 @@ public sealed partial class MatrixWorkspaceViewModel
     }
     private void RefreshGraphicsFields()
     {
-        foreach(var name in new[] {nameof(BarVisibility),nameof(FlightVisibility),nameof(TextAnimationVisibility),nameof(AnimationAreaVisibility),nameof(ValueLabelVisibility),nameof(ColourVisibility),nameof(ManualBarVisibility),nameof(UseSensor),nameof(BarStyle),nameof(BarWidth),nameof(AnimationAreaWidth),nameof(RangeMinimum),nameof(RangeMaximum),nameof(ManualValue),nameof(FlightDirection),nameof(FlightSpeed),nameof(AnimationPlaying)})RaisePropertyChanged(name);
+        foreach(var name in new[] {nameof(BarVisibility),nameof(FlightVisibility),nameof(TextAnimationVisibility),nameof(AnimationAreaVisibility),nameof(InstanceCountVisibility),nameof(CatStyleVisibility),nameof(StarStyleVisibility),nameof(ValueLabelVisibility),nameof(ColourVisibility),nameof(ManualBarVisibility),nameof(UseSensor),nameof(BarStyle),nameof(BarWidth),nameof(AnimationAreaWidth),nameof(RangeMinimum),nameof(RangeMaximum),nameof(ManualValue),nameof(FlightDirection),nameof(FlightSpeed),nameof(AnimationPlaying),nameof(InstanceCount),nameof(CatStyle),nameof(StarStyle),nameof(ShootingStarStyle)})RaisePropertyChanged(name);
     }
 }

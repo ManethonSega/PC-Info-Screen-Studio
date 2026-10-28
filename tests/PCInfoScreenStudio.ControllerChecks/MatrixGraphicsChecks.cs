@@ -53,11 +53,33 @@ internal static class MatrixGraphicsChecks
             w.AnimationPlaying=false;
             Require(MatrixGraphicsRenderer.Render(w,MatrixWidgetReading.Unavailable,2).SequenceEqual(MatrixGraphicsRenderer.Render(w,MatrixWidgetReading.Unavailable,30)),"Every animation has a deterministic stopped frame.");
         }
-        var state=new MatrixSettings { Widgets=[new() { Content=MatrixContent.ProgressBar, Prefix="CPU",Width=44,Height=6,BarStyle=MatrixBarStyle.Coin,RangeMinimum=-50,RangeMaximum=150,UseSensor=false,ManualValue=75 },new() { Content=MatrixContent.FlyingArt,AnimationStyle=MatrixAnimationStyle.Cat,Width=61,ArtKey="rocket",ArtWidth=20,FlightDirection=MatrixFlightDirection.LeftToRight,FlightSpeed=9 }] }.ValidatedCopy();
+        var cat=new MatrixWidgetSettings { Content=MatrixContent.FlyingArt,AnimationStyle=MatrixAnimationStyle.Cat,CatStyle=MatrixCatStyle.Orange,Width=60,Height=10,FlightDirection=MatrixFlightDirection.LeftToRight,FlightSpeed=5 };
+        var catArt=MatrixArtBank.Get(MatrixAnimationPresets.CatKey(cat.CatStyle),10);
+        var catRight=MatrixGraphicsRenderer.Render(cat,MatrixWidgetReading.Unavailable,0);cat.FlightDirection=MatrixFlightDirection.RightToLeft;
+        var catLeft=MatrixGraphicsRenderer.Render(cat,MatrixWidgetReading.Unavailable,0);
+        for(int y=0;y<10;y++)for(int x=0;x<catArt.Width;x++)Require(catRight.Skip((y*90+x)*3).Take(3).SequenceEqual(catLeft.Skip((y*90+59-x)*3).Take(3)),"Changing cat direction mirrors the complete supplied cat, including its face.");
+        cat.FlightDirection=MatrixFlightDirection.LeftToRight;cat.InstanceCount=1;var oneCat=MatrixGraphicsRenderer.Render(cat,MatrixWidgetReading.Unavailable,0);cat.InstanceCount=3;var threeCats=MatrixGraphicsRenderer.Render(cat,MatrixWidgetReading.Unavailable,0);
+        Require(threeCats.Count(b=>b!=0)>oneCat.Count(b=>b!=0)*2,"The object-count selector renders three independently spaced cats.");
+        var catColours=Enum.GetValues<MatrixCatStyle>().Select(style=>Convert.ToBase64String(MatrixGraphicsRenderer.Render(new() { Content=MatrixContent.FlyingArt,AnimationStyle=MatrixAnimationStyle.Cat,CatStyle=style,Width=60,Height=10 },MatrixWidgetReading.Unavailable,0))).Distinct().Count();
+        Require(catColours==5,"All five supplied moving-cat colours produce distinct LED sprites.");
+        var whiteStars=MatrixGraphicsRenderer.Render(new() { Content=MatrixContent.FlyingArt,AnimationStyle=MatrixAnimationStyle.Starfield,StarStyle=MatrixStarStyle.White1,ShootingStarStyle=MatrixShootingStarStyle.White,Width=60,Height=10 },MatrixWidgetReading.Unavailable,0);
+        var yellowStars=MatrixGraphicsRenderer.Render(new() { Content=MatrixContent.FlyingArt,AnimationStyle=MatrixAnimationStyle.Starfield,StarStyle=MatrixStarStyle.Yellow1,ShootingStarStyle=MatrixShootingStarStyle.Yellow,Width=60,Height=10 },MatrixWidgetReading.Unavailable,0);
+        var sparseStars=MatrixGraphicsRenderer.Render(new() { Content=MatrixContent.FlyingArt,AnimationStyle=MatrixAnimationStyle.Starfield,StarStyle=MatrixStarStyle.White2,ShootingStarStyle=MatrixShootingStarStyle.None,Width=60,Height=10 },MatrixWidgetReading.Unavailable,0);
+        Require(!whiteStars.SequenceEqual(yellowStars)&&!whiteStars.SequenceEqual(sparseStars)&&!yellowStars.SequenceEqual(sparseStars),"Every supplied star and shooting-star selection reaches the native renderer.");
+        var ufo=MatrixGraphicsRenderer.Render(new() { Content=MatrixContent.FlyingArt,AnimationStyle=MatrixAnimationStyle.Ufo,InstanceCount=3,Width=90,Height=10 },MatrixWidgetReading.Unavailable,0);
+        Require(ufo.Any(b=>b!=0),"The supplied UFO produces a repeated moving animation layer.");
+        foreach(var style in MatrixAnimationPresets.All.Where(a=>MatrixAnimationPresets.SupportsInstances(a.Value)))
+        {
+            var repeated=new MatrixWidgetSettings { Content=MatrixContent.FlyingArt,AnimationStyle=style.Value,InstanceCount=1,Colour=style.Colour,Width=90,Height=10,FlightDirection=MatrixFlightDirection.LeftToRight };
+            if(style.Value==MatrixAnimationStyle.Rocket){var art=MatrixArtBank.Get("rocket",10);repeated.ArtKey="rocket";repeated.ArtWidth=art.Width;repeated.Pixels=art.Pixels;}
+            var single=MatrixGraphicsRenderer.Render(repeated,MatrixWidgetReading.Unavailable,0);repeated.InstanceCount=3;var triple=MatrixGraphicsRenderer.Render(repeated,MatrixWidgetReading.Unavailable,0);
+            Require(!single.SequenceEqual(triple)&&triple.Count(b=>b!=0)>single.Count(b=>b!=0),$"{style.Label} supports one, two or three independently spaced objects.");
+        }
+        var state=new MatrixSettings { Widgets=[new() { Content=MatrixContent.ProgressBar, Prefix="CPU",Width=44,Height=6,BarStyle=MatrixBarStyle.Coin,RangeMinimum=-50,RangeMaximum=150,UseSensor=false,ManualValue=75 },new() { Content=MatrixContent.FlyingArt,AnimationStyle=MatrixAnimationStyle.Cat,InstanceCount=3,CatStyle=MatrixCatStyle.White,StarStyle=MatrixStarStyle.White2,ShootingStarStyle=MatrixShootingStarStyle.Yellow,Width=61,ArtKey="rocket",ArtWidth=20,FlightDirection=MatrixFlightDirection.LeftToRight,FlightSpeed=9 }] }.ValidatedCopy();
         var loaded=JsonSerializer.Deserialize<MatrixSettings>(JsonSerializer.Serialize(state))!.ValidatedCopy();
-        Require(loaded.Widgets![0].Content==MatrixContent.ProgressBar && loaded.Widgets[0].Prefix=="CPU" && loaded.Widgets[0].Width==45 && loaded.Widgets[0].Height==6 && loaded.Widgets[0].BarStyle==MatrixBarStyle.Coin && loaded.Widgets[0].RangeMinimum==-50 && loaded.Widgets[1].AnimationStyle==MatrixAnimationStyle.Cat && loaded.Widgets[1].Width==90 && loaded.Widgets[1].FlightSpeed==9 && loaded.Widgets[1].FlightDirection==MatrixFlightDirection.LeftToRight,"Graphic settings, constrained widths and six-dot height survive validation and restart.");
+        Require(loaded.Widgets![0].Content==MatrixContent.ProgressBar && loaded.Widgets[0].Prefix=="CPU" && loaded.Widgets[0].Width==45 && loaded.Widgets[0].Height==6 && loaded.Widgets[0].BarStyle==MatrixBarStyle.Coin && loaded.Widgets[0].RangeMinimum==-50 && loaded.Widgets[1].AnimationStyle==MatrixAnimationStyle.Cat && loaded.Widgets[1].InstanceCount==3 && loaded.Widgets[1].CatStyle==MatrixCatStyle.White && loaded.Widgets[1].StarStyle==MatrixStarStyle.White2 && loaded.Widgets[1].ShootingStarStyle==MatrixShootingStarStyle.Yellow && loaded.Widgets[1].Width==90 && loaded.Widgets[1].FlightSpeed==9 && loaded.Widgets[1].FlightDirection==MatrixFlightDirection.LeftToRight,"Graphic, sprite-choice, object-count and six-dot settings survive validation and restart.");
         if(previewPath is not null) System.IO.File.WriteAllText(previewPath,JsonSerializer.Serialize(previews));
-        Console.WriteLine("PASS: 12 labelled bar styles at 30/45/60 widths and four heights, 11 animation-bank effects at 60/90 widths, rocket flame, bounds and persistence.");
+        Console.WriteLine("PASS: 12 labelled bars, 12 animations, supplied stars/UFO/cats, 1–3 objects, mirrored cat faces, all heights/areas, bounds and persistence.");
     }
     private static long LeastCommonMultiple(int a,int b) { long x=a,y=b;while(y!=0){long t=x%y;x=y;y=t;}return a/(int)x*(long)b; }
     private static void Require(bool condition,string message) { if(!condition) throw new Exception(message); }

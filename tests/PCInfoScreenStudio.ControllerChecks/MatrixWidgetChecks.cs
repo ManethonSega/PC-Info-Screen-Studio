@@ -7,6 +7,7 @@ internal static class MatrixWidgetChecks
     public static void Check()
     {
         var utc = new DateTime(2026, 10, 27, 12, 34, 0, DateTimeKind.Utc);
+        Require(MatrixArtBank.All.Count==37 && MatrixArtBank.All.Count(a=>a.Gallery)==26,"The generated bank separates 26 selectable art presets from 11 internal animation sprites.");
         foreach (var preset in MatrixArtBank.All) foreach (int height in new[] { 4,5,6,10 })
         {
             var art = MatrixArtBank.Get(preset.Key,height);

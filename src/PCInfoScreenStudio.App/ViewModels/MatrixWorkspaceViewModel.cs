@@ -219,8 +219,7 @@ public sealed partial class MatrixWorkspaceViewModel : ObservableObject, IDispos
     {
         if(!w.Visible || x<w.X || x>=w.X+w.Width || y<w.Y || y>=w.Y+w.Height)return false;
         if(w.Content!=MatrixContent.FlyingArt || w.AnimationStyle!=MatrixAnimationStyle.Rocket)return true;
-        int origin=MatrixGraphicsRenderer.FlightOrigin(w,_previewStep);
-        return x>=w.X+origin && x<w.X+origin+w.ArtWidth;
+        return MatrixGraphicsRenderer.MotionOrigins(w,w.ArtWidth,_previewStep).Any(origin=>x>=w.X+origin && x<w.X+origin+w.ArtWidth);
     });
 
     private void RefreshFields()

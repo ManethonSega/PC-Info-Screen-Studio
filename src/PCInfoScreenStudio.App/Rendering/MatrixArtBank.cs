@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace PCInfoScreenStudio.Rendering;
 
 public sealed record MatrixArtVariant(int Height, int Width, string[] Palette, string[] Rows);
-public sealed record MatrixArtPreset(string Key, string Label, MatrixArtVariant[] Variants);
+public sealed record MatrixArtPreset(string Key, string Label, bool Gallery, MatrixArtVariant[] Variants);
 public sealed record MatrixArtImage(int Width, int Height, byte[] Pixels);
 
 public static class MatrixArtBank
