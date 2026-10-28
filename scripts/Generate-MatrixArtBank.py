@@ -43,7 +43,7 @@ with tempfile.TemporaryDirectory() as tmp:
   image = image.crop(image.getbbox())
   if key == "rocket": image = image.transpose(Image.Transpose.ROTATE_270)
   variants = []
-  for height in (4,5,10):
+  for height in (4,5,6,10):
    width = max(1, round(image.width*height/image.height))
    small = image.resize((width,height), Image.Resampling.BOX)
    # Quantize each exact grid rather than retaining blurry desktop antialiasing.
@@ -67,26 +67,29 @@ with tempfile.TemporaryDirectory() as tmp:
    shapes = {
     4: ["...P......", ".YO.SSSSP.", "YYOSBSSSPP", "...P......"],
     5: ["....P........", ".YO.PSSSSSP..", "YYOSSSBSSSSPP", ".YO.PSSSSSP..", "....P........"],
+    6: ["....P..........", ".YO.PSSSSSSP...", "YYOSSSWBSSSSPP.", "YYOSSSBBSSSSPPP", ".YO.PSSSSSSP...", "....P.........."],
     10: ["......P.............", "......PP............", "......PSSSSSSS......", "...OO.PSSWSSSSSP....", ".OYYOOSSSBBSSSSSPP..", ".OYYYOSSSBBSSSSSPPP.", "...OO.PSSWSSSSSP....", "......PSSSSSSS......", "......PP............", "......P............."]}
    variants = [dict(Height=h, Width=max(map(len,rows)), Palette=palette, Rows=["".join("." if c=="." else str("PSWBYO".index(c)) for c in row.ljust(max(map(len,rows)),".")) for row in rows]) for h,rows in shapes.items()]
   if key in ("heart", "pink-heart", "star"):
    for v in variants:
     if v["Height"] == 10: continue
     h=v["Height"]
-    rows = ([".0.0.","00000",".000.","..0.."] if h==4 else [".0.0.","00000","00000",".000.","..0.."]) if key!="star" else (["..0..","00000",".000.",".0.0."] if h==4 else ["..0..",".000.","00000",".000.",".0.0."])
+    heart_shapes = {4:[".0.0.","00000",".000.","..0.."],5:[".0.0.","00000","00000",".000.","..0.."],6:[".0.0.","00000","00000",".000.",".000.","..0.."]}
+    star_shapes = {4:["..0..","00000",".000.",".0.0."],5:["..0..",".000.","00000",".000.",".0.0."],6:["..0..",".000.","00000",".000.",".0.0.","..0.."]}
+    rows = (heart_shapes if key!="star" else star_shapes)[h]
     v.update(Width=5, Rows=rows, Palette=["FF334C" if key=="heart" else "F037CB" if key=="pink-heart" else "FFD132"])
   if key == "skull":
-   shapes = {4:["00000","0.0.0",".000.",".0.0."],5:[".000.","00000","0.0.0",".000.",".0.0."],10:[".0000000.","000000000","000...000","00..0..00","00..0..00","000000000",".000.000.","..00000..","..0.0.0..","..0.0.0.."]}
+   shapes = {4:["00000","0.0.0",".000.",".0.0."],5:[".000.","00000","0.0.0",".000.",".0.0."],6:[".000.","00000","0.0.0","00000",".000.",".0.0."],10:[".0000000.","000000000","000...000","00..0..00","00..0..00","000000000",".000.000.","..00000..","..0.0.0..","..0.0.0.."]}
    variants = [dict(Height=h, Width=len(rows[0]), Palette=["EDD9B6"], Rows=rows) for h,rows in shapes.items()]
   bank.append(dict(Key=key, Label=label, Variants=variants))
 (root/"src/PCInfoScreenStudio.App/Assets/MatrixArtBank.json").write_text(json.dumps(bank, indent=2)+"\n")
 if args.preview:
- canvas = Image.new("RGB", (720, len(bank)*85), "#091425"); draw = ImageDraw.Draw(canvas)
+ canvas = Image.new("RGB", (800, len(bank)*85), "#091425"); draw = ImageDraw.Draw(canvas)
  for i, art in enumerate(bank):
   draw.text((8,i*85+6),art["Label"],fill="white")
   for j,v in enumerate(art["Variants"]):
    for y,row in enumerate(v["Rows"]):
     for x,ch in enumerate(row):
-     if ch != ".": draw.rectangle((170+j*175+x*6,i*85+12+y*6,174+j*175+x*6,i*85+16+y*6),fill="#"+v["Palette"][int(ch,36)])
+     if ch != ".": draw.rectangle((150+j*160+x*5,i*85+12+y*5,153+j*160+x*5,i*85+15+y*5),fill="#"+v["Palette"][int(ch,36)])
  canvas.save(args.preview)
-print(f"Generated {len(bank)} assets, each at 4, 5 and 10 dots.")
+print(f"Generated {len(bank)} assets, each at 4, 5, 6 and 10 dots.")

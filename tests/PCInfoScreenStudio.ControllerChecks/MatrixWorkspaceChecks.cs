@@ -41,8 +41,8 @@ internal static class MatrixWorkspaceChecks
             Execute(matrix, "AddTextButton"); textId = model.SelectedWidgetId!.Value;
             Require(!Descendants<TextBox>(matrix).Any(t => System.Windows.Automation.AutomationProperties.GetName(t) == "Matrix widget name"), "Widget type is a read-only heading, without a redundant editable Name field.");
             model.Text = "CPU"; model.Width = 16; model.X = 1; model.Y = 1;
-            var size = (ComboBox)matrix.FindName("WidgetSizeSelector"); Require(size.Items.Count == 3, "Every widget offers exactly 10-, 5- and 4-dot heights.");
-            foreach (int h in new[] { 4, 10, 5 })
+            var size = (ComboBox)matrix.FindName("WidgetSizeSelector"); Require(size.Items.Count == 4, "Every widget offers exactly 10-, 6-, 5- and 4-dot heights.");
+            foreach (int h in new[] { 4, 10, 6, 5 })
             { Set(size, h); Flush(window); Require(model.WidgetHeight == h && model.Y + h <= 10, "The actual size control changes height and clamps the widget inside the LED grid."); }
             var font = (ComboBox)matrix.FindName("FiveDotFontSelector"); Set(font, MatrixFiveDotFont.Petty5x5); Flush(window);
             var alignment = (ComboBox)matrix.FindName("AlignmentSelector"); Set(alignment, MatrixAlignment.Centre); Flush(window);
@@ -101,7 +101,7 @@ internal static class MatrixWorkspaceChecks
             Require(Enumerable.Range(0, emojiPixels.Length / 3).Any(i => emojiPixels[i * 3] > 30 && emojiPixels[i * 3 + 1] > 10 && emojiPixels[i * 3] != emojiPixels[i * 3 + 1] && emojiPixels[i * 3] != 33), "Emojis preserve their own coloured palette in the actual LED RGB frame.");
             var family = new MatrixSettings { Widgets = [new() { Text = "👨‍👩‍👧‍👦", Height = 10, Width = 20 }] }.ValidatedCopy();
             Require(MatrixLayerRenderer.Compose(family, _ => null, DateTime.UnixEpoch).Any(b => b != 0), "Joined emoji graphemes render as a shaped glyph without surrogate splitting.");
-            foreach (int h in new[] { 4, 5, 10 })
+            foreach (int h in new[] { 4, 5, 6, 10 })
             {
                 var invisible = new MatrixSettings { Widgets = [new() { Text = "\uFE0F \uFE0F \uFE0F \uFE0F \uFE0F", Height = h, Width = 90, Scroll = false }] }.ValidatedCopy();
                 var fallback = MatrixLayerRenderer.Compose(invisible, _ => null, DateTime.UnixEpoch);
@@ -109,6 +109,12 @@ internal static class MatrixWorkspaceChecks
             }
             Capture(window, captures, "Matrix900-widgets-layers-emojis.png");
             model.SelectedWidgetId = textId; Flush(window); Capture(window, captures, "Matrix900-widget-properties.png");
+            model.Scroll=true;Flush(window);
+            var animationArea=(ComboBox)matrix.FindName("AnimationAreaSelector");Require(animationArea.Items.Count==2,"Moving text offers the 60- and 90-dot animation areas.");
+            Set(animationArea,90);var direction=(ComboBox)matrix.FindName("FlightDirectionSelector");Set(direction,MatrixFlightDirection.LeftToRight);
+            Require(model.Scroll && model.Width==90 && !model.AutoWidth && model.AnimationAreaVisibility==Visibility.Visible,"Text animation uses the selected direction and full Matrix area.");
+            var movingTextFrame=model.PreviewPixels();Set(direction,MatrixFlightDirection.RightToLeft);Require(!movingTextFrame.SequenceEqual(model.PreviewPixels()),"Changing animated text direction changes its current LED frame.");
+            Capture(window,captures,"Matrix900-animated-text.png");model.Scroll=false;
             window.Width = 1080; window.Height = 680; Flush(window);
             var bounds = surface.TransformToAncestor(window).TransformBounds(new Rect(surface.RenderSize));
             Require(bounds.Right <= window.ActualWidth && bounds.Bottom <= window.ActualHeight, "The complete LED canvas fits a compact window with both side panels open.");
@@ -119,7 +125,11 @@ internal static class MatrixWorkspaceChecks
             var styles=(ComboBox)matrix.FindName("BarStyleSelector");Require(styles.Items.Count==12,"All twelve progress-bar styles are available in the actual Properties selector.");
             var sensorToggle=(CheckBox)matrix.FindName("BarUseSensorCheckBox");sensorToggle.SetCurrentValue(ToggleButton.IsCheckedProperty,false);sensorToggle.GetBindingExpression(ToggleButton.IsCheckedProperty)!.UpdateSource();
             Set(styles,MatrixBarStyle.Arrows);model.ManualValue=65;
-            foreach(int h in new[] {4,5,10}) { Set(size,h);Flush(window);Require(model.Tile.Content==MatrixContent.ProgressBar && model.WidgetHeight==h && !model.AutoWidth,"The bar widget retains its custom span at all three native heights."); }
+            var barWidths=(ComboBox)matrix.FindName("BarWidthSelector");Require(barWidths.Items.Count==3,"Progress bars offer exactly 30-, 45- and 60-dot widths.");
+            foreach(int width in new[] {30,45,60}) { Set(barWidths,width);Require(model.Width==width,"The progress-bar width selector applies each supported span."); }
+            var barLabel=(TextBox)matrix.FindName("BarLabelBox");barLabel.SetCurrentValue(TextBox.TextProperty,"CPU 👌");barLabel.GetBindingExpression(TextBox.TextProperty)!.UpdateSource();
+            foreach(int h in new[] {4,5,6,10}) { Set(size,h);Flush(window);Require(model.Tile.Content==MatrixContent.ProgressBar && model.WidgetHeight==h && !model.AutoWidth,"The bar widget retains its selected span at all four native heights."); }
+            Require(model.Prefix=="CPU 👌" && model.PreviewPixels().Any(b=>b!=0),"Text and emoji before a progress bar reach the LED preview.");
             Capture(window,captures,"Matrix900-progress-bar-and-panel-guide.png");
             var bank=(Expander)matrix.FindName("ArtBankExpander");bank.IsExpanded=true;Flush(window);
             var bankItems=(ItemsControl)matrix.FindName("ArtBankItems");Require(bankItems.Items.Count==21,"The selected EPS artwork is available as a 21-entry pixel-art bank.");
@@ -129,17 +139,20 @@ internal static class MatrixWorkspaceChecks
             Capture(window,captures,"Matrix900-pixel-art-bank.png");
             bank.IsExpanded=false;
             foreach(var layer in model.Layers)layer.Visible=false;model.LayerFlagsChanged();
-            Execute(matrix,"AddRocketButton");
-            var direction=(ComboBox)matrix.FindName("FlightDirectionSelector");Set(direction,MatrixFlightDirection.LeftToRight);
+            var animations=(Expander)matrix.FindName("AnimationBankExpander");animations.IsExpanded=true;Flush(window);
+            var animationItems=(ItemsControl)matrix.FindName("AnimationBankItems");Require(animationItems.Items.Count==11,"The Animations bank includes every independently reproduced moving NexLinq option.");
+            var rocketButton=Descendants<Button>(animationItems).Single(b=>Equals(b.CommandParameter,MatrixAnimationStyle.Rocket));rocketButton.Command.Execute(rocketButton.CommandParameter);
+            Set(direction,MatrixFlightDirection.LeftToRight);
             model.AnimationPlaying=false;
             Require(model.HitWidget(50,5) is null,"Empty parts of a flight area do not steal canvas clicks from widgets underneath.");
-            foreach(int h in new[] {4,5,10}) { Set(size,h);Require(model.Tile.ArtWidth==MatrixArtBank.Get("rocket",h).Width && model.Width==90,"Rocket sizing preserves the flight area and selects the correct native sprite."); }
-            model.Width=60;model.AnimationPlaying=true;Flush(window);
+            foreach(int h in new[] {4,5,6,10}) { Set(size,h);Require(model.Tile.ArtWidth==MatrixArtBank.Get("rocket",h).Width && model.Width==90,"Rocket sizing preserves the flight area and selects the correct native sprite."); }
+            Set(animationArea,60);model.AnimationPlaying=true;Flush(window);
             long phase=model.PreviewAnimationStep;var beforeFlight=model.PreviewPixels();
             pump(()=>model.PreviewAnimationStep>=phase+3);
-            Require(!beforeFlight.SequenceEqual(model.PreviewPixels()),"The real preview timer animates flight while disconnected, without changing saved geometry.");
+            Require(!beforeFlight.SequenceEqual(model.PreviewPixels()) && model.Width==60,"The real preview timer animates rocket flight and its fire trail in the selected area while disconnected.");
             Capture(window,captures,"Matrix900-rocket-flight-right.png");
             Set(direction,MatrixFlightDirection.RightToLeft);Capture(window,captures,"Matrix900-rocket-flight-left.png");
+            animations.IsExpanded=true;Flush(window);Capture(window,captures,"Matrix900-animations-bank.png");
             model.AnimationPlaying=false;
             vm.SelectedDisplayTarget = DisplayTarget.Turing52; Flush(window); pump(() => vm.CanChooseScreen);
             Require(!matrix.IsVisible && vm.IsEditorPage, "The LCD editor returns when a different screen is selected.");

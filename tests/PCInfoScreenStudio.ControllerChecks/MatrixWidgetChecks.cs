@@ -7,10 +7,10 @@ internal static class MatrixWidgetChecks
     public static void Check()
     {
         var utc = new DateTime(2026, 10, 27, 12, 34, 0, DateTimeKind.Utc);
-        foreach (var preset in MatrixArtBank.All) foreach (int height in new[] { 4,5,10 })
+        foreach (var preset in MatrixArtBank.All) foreach (int height in new[] { 4,5,6,10 })
         {
             var art = MatrixArtBank.Get(preset.Key,height);
-            Require(art.Width is > 0 and <= 90 && art.Height == height && art.Pixels.Length == 2700 && art.Pixels.Any(b => b != 0), "Every bank entry contains a bounded native bitmap at all three heights.");
+            Require(art.Width is > 0 and <= 90 && art.Height == height && art.Pixels.Length == 2700 && art.Pixels.Any(b => b != 0), "Every bank entry contains a bounded native bitmap at all four heights.");
             art.Pixels[0] ^= 255;
             Require(art.Pixels[0] != MatrixArtBank.Get(preset.Key,height).Pixels[0], "Bank imports have independent editable source buffers.");
         }
@@ -34,6 +34,13 @@ internal static class MatrixWidgetChecks
         Require(MatrixLayerRenderer.ComposeReadings(sensor, _ => new(85.5, "85.5 W"), utc).SequenceEqual(MatrixLayerRenderer.Compose(expectedText, _ => null, utc)), "Sensor labels, decimals and actual source units reach the LED RGB frame.");
         var restored = JsonSerializer.Deserialize<MatrixSettings>(JsonSerializer.Serialize(sensor))!.ValidatedCopy().Widgets![0];
         Require(restored.Source == "Sensor: GPU > Board power" && restored.Prefix == "GPU:" && restored.AutoWidth && restored.AlarmThreshold == 2000, "Extended sources, labels, width mode and non-percentage alarm thresholds survive restart.");
+        var movingText=new MatrixSettings { Widgets=[new() { Content=MatrixContent.Text,Text="HELLO",Scroll=true,Width=31,Height=6,FlightDirection=MatrixFlightDirection.LeftToRight,FlightSpeed=5 }] }.ValidatedCopy();
+        Require(movingText.Widgets![0].Width==60 && !movingText.Widgets[0].AutoWidth && movingText.Widgets[0].Height==6,"Animated text validates to the side-panel area and keeps its six-dot height.");
+        var textStart=MatrixLayerRenderer.ComposeReadings(movingText,_=>MatrixWidgetReading.Unavailable,utc,0);
+        var textMoved=MatrixLayerRenderer.ComposeReadings(movingText,_=>MatrixWidgetReading.Unavailable,utc,3);
+        Require(!textStart.SequenceEqual(textMoved),"Animated text advances through its selected area.");
+        movingText.Widgets[0].FlightDirection=MatrixFlightDirection.RightToLeft;
+        Require(!textStart.SequenceEqual(MatrixLayerRenderer.ComposeReadings(movingText,_=>MatrixWidgetReading.Unavailable,utc,0)),"Text direction changes which edge the message starts from.");
         foreach (int layout in new[] { 1, 3, 9 }) foreach (int rows in new[] { 4, 5, 45, 54 })
         {
             var legacy = new MatrixSettings { Layout = layout, RowHeight = rows };

@@ -35,8 +35,11 @@ internal static class MatrixBitmapFonts
         }
         var ink = new bool[width * height];
         foreach (var glyph in glyphs)
-            for (int y = 0; y < height; y++) for (int x = 0; x < glyph.Rows[y].Length; x++)
-                if (glyph.Rows[y][x] == '1') ink[y * width + glyph.X + x] = true;
+        {
+            int top = Math.Max(0, height - glyph.Rows.Length);
+            for (int y = 0; y < Math.Min(height, glyph.Rows.Length); y++) for (int x = 0; x < glyph.Rows[y].Length; x++)
+                if (glyph.Rows[y][x] == '1') ink[(top + y) * width + glyph.X + x] = true;
+        }
         return (width, ink);
     }
 }

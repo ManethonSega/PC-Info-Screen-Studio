@@ -2,6 +2,10 @@
 
 This document describes what the release workflow verifies and what still needs a person using a physical screen. The exact successful workflow and source SHA are recorded in the portable package's `build-info.json`.
 
+## Alpha.36 Matrix animation checks
+
+Cross-platform checks render every progress-bar style at 30, 45 and 60 dots and every widget at 4, 5, 6 and 10 dots. They verify bar labels, animation bounds, both directions, 60/90-dot areas, pause frames, rocket fire changes and settings round trips. Native Windows checks use the real WPF controls to select the four heights, the three bar widths, emoji labels, moving text, the eleven-item Animations bank and timed rocket preview. Simulated acknowledged output checks do not establish physical animation smoothness or sustained Matrix throughput.
+
 ## Alpha.20 stability checks
 
 See [STABILITY.md](STABILITY.md) for validation scope and exact memory/storage limits. New checks exercise corrupt and missing primary/backup settings/session data, backup preservation, older settings, invalid/cancelled writes, concurrent service saves and workspace disposal during asset streaming. WPF checks cover recovery notices, shared command state, editable snapshot saves, footer Cancel/progress, failed Open and cancelled imports. Cache checks cover lease safety, category accounting, active resource preference, GIF snapshots/timeline and 500 frames cycling 30 photos/two GIFs under an 8 MiB retained-cache test budget. Process-memory observations are logged without claiming a complete process-memory cap or overnight hardware validation. Windows/controller/WPF and EXE/ZIP checks gate release.

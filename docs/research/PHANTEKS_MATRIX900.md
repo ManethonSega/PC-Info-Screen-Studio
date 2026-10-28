@@ -1,12 +1,13 @@
 # Phanteks Matrix 900 interoperability observations
 
-Recorded 2026-10-27 from the owner's uploaded `Phanteks NexLinq.zip`. The vendor application was inspected statically, not executed. These observations describe software behavior, not a completed physical-device qualification.
+Recorded 2026-10-27 from the owner's uploaded `Phanteks NexLinq.zip` and rechecked 2026-10-28 against the vendor's current NexLinq download. The vendor application was inspected statically, not executed. These observations describe software behavior, not a completed physical-device qualification.
 
 ## Evidence identity
 
 | Item | Value |
 | --- | --- |
 | Uploaded archive SHA-256 | `c6cfacee17916755203d90925506032334a0fe6ed39ca4fc98efd5b0990fb0b7` |
+| Current vendor ZIP SHA-256, 2026-10-28 | `80709c996bb7cb5b1656fda8cc3447a4dba9447ff586dbdcef8b7c6b16a2c082` |
 | NexLinq executable assembly file version | `1.5.0.1` |
 | `LibPhanteks.dll` SHA-256 | `44f042f737ef3855e55d4424b09e709c541c5cf8171996d970ea72f40a45330a` |
 | `PhanteksNexLinq.dll` SHA-256 | `801ee9d0bc2455cff5a447ce46aae8046222d6d5b474a2efabfad46136c0b67f` |
@@ -53,7 +54,7 @@ The embedded layout table confirms **90 × 10 pixels**. Native tile sizes includ
 
 Pixel art is row-major **R,G,B**, three bytes per LED, transferred in **56-byte chunks**. A full panel contains 2,700 RGB bytes and requires 49 pages. NexLinq advances after a command-05 reply. Our driver drains bounded stale input, then waits for a matching tile and page acknowledgement before sending the next page; missing acknowledgements abort instead of continuing an incomplete upload.
 
-The vendor editor supports animation groups, but the initial driver deliberately sends one static image per tile. Importing GIF uses its first frame. Neither arbitrary MP4/GIF playback nor a maximum animation frame rate has been established for this controller.
+The vendor Matrix media editor exposes four groups: panel effects, crabs, cats and stars. Panel effects list Solid Color, Rainbow, Breathing, Wave, Two Tone, Fade, Gradient and Meteor. Crab and cat controls offer one to three instances, slow/medium/fast speed and separate body/eye colours. Stars can enable a shooting star at 30-, 60- or 180-second intervals. Alpha.36 independently reproduces the moving categories as host-rendered RGB layers, adds the existing rocket as another original layer and omits Solid Color because it is not moving. It does not copy vendor code or artwork. Importing GIF still uses its first frame. Neither arbitrary MP4/GIF playback nor a maximum animation frame rate has been established for this controller.
 
 Native widget categories observed: time/date (1), system data (2), media/effects (3), creator text/editor (4). Initial controls expose text, selected sensors, UTC clock and static pixel art. Sensor IDs used: CPU temperature 1, first GPU temperature 2, CPU utilisation 27, first GPU utilisation 30. Clock uses timezone table entry 12 (UTC/GMT), DST disabled, and UTC Unix timestamps.
 
@@ -67,7 +68,7 @@ Selecting Matrix stops LCD output and suspends hidden LCD preview rendering. Sta
 
 The observed native heartbeat can carry numeric sensor values. Alpha.29 uses host-rendered RGB for text, sensors and clock so exact glyph height and word/row spacing match the preview. The 41-byte widget payload exposes no corresponding font-height or word-spacing field. One-panel and three-column text occupies the full 10-row band. Six-tile content defaults to four rows at native offsets 0–3 and 6–9, or five rows each when selected. Native tile geometry and RGB page formats stay unchanged. Hidden artwork rows are masked, not deleted.
 
-Apply configures pixel widgets from the shared renderer. Subsequent updates resend only changed tiles and retain matching page acknowledgements. Text scrolling is scheduled at most every 200 ms, with one refresh in flight and no queued frames; actual throughput depends on controller acknowledgements and remains physically unqualified. Short/static text sends no repeated image pages. The keepalive/brightness heartbeat runs at most once per second, with immediate sensor blank/resume transitions. Missing/stale sensors prevent initial Apply or blank the active output; recovery resumes it. Draft source/layout/spacing changes require Apply.
+Apply configures pixel widgets from the shared renderer. Subsequent updates resend only changed tiles and retain matching page acknowledgements. Animated text and animation layers are scheduled at most every 200 ms, with one refresh in flight and no queued frames; actual throughput depends on controller acknowledgements and remains physically unqualified. Static text and paused animations send no repeated image pages. The keepalive/brightness heartbeat runs at most once per second, with immediate sensor blank/resume transitions. Missing/stale sensors prevent initial Apply or blank the active output; recovery resumes it. Draft source/layout/spacing changes require Apply.
 
 Automated checks cover packet fixtures, colour order, paging and acknowledgements, firmware refusal, validation before I/O, preference repair and fake-HID lifetime. Native Windows checks cover target selection, dedicated controls, LCD state preservation, keyboard painting, tile mapping, compact layout, navigation and restart persistence. These do not establish physical LED orientation/colour, firmware font appearance, clock behavior, reconnect reliability or performance on a real Matrix 900.
 

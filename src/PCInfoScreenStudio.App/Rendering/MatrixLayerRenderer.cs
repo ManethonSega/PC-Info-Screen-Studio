@@ -38,12 +38,14 @@ public static class MatrixLayerRenderer
             var (left, right) = InkBounds(raster);
             int width = w.AutoWidth ? Math.Clamp(right - left + 1, 1, 90) : w.Width;
             int originX = Math.Min(w.X, 90 - width);
-            bool scroll = w.Scroll && (w.AutoWidth ? right - left + 1 : raster.Width) > width;
-            int phase = scroll ? (int)(Math.Max(0, step) % (raster.Width + 3)) : 0;
+            bool movingText = w.Content == MatrixContent.Text && w.Scroll;
+            bool scroll = movingText || w.Scroll && (w.AutoWidth ? right - left + 1 : raster.Width) > width;
+            int phase = scroll && !movingText ? (int)(Math.Max(0, step) % (raster.Width + 3)) : 0;
+            int movingOrigin = movingText ? MatrixGraphicsRenderer.MotionOrigin(width, raster.Width, w.FlightDirection, w.FlightSpeed, true, step) : 0;
             int offset = scroll ? 0 : w.Alignment == MatrixAlignment.Centre ? (width - (right - left + 1)) / 2 - left : w.Alignment == MatrixAlignment.Right ? width - 1 - right : w.AutoWidth ? -left : 0;
             for (int y = 0; y < w.Height; y++) for (int x = 0; x < width; x++)
             {
-                int sx = scroll ? (x + phase) % (raster.Width + 3) : x - offset;
+                int sx = movingText ? x - movingOrigin : scroll ? (x + phase) % (raster.Width + 3) : x - offset;
                 if (sx < 0 || sx >= raster.Width) continue;
                 int p = (y * raster.Width + sx) * 4, d = ((w.Y + y) * 90 + originX + x) * 3, alpha = raster.Rgba[p + 3];
                 for (int channel = 0; channel < 3; channel++) frame[d + channel] = (byte)((raster.Rgba[p + channel] * alpha + frame[d + channel] * (255 - alpha) + 127) / 255);
@@ -55,7 +57,7 @@ public static class MatrixLayerRenderer
     {
         foreach (var w in settings.Widgets ?? [])
         {
-            if (!w.AutoWidth || w.Content is MatrixContent.PixelArt or MatrixContent.ProgressBar or MatrixContent.FlyingArt) continue;
+            if (!w.AutoWidth || w.Content is MatrixContent.PixelArt or MatrixContent.ProgressBar or MatrixContent.FlyingArt || w.Content == MatrixContent.Text && w.Scroll) continue;
             var bounds = InkBounds(WidgetRaster(w, w.Content == MatrixContent.Sensor ? reading(w.Source) : MatrixWidgetReading.Unavailable, utc));
             w.Width = Math.Clamp(bounds.Right - bounds.Left + 1, 1, 90);
             w.X = Math.Min(w.X, 90 - w.Width);
@@ -78,6 +80,20 @@ public static class MatrixLayerRenderer
             raster = BuildText(text, w.Height, w.FontKey, colour);
             if (TextCache.Count >= 32) TextCache.Clear();
             TextCache[key] = raster; return raster;
+        }
+    }
+    internal static (int Width, byte[] Rgba) RenderLabel(MatrixWidgetSettings w, string text, SKColor colour)
+    {
+        lock (Gate)
+        {
+            var key = (text, w.Height, w.FontKey, (uint)colour);
+            if (!TextCache.TryGetValue(key, out var raster))
+            {
+                raster = BuildText(text, w.Height, w.FontKey, colour);
+                if (TextCache.Count >= 32) TextCache.Clear();
+                TextCache[key] = raster;
+            }
+            return (raster.Width, raster.Rgba);
         }
     }
     private static (int Left, int Right) InkBounds(Raster raster)

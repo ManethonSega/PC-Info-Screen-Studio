@@ -74,7 +74,7 @@ public sealed partial class MatrixWorkspaceViewModel : ObservableObject, IDispos
         : !FilteredDataSources.Any() ? "No matching sources. Clear search to see all sources." : "Choose a matching source from the Source list below.";
     private void SourcesChanged(object? sender, NotifyCollectionChangedEventArgs e) => NotifySourceSearch();
     private void NotifySourceSearch() { RaisePropertyChanged(nameof(FilteredDataSources)); RaisePropertyChanged(nameof(SourceSearchHint)); }
-    public IReadOnlyList<MatrixWidgetSizeOption> Sizes { get; } = [new("10 dots", 10), new("5 dots", 5), new("4 dots", 4)];
+    public IReadOnlyList<MatrixWidgetSizeOption> Sizes { get; } = [new("10 dots", 10), new("6 dots", 6), new("5 dots", 5), new("4 dots", 4)];
     public IReadOnlyList<MatrixWidgetSettings> Layers => _draft.Widgets!.AsEnumerable().Reverse().ToArray();
     public Guid? SelectedWidgetId
     {
@@ -97,11 +97,11 @@ public sealed partial class MatrixWorkspaceViewModel : ObservableObject, IDispos
     public string Name => Tile.KindLabel;
     public int X { get => Tile.X; set => MoveSelectedTo(value, Y); }
     public int Y { get => Tile.Y; set => MoveSelectedTo(X, value); }
-    public int Width { get => Tile.Width; set { if (!IsEditable) return; Tile.AutoWidth = false; Tile.Width = Math.Clamp(value, 1, 90); Tile.X = Math.Min(Tile.X, 90 - Tile.Width); RefreshFields(); Changed(); } }
+    public int Width { get => Tile.Width; set { if (!IsEditable) return; Tile.AutoWidth = false; int width=Math.Clamp(value,1,90); if(ContentKind==MatrixContent.ProgressBar)width=new[]{30,45,60}.MinBy(candidate=>Math.Abs(candidate-width)); if(ContentKind==MatrixContent.FlyingArt || ContentKind==MatrixContent.Text && Scroll)width=width<=60?60:90; Tile.Width = width; Tile.X = Math.Min(Tile.X, 90 - Tile.Width); RefreshFields(); Changed(); } }
     public bool AutoWidth { get => Tile.AutoWidth; set { if (!IsEditable) return; Tile.AutoWidth = value; RaisePropertyChanged(); RaisePropertyChanged(nameof(CanEditWidth)); Changed(); } }
-    public bool CanEditWidth => IsEditable && (!IsTypography || !AutoWidth);
-    public Visibility WidthModeVisibility => IsTypography ? Visibility.Visible : Visibility.Collapsed;
-    public int WidgetHeight { get => Tile.Height; set { if (!IsEditable || value is not (4 or 5 or 10) || value == Tile.Height) return; Tile.Height = value; Tile.Y = Math.Min(Tile.Y, 10 - value); ResizeBankArt(); RefreshFields(); Changed(); } }
+    public bool CanEditWidth => IsEditable && ContentKind is not (MatrixContent.ProgressBar or MatrixContent.FlyingArt) && !(ContentKind==MatrixContent.Text && Scroll) && (!IsTypography || !AutoWidth);
+    public Visibility WidthModeVisibility => IsTypography && !(ContentKind==MatrixContent.Text && Scroll) ? Visibility.Visible : Visibility.Collapsed;
+    public int WidgetHeight { get => Tile.Height; set { if (!IsEditable || value is not (4 or 5 or 6 or 10) || value == Tile.Height) return; Tile.Height = value; Tile.Y = Math.Min(Tile.Y, 10 - value); ResizeBankArt(); RefreshFields(); Changed(); } }
     public bool IsPainting { get => _painting; set { _painting = value && IsEditable && ContentKind == MatrixContent.PixelArt; RaisePropertyChanged(); PreviewChanged?.Invoke(this, EventArgs.Empty); } }
     public IReadOnlyList<MatrixFourDotFontOption> FourDotFonts { get; } =
         [new("mem 4×4", MatrixFourDotFont.Mem), new("mem mono 4×4", MatrixFourDotFont.MemMono), new("Able 4", MatrixFourDotFont.Able4), new("Limitdot H4", MatrixFourDotFont.LimitdotH4)];
@@ -120,12 +120,12 @@ public sealed partial class MatrixWorkspaceViewModel : ObservableObject, IDispos
     public MatrixFiveDotFont FiveDotFont { get => Tile.FiveDotFont ?? MatrixFiveDotFont.TomThumb; set { if (!IsEditable) return; if (!Enum.IsDefined(value) || value == FiveDotFont) return; Tile.FiveDotFont = value; RefreshFields(); Changed(); } }
     public MatrixTenDotFont TenDotFont { get => Tile.TenDotFont ?? MatrixTenDotFont.Pixel5x5Double; set { if (!IsEditable) return; if (!Enum.IsDefined(value) || value == TenDotFont) return; Tile.TenDotFont = value; RefreshFields(); Changed(); } }
     public Visibility FourDotFontVisibility => FontVisibility(4);
-    public Visibility FiveDotFontVisibility => FontVisibility(5);
+    public Visibility FiveDotFontVisibility => HasFontChoice && SelectedContentRegion.Height is 5 or 6 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility TenDotFontVisibility => FontVisibility(10);
-    private Visibility FontVisibility(int height) => IsTypography && SelectedContentRegion.Height == height ? Visibility.Visible : Visibility.Collapsed;
+    private Visibility FontVisibility(int height) => HasFontChoice && SelectedContentRegion.Height == height ? Visibility.Visible : Visibility.Collapsed;
     public string FontNote => !IsTypography ? ""
-        : SelectedContentRegion.Height == 5 && FiveDotFont == MatrixFiveDotFont.Mem5x6 ? "Five-dot capitals; Q is fitted within five rows."
-        : SelectedContentRegion.Height == 5 && FiveDotFont is MatrixFiveDotFont.Petty5H or MatrixFiveDotFont.Petty5x5 ? "Uppercase font. Lowercase text uses capitals."
+        : SelectedContentRegion.Height is 5 or 6 && FiveDotFont == MatrixFiveDotFont.Mem5x6 ? "Five-dot capitals; six-dot widgets add one blank row above the glyphs."
+        : SelectedContentRegion.Height is 5 or 6 && FiveDotFont is MatrixFiveDotFont.Petty5H or MatrixFiveDotFont.Petty5x5 ? "Uppercase font. Lowercase text uses capitals."
         : SelectedContentRegion.Height == 10 && TenDotFont != MatrixTenDotFont.Pixel5x5Double ? "Tall adaptation: height doubled, width unchanged." : "";
     public MatrixSettings Snapshot => _draft.ValidatedCopy();
     public MatrixContent ContentKind { get => Tile.Content; set { if (!IsEditable) return; if (!Enum.IsDefined(value) || value == Tile.Content) return; Tile.Content = value; Changed(); RefreshFields(); } }
@@ -133,7 +133,7 @@ public sealed partial class MatrixWorkspaceViewModel : ObservableObject, IDispos
     public string Source { get => Tile.Source; set { if (!IsEditable || !DataSources.Contains(value)) return; Tile.Source = value; RaisePropertyChanged(); Changed(); } }
     public string Prefix { get => Tile.Prefix; set { if (!IsEditable) return; Tile.Prefix = value ?? ""; RaisePropertyChanged(); RaisePropertyChanged(nameof(Layers)); RaisePropertyChanged(nameof(SelectedWidgetId)); Changed(); } }
     public string Colour { get => Tile.Colour; set { if (!IsEditable) return; if (value?.Length == 9) value = "#" + value[3..]; if (!System.Text.RegularExpressions.Regex.IsMatch(value ?? "", "^#[0-9a-fA-F]{6}$")) return; Tile.Colour = value!; RaisePropertyChanged(); Changed(); } }
-    public bool Scroll { get => Tile.Scroll; set { if (!IsEditable) return; Tile.Scroll = value; RaisePropertyChanged(); Changed(); } }
+    public bool Scroll { get => Tile.Scroll; set { if (!IsEditable) return; Tile.Scroll = value; if(ContentKind==MatrixContent.Text) { if(value) { Tile.AutoWidth=false;Tile.Width=Tile.Width<=60?60:90;Tile.X=Math.Min(Tile.X,90-Tile.Width); } else Tile.AutoWidth=true; } RefreshFields(); Changed(); } }
     public bool Alarm { get => Tile.Alarm; set { if (!IsEditable) return; Tile.Alarm = value; RaisePropertyChanged(); Changed(); } }
     public int AlarmThreshold { get => Tile.AlarmThreshold; set { if (!IsEditable) return; Tile.AlarmThreshold = Math.Clamp(value, -1000000, 1000000); RaisePropertyChanged(); Changed(); } }
     public int Brightness { get => _draft.Brightness; set { _draft.Brightness = Math.Clamp(value, 0, 100); if (_applied is not null) _applied.Brightness = _draft.Brightness; RaisePropertyChanged(); Changed(); ConnectionChanged?.Invoke(this, EventArgs.Empty); } }
@@ -151,8 +151,10 @@ public sealed partial class MatrixWorkspaceViewModel : ObservableObject, IDispos
                 if (!tile.Visible) continue;
                 if (tile.Content == MatrixContent.Text && (System.Globalization.StringInfo.ParseCombiningCharacters(tile.Text).Length > 50 || tile.Text.Any(char.IsControl)))
                     return "Use one line of up to 50 characters or emoji per widget.";
-                if (tile.Content == MatrixContent.Sensor && (System.Globalization.StringInfo.ParseCombiningCharacters(tile.Prefix).Length > 50 || tile.Prefix.Any(char.IsControl)))
-                    return "Use one line of up to 50 characters or emoji for the value label.";
+                if (tile.Content is MatrixContent.Sensor or MatrixContent.ProgressBar && (System.Globalization.StringInfo.ParseCombiningCharacters(tile.Prefix).Length > 50 || tile.Prefix.Any(char.IsControl)))
+                    return tile.Content == MatrixContent.ProgressBar
+                        ? "Use one line of up to 50 characters or emoji before the progress bar."
+                        : "Use one line of up to 50 characters or emoji for the value label.";
                 if (tile.Content==MatrixContent.ProgressBar && tile.RangeMaximum<=tile.RangeMinimum)
                     return "The bar maximum must be greater than its minimum.";
 
@@ -216,7 +218,7 @@ public sealed partial class MatrixWorkspaceViewModel : ObservableObject, IDispos
     public MatrixWidgetSettings? HitWidget(int x, int y) => _draft.Widgets!.LastOrDefault(w =>
     {
         if(!w.Visible || x<w.X || x>=w.X+w.Width || y<w.Y || y>=w.Y+w.Height)return false;
-        if(w.Content!=MatrixContent.FlyingArt)return true;
+        if(w.Content!=MatrixContent.FlyingArt || w.AnimationStyle!=MatrixAnimationStyle.Rocket)return true;
         int origin=MatrixGraphicsRenderer.FlightOrigin(w,_previewStep);
         return x>=w.X+origin && x<w.X+origin+w.ArtWidth;
     });
@@ -230,7 +232,7 @@ public sealed partial class MatrixWorkspaceViewModel : ObservableObject, IDispos
     private void RefreshCommands()
     {
         foreach (var command in new[] { AddTextCommand, AddValueCommand, AddClockCommand, AddPixelArtCommand, AddEmojiCommand, DeleteCommand, DuplicateCommand, LayerUpCommand, LayerDownCommand, ClearPixelsCommand, ImportImageCommand }) command.RaiseCanExecuteChanged();
-        AddProgressBarCommand.RaiseCanExecuteChanged();AddBankArtCommand.RaiseCanExecuteChanged();AddRocketCommand.RaiseCanExecuteChanged();
+        AddProgressBarCommand.RaiseCanExecuteChanged();AddBankArtCommand.RaiseCanExecuteChanged();AddAnimationCommand.RaiseCanExecuteChanged();AddRocketCommand.RaiseCanExecuteChanged();
     }
     private void Changed()
     {
@@ -333,7 +335,7 @@ public sealed partial class MatrixWorkspaceViewModel : ObservableObject, IDispos
     }
     private MatrixSettings RenderOutput(MatrixSettings settings, DateTime utc, long step)
         => MatrixPixelRenderer.Render(settings, _ => null, utc, step, ReadWidget);
-    public byte[] PreviewPixels() => MatrixPixelRenderer.Compose(RenderOutput(_draft, DateTime.UtcNow, _draft.Widgets!.Any(w=>w.Visible && w.Content==MatrixContent.FlyingArt) ? _previewStep : 0));
+    public byte[] PreviewPixels() => MatrixPixelRenderer.Compose(RenderOutput(_draft, DateTime.UtcNow, _draft.Widgets!.Any(w=>w.Visible && (w.Content==MatrixContent.FlyingArt || w.Content==MatrixContent.Text && w.Scroll)) ? _previewStep : 0));
     public void PaintPixel(int x, int y, bool erase)
     {
         var r = SelectedContentRegion;

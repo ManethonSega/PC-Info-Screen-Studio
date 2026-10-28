@@ -27,16 +27,19 @@ public sealed class MatrixWidgetSettings : MatrixTileSettings
     public double ManualValue { get; set; } = 65;
     public string ArtKey { get; set; } = "";
     public int ArtWidth { get; set; } = 10;
+    public MatrixAnimationStyle AnimationStyle { get; set; }
     public MatrixFlightDirection FlightDirection { get; set; }
     public int FlightSpeed { get; set; } = 5;
     public bool AnimationPlaying { get; set; } = true;
     public bool Visible { get; set; } = true;
     public bool Locked { get; set; }
-    public string KindLabel => Content switch { MatrixContent.Sensor => "Value", MatrixContent.Clock => "Clock (UTC)", MatrixContent.PixelArt => "Pixel art", MatrixContent.ProgressBar => "Progress bar", MatrixContent.FlyingArt => "Rocket flight", _ => "Text / emoji" };
-    public string DisplayName => Content == MatrixContent.Sensor && !string.IsNullOrWhiteSpace(Prefix) ? Prefix.Trim() : Name;
+    public string KindLabel => Content switch { MatrixContent.Sensor => "Value", MatrixContent.Clock => "Clock (UTC)", MatrixContent.PixelArt => "Pixel art", MatrixContent.ProgressBar => "Progress bar", MatrixContent.FlyingArt => "Animation · " + MatrixAnimationPresets.Get(AnimationStyle).Label, _ => "Text / emoji" };
+    public string DisplayName => (Content is MatrixContent.Sensor or MatrixContent.ProgressBar) && !string.IsNullOrWhiteSpace(Prefix) ? Prefix.Trim() : Name;
     internal MatrixWidgetSettings CopyWidget(MatrixSettings legacy)
     {
-        var c = Copy(legacy); int height = Height is 4 or 5 or 10 ? Height : 5, width = Math.Clamp(Width, 1, 90);
+        var c = Copy(legacy); int height = Height is 4 or 5 or 6 or 10 ? Height : 5, width = Math.Clamp(Width, 1, 90);
+        if (Content == MatrixContent.ProgressBar) width = Nearest(width, 30, 45, 60);
+        if (Content == MatrixContent.FlyingArt || Content == MatrixContent.Text && Scroll) width = width <= 60 ? 60 : 90;
         double minimum = double.IsFinite(RangeMinimum) ? Math.Clamp(RangeMinimum,-1000000,999999) : 0;
         double maximum = double.IsFinite(RangeMaximum) ? Math.Clamp(RangeMaximum,-999999,1000000) : 100;
         if (maximum <= minimum) maximum = minimum + 1;
@@ -44,11 +47,12 @@ public sealed class MatrixWidgetSettings : MatrixTileSettings
         {
             Id = Id == Guid.Empty ? Guid.NewGuid() : Id, Name = Limit(Name, 60),
             X = Math.Clamp(X, 0, 90 - width), Y = Math.Clamp(Y, 0, 10 - height), Width = width, Height = height,
-            Visible = Visible, Locked = Locked, AutoWidth = AutoWidth, Prefix = Limit(Prefix, 200),
+            Visible = Visible, Locked = Locked, AutoWidth = Content == MatrixContent.Text && Scroll ? false : AutoWidth, Prefix = Limit(Prefix, 200),
             BarStyle = Enum.IsDefined(BarStyle) ? BarStyle : MatrixBarStyle.Segments, UseSensor = UseSensor,
             RangeMinimum = minimum, RangeMaximum = maximum,
             ManualValue = double.IsFinite(ManualValue) ? Math.Clamp(ManualValue,-1000000,1000000) : 0,
             ArtKey = Limit(ArtKey,60), ArtWidth = Math.Clamp(ArtWidth,1,90),
+            AnimationStyle = Enum.IsDefined(AnimationStyle) ? AnimationStyle : MatrixAnimationStyle.Rocket,
             FlightDirection = Enum.IsDefined(FlightDirection) ? FlightDirection : MatrixFlightDirection.RightToLeft,
             FlightSpeed = Math.Clamp(FlightSpeed,1,20), AnimationPlaying = AnimationPlaying,
             Content = Enum.IsDefined(Content) ? Content : c.Content, Text = Limit(Text, 200), Source = string.IsNullOrWhiteSpace(Source) ? c.Source : Limit(Source, 512),
@@ -58,7 +62,8 @@ public sealed class MatrixWidgetSettings : MatrixTileSettings
         };
     }
     public string FontKey => Height switch
-    { 4 => "Four" + (FourDotFont ?? MatrixFourDotFont.Mem), 5 => "Five" + (FiveDotFont ?? MatrixFiveDotFont.TomThumb), _ => "Ten" + (TenDotFont ?? MatrixTenDotFont.Pixel5x5Double) };
+    { 4 => "Four" + (FourDotFont ?? MatrixFourDotFont.Mem), 5 or 6 => "Five" + (FiveDotFont ?? MatrixFiveDotFont.TomThumb), _ => "Ten" + (TenDotFont ?? MatrixTenDotFont.Pixel5x5Double) };
+    private static int Nearest(int value, params int[] allowed) => allowed.MinBy(candidate => Math.Abs(candidate - value));
     public static string Limit(string? text, int maximum)
     {
         text ??= ""; var starts = StringInfo.ParseCombiningCharacters(text);

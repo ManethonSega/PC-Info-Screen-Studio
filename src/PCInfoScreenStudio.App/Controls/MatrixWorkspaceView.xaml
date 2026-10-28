@@ -15,7 +15,6 @@
       <Button x:Name="AddPixelArtButton" Content="Pixel art" Command="{Binding AddPixelArtCommand}" AutomationProperties.Name="Add Matrix pixel art widget"/>
       <Button x:Name="AddEmojiButton" Content="Emoji" Command="{Binding AddEmojiCommand}" AutomationProperties.Name="Add Matrix emoji widget"/>
       <Button x:Name="AddProgressBarButton" Content="Progress bar" Command="{Binding AddProgressBarCommand}" AutomationProperties.Name="Add Matrix progress bar"/>
-      <Button x:Name="AddRocketButton" Content="Rocket flight" Command="{Binding AddRocketCommand}" AutomationProperties.Name="Add flying rocket"/>
      </UniformGrid>
      <Expander x:Name="ArtBankExpander" Header="Pixel art bank" Margin="0,9,0,0">
       <ScrollViewer MaxHeight="130" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -24,6 +23,18 @@
         <ItemsControl.ItemTemplate><DataTemplate>
          <Button Command="{Binding DataContext.AddBankArtCommand,RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding Key}" ToolTip="{Binding Label}" AutomationProperties.Name="{Binding Label}" Padding="3,5">
           <StackPanel><Image Source="{Binding Image}" Height="24" MaxWidth="68" Stretch="Uniform" RenderOptions.BitmapScalingMode="NearestNeighbor"/><TextBlock Text="{Binding Label}" FontSize="10" TextAlignment="Center" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/></StackPanel>
+         </Button>
+        </DataTemplate></ItemsControl.ItemTemplate>
+       </ItemsControl>
+      </ScrollViewer>
+     </Expander>
+     <Expander x:Name="AnimationBankExpander" Header="Animations" Margin="0,9,0,0">
+      <ScrollViewer MaxHeight="130" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+       <ItemsControl x:Name="AnimationBankItems" ItemsSource="{Binding AnimationChoices}">
+        <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate><DataTemplate>
+         <Button Command="{Binding DataContext.AddAnimationCommand,RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding Value}" ToolTip="{Binding Label}" AutomationProperties.Name="{Binding Label}" Padding="3,5">
+          <StackPanel><Image Source="{Binding Image}" Height="24" MaxWidth="92" Stretch="Uniform" RenderOptions.BitmapScalingMode="NearestNeighbor"/><TextBlock Text="{Binding Label}" FontSize="10" TextAlignment="Center" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/></StackPanel>
          </Button>
         </DataTemplate></ItemsControl.ItemTemplate>
        </ItemsControl>
@@ -93,8 +104,8 @@
       <ComboBox x:Name="FourDotFontSelector" AutomationProperties.Name="Selected widget 4-dot font" ItemsSource="{Binding FourDotFonts}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding FourDotFont}" Margin="0,5,0,0"/>
      </StackPanel>
      <StackPanel Visibility="{Binding FiveDotFontVisibility}" Margin="0,0,0,14">
-      <TextBlock Text="5-dot font · this widget" Foreground="{StaticResource MutedTextBrush}"/>
-      <ComboBox x:Name="FiveDotFontSelector" AutomationProperties.Name="Selected widget 5-dot font" ItemsSource="{Binding FiveDotFonts}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding FiveDotFont}" Margin="0,5,0,0"/>
+      <TextBlock Text="5/6-dot font · this widget" Foreground="{StaticResource MutedTextBrush}"/>
+      <ComboBox x:Name="FiveDotFontSelector" AutomationProperties.Name="Selected widget 5 or 6-dot font" ItemsSource="{Binding FiveDotFonts}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding FiveDotFont}" Margin="0,5,0,0"/>
      </StackPanel>
      <StackPanel Visibility="{Binding TenDotFontVisibility}" Margin="0,0,0,14">
       <TextBlock Text="10-dot font · this widget" Foreground="{StaticResource MutedTextBrush}"/>
@@ -102,6 +113,10 @@
      </StackPanel>
      <TextBlock Text="{Binding FontNote}" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
      <StackPanel Visibility="{Binding BarVisibility}" Margin="0,0,0,12">
+      <TextBlock Text="Width" Foreground="{StaticResource MutedTextBrush}"/>
+      <ComboBox x:Name="BarWidthSelector" ItemsSource="{Binding BarWidths}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding BarWidth}" AutomationProperties.Name="Progress bar width" Margin="0,5,0,9"/>
+      <TextBlock Text="Text before bar" Foreground="{StaticResource MutedTextBrush}"/>
+      <TextBox x:Name="BarLabelBox" Text="{Binding Prefix,UpdateSourceTrigger=PropertyChanged}" MaxLength="50" AutomationProperties.Name="Progress bar label" ToolTip="For example CPU or GPU. The label is part of the selected 30, 45 or 60-dot width." Margin="0,5,0,9"/>
       <TextBlock Text="Bar style" Foreground="{StaticResource MutedTextBrush}"/>
       <ComboBox x:Name="BarStyleSelector" ItemsSource="{Binding BarStyles}" SelectedValuePath="Value" SelectedValue="{Binding BarStyle}" AutomationProperties.Name="Progress bar style" Margin="0,5,0,9">
        <ComboBox.ItemTemplate><DataTemplate><StackPanel Orientation="Horizontal"><Image Source="{Binding Image}" Width="70" Height="18" Stretch="Uniform" RenderOptions.BitmapScalingMode="NearestNeighbor" Margin="0,0,7,0"/><TextBlock Text="{Binding Label}" FontSize="10" VerticalAlignment="Center"/></StackPanel></DataTemplate></ComboBox.ItemTemplate>
@@ -114,12 +129,16 @@
       <StackPanel Visibility="{Binding ManualBarVisibility}"><TextBlock Text="Value"/><TextBox x:Name="ManualBarValueBox" Text="{Binding ManualValue,UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Manual bar value"/></StackPanel>
      </StackPanel>
      <StackPanel Visibility="{Binding FlightVisibility}" Margin="0,0,0,12">
-      <TextBlock Text="Flight direction" Foreground="{StaticResource MutedTextBrush}"/>
-      <ComboBox x:Name="FlightDirectionSelector" ItemsSource="{Binding FlightDirections}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding FlightDirection}" AutomationProperties.Name="Rocket direction" Margin="0,5,0,9"/>
+      <CheckBox Content="Play animation" IsChecked="{Binding AnimationPlaying}" ToolTip="Turn off to show the selected animation as a static frame."/>
+     </StackPanel>
+     <StackPanel Visibility="{Binding AnimationAreaVisibility}" Margin="0,0,0,12">
+      <TextBlock Text="Animation area" Foreground="{StaticResource MutedTextBrush}"/>
+      <ComboBox x:Name="AnimationAreaSelector" ItemsSource="{Binding AnimationAreas}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding AnimationAreaWidth}" AutomationProperties.Name="Animation area width" Margin="0,5,0,9"/>
+      <TextBlock Text="Direction" Foreground="{StaticResource MutedTextBrush}"/>
+      <ComboBox x:Name="FlightDirectionSelector" ItemsSource="{Binding FlightDirections}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding FlightDirection}" AutomationProperties.Name="Animation direction" Margin="0,5,0,9"/>
       <TextBlock Text="Speed (dots per second)" Foreground="{StaticResource MutedTextBrush}"/>
-      <TextBox Text="{Binding FlightSpeed,UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Rocket speed" Margin="0,5,0,9"/>
-      <CheckBox Content="Play animation" IsChecked="{Binding AnimationPlaying}" ToolTip="Turn off to show a static rocket at the starting edge of the flight area." Margin="0,0,0,9"/>
-      <TextBlock Text="Width sets the flight area. Use 60 or 30 dots to keep the rocket on one panel, or 90 for both. The rocket faces its flight direction." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap"/>
+      <TextBox Text="{Binding FlightSpeed,UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Animation speed" Margin="0,5,0,9"/>
+      <TextBlock Text="Use 60 dots for the side panel, or 90 dots for the side and front panels together." Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap"/>
      </StackPanel>
      <StackPanel Visibility="{Binding AlignmentVisibility}" Margin="0,0,0,14">
       <TextBlock Text="Text alignment · this widget" Foreground="{StaticResource MutedTextBrush}"/>
@@ -128,7 +147,7 @@
      <StackPanel Visibility="{Binding TextVisibility}">
       <TextBlock Text="Message / emoji (Windows + .)" Foreground="{StaticResource MutedTextBrush}"/>
       <TextBox x:Name="MessageBox" AutomationProperties.Name="Matrix message" Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" MaxLength="512" Margin="0,5,0,7"/>
-      <CheckBox Content="Scroll message" IsChecked="{Binding Scroll}" Margin="0,0,0,12"/>
+      <CheckBox Content="Animate message" IsChecked="{Binding Scroll}" ToolTip="Move the message continuously in the selected direction and animation area." Margin="0,0,0,12"/>
      </StackPanel>
      <StackPanel Visibility="{Binding SensorVisibility}">
       <TextBlock Text="Label before value" Visibility="{Binding ValueLabelVisibility}" Foreground="{StaticResource MutedTextBrush}"/>

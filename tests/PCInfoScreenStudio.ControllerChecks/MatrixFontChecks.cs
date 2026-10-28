@@ -56,6 +56,8 @@ internal static class MatrixFontChecks
         var wide = MatrixBitmapFonts.Render("H", 10, "TenPixel5x5Double");
         var narrow = MatrixBitmapFonts.Render("H", 10, "TenPixel5x10Condensed");
         Require(wide.Width == native.Width * 2 && narrow.Width == native.Width, "Condensed and doubled ten-dot variants retain their exact horizontal proportions.");
+        var fiveTom=MatrixBitmapFonts.Render("H",5,"FiveTomThumb");var six=MatrixBitmapFonts.Render("H",6,"FiveTomThumb");
+        Require(six.Width==fiveTom.Width && six.Ink.Take(six.Width).All(v=>!v) && six.Ink.Skip(six.Width).SequenceEqual(fiveTom.Ink),"Six-dot text keeps the selected five-dot glyph intact with one deliberate blank row above it.");
         for (int y = 0; y < 10; y++) for (int x = 0; x < wide.Width; x++)
         {
             Require(wide.Ink[y * wide.Width + x] == native.Ink[y / 2 * native.Width + x / 2], "Wide ten-dot glyphs double both axes exactly.");
@@ -66,7 +68,7 @@ internal static class MatrixFontChecks
         Require(roundTrip.LegacyFourDotFont == settings.LegacyFourDotFont && roundTrip.LegacyFiveDotFont == settings.LegacyFiveDotFont && roundTrip.LegacyTenDotFont == settings.LegacyTenDotFont, "All three font selections survive a restart snapshot.");
         var invalid = new MatrixSettings { LegacyFourDotFont = (MatrixFourDotFont)99, LegacyFiveDotFont = (MatrixFiveDotFont)99, LegacyTenDotFont = (MatrixTenDotFont)99 }.ValidatedCopy();
         Require(invalid.LegacyFourDotFont == MatrixFourDotFont.Mem && invalid.LegacyFiveDotFont == MatrixFiveDotFont.TomThumb && invalid.LegacyTenDotFont == MatrixTenDotFont.Pixel5x5Double, "Invalid font fields independently recover to included defaults.");
-        Console.WriteLine("PASS: 14 font choices, native bitmap bounds, exact 3-dot word spacing, condensed proportions, 4+4/5+5/4+5/5+4 text and artwork geometry, preservation and settings round trips.");
+        Console.WriteLine("PASS: 14 font choices, six-dot text adaptation, native bitmap bounds, exact 3-dot word spacing, condensed proportions, mixed-row geometry, preservation and settings round trips.");
     }
     private static void CheckTileAlignment()
     {
@@ -196,7 +198,7 @@ internal static class MatrixFontChecks
             }
             Require(targetChanged, "Editing a tile font changes the target's rendered pixels.");
         }
-        Console.WriteLine("PASS: per-tile 4-/5-/10-dot fonts, independent rendered pixels and restart persistence.");
+        Console.WriteLine("PASS: per-widget 4-/5-/6-/10-dot font application, independent rendered pixels and restart persistence.");
     }
     private static void CheckTile(MatrixSettings settings, int index, int height, string key)
     {

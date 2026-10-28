@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.0-alpha.36 (draft)
+
+- Added a 6-dot height to every Matrix widget while preserving each widget's independent font, alignment and colour.
+- Limited Matrix progress bars to 30-, 45- and 60-dot widths and added optional text or emoji before the bar.
+- Moved rocket flight into an Animations bank, added a flickering fire trail and independently reproduced ten other moving NexLinq categories: crab, cat, starfield, rainbow, breathing, wave, two tone, fade, gradient and meteor.
+- Added left-to-right and right-to-left text animation, with a saved 60- or 90-dot movement area shared by moving layers.
+
 ## 0.10.0-alpha.35 (draft)
 
 - Added twelve Matrix progress-bar presets based on the supplied reference, with native 4-/5-/10-dot patterns, editable colours, sensor/manual values and ranges.
