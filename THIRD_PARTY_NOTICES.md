@@ -331,3 +331,31 @@ Transitive mathematics dependency from https://github.com/amerkoleci/Vortice.Mat
 ## SharpGen.Runtime and SharpGen.Runtime.COM
 
 Transitive runtime dependency of Vortice. Source: https://github.com/SharpGenTools/SharpGenTools. MIT License, copyright (c) 2010-2017 Alexandre Mutel, 2017 Jeremy Koritzinsky. The full licence is included at `ThirdPartyLicenses/SharpGenTools-LICENSE.txt` in the portable package.
+
+## HidSharp 2.6.4
+
+HidSharp by James F. Bellinger is used for Matrix USB HID access. It was already a transitive dependency of LibreHardwareMonitor and is referenced explicitly for the Matrix transport.
+
+Source: https://github.com/IntergatedCircuits/HidSharp
+License: Apache-2.0. See `ThirdPartyLicenses/HidSharp-LICENSE.txt` in the application package.
+
+## Matrix bitmap fonts
+
+Tom Thumb: Brian Swetland and Robey Pointer, BSD notice included. Source: Adafruit GFX Fonts/TomThumb.h. PixelFont 5×5 Thin: mcer12/PixelFonts, MIT notice included. Glyph masks retain native pixels; lowercase descenders are fitted in the five-row band. A degree-sign glyph is supplied by this project.
+
+## Matrix bitmap fonts (alpha.31)
+
+The bundled collection adds mem (oidoid, AGPL-3.0), Able 4 and Able 5
+(Joseph Fatula / stormgold, software embedding with credit), Petty 5H and
+Petty 5×5 (TakWolf, OFL-1.1), and the public-domain Micro bitmap from u8g2.
+Their licenses/notices accompany the application under ThirdPartyLicenses.
+Editable binary glyph data is included in Assets/MatrixFonts.json; mem-derived
+glyphs retain AGPL-3.0 terms. The application's original code remains GPL-3.0-or-later.
+
+Limitdot H4 (Masubiwa) and piconano (picocherry) bitmap glyphs are included
+for development at the project owner’s explicit request. Redistribution
+permission remains unverified; this must be resolved before public release.
+Original TTF files are not bundled. See Matrix-font-release-review-NOTICE.txt.
+
+See docs/research/MATRIX_FONTS.md for original source links, credits and pixel
+adaptations, including the five-row mem Q and vertically doubled ten-dot forms.

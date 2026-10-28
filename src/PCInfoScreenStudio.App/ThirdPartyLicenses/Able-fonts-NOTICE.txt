@@ -1,0 +1,12 @@
+Able 4 and Able 5
+Copyright Joseph Fatula, published as stormgold.
+https://stormgold.itch.io/able-4-font
+https://stormgold.itch.io/able-font
+
+The designer permits commercial and non-commercial works, including software
+embedding with designer credit. Standalone or font-bundle redistribution is
+not permitted. These editable glyph maps are embedded in PC Info Screen Studio
+for its Matrix renderer. The fonts are not relicensed under the app's license.
+
+Source-native pixel shapes are retained. Descenders are positioned inside the
+selected row band and a missing sensor degree glyph is supplied by the app.

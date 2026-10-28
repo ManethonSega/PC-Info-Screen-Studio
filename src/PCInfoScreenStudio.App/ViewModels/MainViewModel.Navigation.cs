@@ -14,7 +14,7 @@ public sealed partial class MainViewModel
     private bool _isDisposed;
     private Task<IReadOnlyDictionary<string, MetricValue>>? _hardwareInventoryTask;
     public HardwareDashboardViewModel HardwareDashboard { get; } = new();
-    public bool IsEditorPage => !_isHardwarePage;
+    public bool IsEditorPage => !_isHardwarePage && !IsMatrixWorkspace;
     public bool IsHardwarePage => _isHardwarePage;
     public bool IsCanvasActive => IsEditorActive && IsEditorPage;
     private bool IsHardwarePageVisible => IsEditorActive && IsHardwarePage;
@@ -32,6 +32,7 @@ public sealed partial class MainViewModel
         RaisePropertyChanged(nameof(IsCanvasActive));
         RaisePropertyChanged(nameof(EditorPageVisibility));
         RaisePropertyChanged(nameof(HardwarePageVisibility));
+        RaisePropertyChanged(nameof(MatrixPageVisibility));
         RaiseHistoryCommandStates();
         RaiseCommandStates();
         NewCommand.RaiseCanExecuteChanged(); OpenCommand.RaiseCanExecuteChanged();

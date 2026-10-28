@@ -21,6 +21,8 @@ internal static class Program
         Directory.CreateDirectory(root);
         try
         {
+            RunCheck("Matrix900ProtocolChecks", () => Await(Matrix900ProtocolChecks.RunAsync()));
+            RunCheck("MatrixWorkspaceChecks", () => MatrixWorkspaceChecks.Check(root, PumpUntil, args.Length == 2 && args[0] == "--capture-ui" ? args[1] : null));
             RunCheck("StabilityRecoveryChecks", () => StabilityRecoveryChecks.Check(root, Await));
             RunCheck("StabilityOperationChecks", () => StabilityOperationChecks.Check(root, Await, PumpUntil, args.Length == 2 && args[0] == "--capture-ui" ? args[1] : null));
             RunCheck("StabilityMediaChecks", () => StabilityMediaChecks.Check(root));

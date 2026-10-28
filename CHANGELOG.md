@@ -1,5 +1,73 @@
 # Changelog
 
+## 0.10.0-alpha.37 (draft)
+
+- Replaced the procedural cat and starfield artwork with supplied native pixel sprites, including five cat colours, three star fields and white/yellow/off shooting-star choices.
+- Added the supplied UFO as a moving animation and added one-, two- or three-object counts to rocket, crab, cat, UFO and meteor layers.
+- Mirror the complete cat sprite when direction changes and animate its leg pixels without replacing the supplied body art.
+- Added five supplied cat faces to the editable pixel-art bank, with 4-, 5-, 6- and 10-dot variants.
+
+## 0.10.0-alpha.36 (draft)
+
+- Added a 6-dot height to every Matrix widget while preserving each widget's independent font, alignment and colour.
+- Limited Matrix progress bars to 30-, 45- and 60-dot widths and added optional text or emoji before the bar.
+- Moved rocket flight into an Animations bank, added a flickering fire trail and independently reproduced ten other moving NexLinq categories: crab, cat, starfield, rainbow, breathing, wave, two tone, fade, gradient and meteor.
+- Added left-to-right and right-to-left text animation, with a saved 60- or 90-dot movement area shared by moving layers.
+
+## 0.10.0-alpha.35 (draft)
+
+- Added twelve Matrix progress-bar presets based on the supplied reference, with native 4-/5-/10-dot patterns, editable colours, sensor/manual values and ranges.
+- Added a 21-entry pixel-art bank adapted from the supplied EPS sheets, with native size variants and independent editable layer copies.
+- Added rocket flight with left/right direction, speed, pause and an adjustable flight area, using the existing acknowledged pixel transport.
+- Added a preview-only divider between the 60-dot side panel and 30-dot front panel.
+
+## 0.10.0-alpha.34 (draft)
+
+- Fit Matrix text, clock, value and emoji widths to their actual rendered pixels, including font/height changes and live readings. Keep manual widths for custom alignment, scrolling and pixel art.
+- Show the widget type as a read-only Properties heading, removing the editable Name field.
+- Add per-value labels, including emoji, before the reading.
+- Reuse Info Screen's full live source catalog, search, clear, selection-safe picker and advanced-sensor preference in Matrix mode.
+- Preserve real source units, decimal/text readings, extended source selections and source-unit alarm thresholds through Apply and restart.
+
+## 0.10.0-alpha.33 (draft)
+
+- Added a Matrix widget canvas with Text, Value, Clock, Pixel art and Emoji buttons, plus an ordered Layers list.
+- Added free dragging with one-LED snapping, keyboard nudging, independent 4-/5-/10-dot sizes, position/width controls, visibility, locking, duplication and deletion.
+- Added coloured emoji and joined-grapheme rendering alongside the approved bitmap fonts.
+- Migrated prior tile layouts to pixel-identical layers while preserving their source data, fonts and alignment.
+
+## 0.10.0-alpha.32 (draft)
+
+- Fixed Matrix font selection changing all tiles. Each tile now saves its own four-, five- and ten-dot font choices.
+- Added independent Left, Centre and Right text/sensor/clock alignment for every Matrix tile.
+- Preserved older shared font preferences during migration and retained independent choices across layout changes and restart.
+- Added regression checks for isolated tile pixels, actual WPF font selection and tile-specific preview-to-USB identity.
+
+## 0.10.0-alpha.31 (draft)
+
+- Added the selected 4-/5-/10-dot Matrix font collection, with saved choices per height.
+- Added 4+5 and 5+4 two-row layouts alongside 4+4 and 5+5, with exact blank-row spacing and preserved artwork.
+- Included all fourteen bitmap choices for development, with source credits and recorded release-review items for Limitdot H4 and piconano.
+- Kept preview, sensor/clock text and uploaded RGB output on the same bitmap renderer.
+
+## 0.10.0-alpha.30 (draft)
+
+- Add a saved five-dot Matrix font choice: Tom Thumb or PixelFont 5×5 Thin. Four- and ten-dot defaults remain pending review.
+
+## 0.10.0-alpha.29 (draft)
+
+- Select Matrix columns and tiles directly in the preview, with visible boundaries and keyboard tile navigation.
+- Use all 10 rows for single-row text and cap word gaps at three LEDs. Two-row content defaults to 4 + 4 dots with two blank rows between; 5 + 5 is available without a gap.
+- Render text, sensors and UTC clock into the same RGB pixels for preview and acknowledged hardware uploads. Only changed tiles are resent; scrolling is bounded without queuing frames. Artwork outside the selected four-row area is preserved.
+
+## 0.10.0-alpha.28 (draft)
+
+- Added a dedicated experimental Phanteks Matrix 900 workspace selected through the top-bar Screen menu, with separate saved settings and LCD session preservation.
+- Added verified native one-panel, three-column and six-tile layouts with text, sensors, UTC clock and static pixel-art controls, image import and keyboard painting.
+- Added HID firmware probing, serialized packet transfers, acknowledgement-gated RGB paging and unavailable-sensor blanking.
+- Recorded NexLinq software analysis and outstanding physical qualification. Vendor binaries, firmware and assets are not redistributed.
+
+
 ## 0.10.0-alpha.27 (draft)
 
 - Drag panel headers or rail entries to reorder, move between sides, or float, with visible docking targets and Escape cancellation.

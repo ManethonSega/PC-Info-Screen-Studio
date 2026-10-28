@@ -1,0 +1,15 @@
+DEVELOPMENT BUILD: font release review outstanding
+
+Limitdot H4, copyright Masubiwa 2022
+https://masubiwa.itch.io/limitdot-h4
+Observed original TTF license field: All Rights Reserved.
+
+piconano, copyright picocherry 2026
+https://github.com/picocherry/picotype
+No redistribution license verified in the inspected source and font metadata.
+
+The project owner requested including both bitmap glyph subsets during
+application development. That request does not supply a redistribution grant.
+Resolve permission or substitute/remove these assets before public release.
+The original TTF files are not included. The piconano subset is doubled only
+vertically for the ten-dot display. App-generated sensor degree glyphs are added.

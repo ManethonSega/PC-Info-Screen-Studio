@@ -1,0 +1,6 @@
+Micro bitmap font, distributed in olikraus/u8g2 as tools/font/bdf/micro.bdf.
+https://github.com/olikraus/u8g2/blob/master/tools/font/bdf/micro.bdf
+
+The source declares: Public domain font. Share and enjoy.
+PC Info Screen Studio doubles the five source rows vertically, retaining the
+native horizontal pixel width, to provide Micro 3x10.

@@ -1,6 +1,6 @@
 # Roadmap
 
-Current source version: **0.10.0-alpha.27** (draft candidate).
+Current source version: **0.10.0-alpha.37** (draft candidate).
 
 The next milestone is product polish, not another broad feature category. Priorities remain **easy to use, lightweight, intuitive, and visually clear**. Checked items below describe implemented functionality, not a claim that every device or workload has been validated.
 
@@ -20,6 +20,10 @@ The next milestone is product polish, not another broad feature category. Priori
 - [x] Labelled collapsible panel strips with independent open sections, resizable stacks, keyboard reordering and saved workspace layout/reset.
 - [x] Automatic preview fitting across window/panel changes, with separate manual zoom and 100% view.
 - [x] Free panel dragging with docking previews, cross-docking, keyboard menu alternatives and owned floating windows with saved bounds and off-screen recovery. Interactive mixed-DPI qualification remains open.
+
+- [x] Experimental Phanteks Matrix 900 workspace, direct tile selection, exact-height pixel typography and configurable row spacing; physical-device qualification remains open.
+- [x] Matrix widget buttons and layers, LED-snapped dragging, content-fitted widths, read-only widget headings, value labels and the shared full sensor picker.
+- [x] Four widget heights, twelve progress-bar styles at 30/45/60 dots, a 26-entry pixel-art bank, a twelve-entry animation bank with selectable supplied sprites and object counts, moving text and the 60/30 panel guide.
 
 ### Info Screen editor
 

@@ -187,6 +187,12 @@ public sealed class SettingsController : ObservableObject
         set => Update(_values.IsCanvasFit, value, v => _values.IsCanvasFit = v);
     }
 
+    public MatrixSettings Matrix
+    {
+        get => _values.Matrix.ValidatedCopy();
+        set => Update(_values.Matrix, value.ValidatedCopy(), v => _values.Matrix = v);
+    }
+
     public EditorWorkspaceLayout WorkspaceLayout
     {
         get => _values.WorkspaceLayout.ValidatedCopy();

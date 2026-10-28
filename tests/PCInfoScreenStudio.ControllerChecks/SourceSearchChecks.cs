@@ -1,7 +1,6 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
 using System.Windows.Threading;
 using PCInfoScreenStudio.Controllers;
 using PCInfoScreenStudio.Controls;
@@ -25,7 +24,7 @@ internal static class SourceSearchChecks
             pump(() => window.IsEnabled);
             vm.SetEditorActive(false);
             var screenSelector = (ComboBox)window.FindName("ScreenSelector");
-            screenSelector.SetCurrentValue(ComboBox.SelectedValueProperty, DisplayCanvasSize.Turing52);
+            screenSelector.SetCurrentValue(ComboBox.SelectedValueProperty, DisplayTarget.Turing52);
             screenSelector.GetBindingExpression(ComboBox.SelectedValueProperty)!.UpdateSource();
             pump(() => !vm.IsDeviceBusy);
             Assert(vm.Document.CanvasWidth == 1280 && vm.Document.CanvasHeight == 720,
@@ -38,7 +37,7 @@ internal static class SourceSearchChecks
             var count = vm.Document.Widgets.Count;
             Flush();
             var search = (TextBox)window.FindName("SourceSearchBox");
-            var picker = Find<SourcePicker>(window)!;
+            var picker = (SourcePicker)window.FindName("SourceSearchResults");
             Assert(picker.SelectedSource == "CPU.Usage", "Source must bind to the selected widget.");
             search.SetCurrentValue(TextBox.TextProperty, "gpu");
             search.GetBindingExpression(TextBox.TextProperty)!.UpdateSource();
@@ -82,12 +81,12 @@ internal static class SourceSearchChecks
             Assert(!picker.Items.Contains(raw) && widget.DataSource == "GPU.Power", "Hiding raw sensors must refresh the filtered dropdown safely.");
             vm.SelectedWidget = original;
             Flush();
-            Assert(original.DataSource == originalSource && Find<SourcePicker>(window)!.Text == originalSource,
+            Assert(original.DataSource == originalSource && ((SourcePicker)window.FindName("SourceSearchResults")).Text == originalSource,
                 "Changing widgets while a search is active must show the new widget's actual source.");
             vm.Document.Mode = ScreenMode.Hybrid;
             vm.AddWidgetCommand.Execute("Value");
             Flush();
-            picker = Find<SourcePicker>(window)!;
+            picker = (SourcePicker)window.FindName("SourceSearchResults");
             picker.SelectedItem = "GPU.VRAM";
             Flush();
             Assert(vm.Document.HybridWidgets.Count == 1 && vm.SelectedWidget!.DataSource == "GPU.VRAM" && vm.Document.Widgets.Count == count,
@@ -102,12 +101,5 @@ internal static class SourceSearchChecks
     }
 
     private static void Flush() => Dispatcher.CurrentDispatcher.Invoke(new Action(() => { }), DispatcherPriority.ContextIdle);
-    private static T? Find<T>(DependencyObject element) where T : DependencyObject
-    {
-        if (element is T match) return match;
-        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(element); i++)
-            if (Find<T>(VisualTreeHelper.GetChild(element, i)) is { } found) return found;
-        return null;
-    }
     private static void Assert(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
 }
