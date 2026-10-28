@@ -114,7 +114,7 @@ internal static class MatrixWorkspaceChecks
             Set(animationArea,90);var direction=(ComboBox)matrix.FindName("FlightDirectionSelector");Set(direction,MatrixFlightDirection.LeftToRight);
             Require(model.Scroll && model.Width==90 && !model.AutoWidth && model.AnimationAreaVisibility==Visibility.Visible,"Text animation uses the selected direction and full Matrix area.");
             var movingTextFrame=model.PreviewPixels();Set(direction,MatrixFlightDirection.RightToLeft);Require(!movingTextFrame.SequenceEqual(model.PreviewPixels()),"Changing animated text direction changes its current LED frame.");
-            Capture(window,captures,"Matrix900-animated-text.png");model.Scroll=false;
+            Capture(window,captures,"Matrix900-animated-text.png");model.Scroll=false;model.X=2;model.Y=2;
             window.Width = 1080; window.Height = 680; Flush(window);
             var bounds = surface.TransformToAncestor(window).TransformBounds(new Rect(surface.RenderSize));
             Require(bounds.Right <= window.ActualWidth && bounds.Bottom <= window.ActualHeight, "The complete LED canvas fits a compact window with both side panels open.");
